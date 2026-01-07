@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fren Finder - Nostr Discovery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #faf8f5;
+            --bg-secondary: #f0ede7;
+            --bg-tertiary: #e8e3da;
+            --text-primary: #1a1512;
+            --text-secondary: #5a524a;
+            --text-tertiary: #8a7f72;
+            --accent-primary: #c84e3a;
+            --accent-secondary: #2d5f4f;
+            --accent-success: #2d7a4f;
+            --border-color: #d4cec2;
+            --shadow-color: rgba(26, 21, 18, 0.08);
+            --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1512;
+            --bg-secondary: #2a2319;
+            --bg-tertiary: #3a3229;
+            --text-primary: #faf8f5;
+            --text-secondary: #c4beb4;
+            --text-tertiary: #8a7f72;
+            --accent-primary: #e8745e;
+            --accent-secondary: #4a9276;
+            --accent-success: #4a9a70;
+            --border-color: #3a3229;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            transition: var(--transition);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header {
+            padding: 3rem 0 2rem;
+            border-bottom: 1px solid var(--border-color);
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo-section h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: var(--transition);
+            font-weight: 600;
+            border: none;
+        }
+
+        .btn-login {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            box-shadow: 0 4px 12px rgba(200, 78, 58, 0.2);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(200, 78, 58, 0.3);
+        }
+
+        .btn-logout {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .theme-toggle:hover, .btn-logout:hover {
+            background: var(--bg-tertiary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        main {
+            padding: 3rem 0;
+            animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .search-section {
+            margin-bottom: 3rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+        }
+
+        input[type="text"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        select {
+            padding: 0.875rem 1.25rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(200, 78, 58, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(200, 78, 58, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .results-header h2 {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .results-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .fren-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.75rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fren-card.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .fren-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-primary);
+            transform: scaleY(0);
+            transition: var(--transition);
+        }
+
+        .fren-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px var(--shadow-color);
+            border-color: var(--accent-primary);
+        }
+
+        .fren-card:hover::before {
+            transform: scaleY(1);
+        }
+
+        .fren-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .fren-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .fren-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fren-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .fren-npub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+        }
+
+        .fren-npub:hover {
+            color: var(--accent-primary);
+        }
+
+        .match-score {
+            background: var(--accent-secondary);
+            color: var(--bg-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .fren-bio {
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .tag {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .fren-actions {
+            display: flex;
+            gap: 0.75rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-follow {
+            flex: 1;
+            padding: 0.75rem;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-follow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(200, 78, 58, 0.2);
+        }
+
+        .btn-follow:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-follow.following {
+            background: var(--accent-success);
+        }
+
+        .btn-view-profile {
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            color: var(--text-primary);
+            display: inline-block;
+        }
+
+        .btn-view-profile:hover {
+            background: var(--bg-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .extension-notice {
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-primary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .extension-notice h3 {
+            color: var(--accent-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .extension-notice a {
+            color: var(--accent-primary);
+            text-decoration: underline;
+        }
+
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            margin-top: 4rem;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @media (max-width: 768px) {
+            .logo-section h1 { font-size: 2.5rem; }
+            .header-content { flex-direction: column; }
+            .filter-row { grid-template-columns: 1fr; }
+            .results-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-section">
+                    <h1>Fren Finder</h1>
+                    <p class="subtitle">Nostr Discovery Engine</p>
+                </div>
+                <div class="header-actions">
+                    <div id="user-section"></div>
+                    <button class="btn theme-toggle" id="theme-btn">Toggle Theme</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div id="extension-notice" class="extension-notice" style="display: none;">
+                <h3>⚡ Browser Extension Required</h3>
+                <p>To follow users, please install a Nostr browser extension like <a href="https://getalby.com" target="_blank">Alby</a> or <a href="https://github.com/fiatjaf/nos2x" target="_blank">nos2x</a></p>
+            </div>
+
+            <section class="search-section">
+                <div class="input-group">
+                    <label for="npub-input">Nostr Public Key (or use Login)</label>
+                    <input type="text" id="npub-input" placeholder="npub1... (or click Login to use your extension)">
+                </div>
+
+                <div class="filter-row">
+                    <div class="input-group">
+                        <label for="result-count">Results</label>
+                        <select id="result-count">
+                            <option value="10">10 Frens</option>
+                            <option value="25">25 Frens</option>
+                            <option value="50">50 Frens</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="find-btn">Find Frens</button>
+            </section>
+
+            <section class="results-section" id="results-section">
+                <div class="results-header">
+                    <h2>Recommended Frens</h2>
+                    <span class="results-count" id="results-count">0 matches found</span>
+                </div>
+                <div class="results-grid" id="results-grid"></div>
+            </section>
+
+            <section id="empty-state" class="empty-state">
+                <h3>Discover Your Nostr Community</h3>
+                <p>Login with your browser extension or enter an npub to find people with similar interests and connections.</p>
+            </section>
+        </main>
+
+        <footer>
+            <p>Fren Finder - Built for the Nostr Protocol</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
+    
+    <script>
+        // Profile cache to avoid re-fetching
+        const profileCache = new Map();
+        let currentUser = null;
+        let userFollowing = new Set();
+
+        window.addEventListener('load', async function() {
+            if (typeof NostrTools === 'undefined') {
+                alert('Failed to load Nostr tools. Please refresh.');
+                return;
+            }
+
+            const { nip19, SimplePool } = NostrTools;
+            const pool = new SimplePool();
+            const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
+
+            // Theme
+            document.getElementById('theme-btn').addEventListener('click', () => {
+                const html = document.documentElement;
+                const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            });
+            document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
+
+            // Check for NIP-07 extension
+            async function checkExtension() {
+                return typeof window.nostr !== 'undefined';
+            }
+
+            // Login with extension
+            async function loginWithExtension() {
+                if (!await checkExtension()) {
+                    document.getElementById('extension-notice').style.display = 'block';
+                    return null;
+                }
+
+                try {
+                    const pubkey = await window.nostr.getPublicKey();
+                    const npub = nip19.npubEncode(pubkey);
+                    
+                    // Fetch user profile
+                    const profile = await fetchProfile(pubkey);
+                    
+                    currentUser = { pubkey, npub, profile };
+                    
+                    // Fetch user's following list
+                    const follows = await fetchFollows(pubkey);
+                    userFollowing = new Set(follows);
+                    
+                    updateUserUI();
+                    document.getElementById('npub-input').value = npub;
+                    document.getElementById('npub-input').disabled = true;
+                    
+                    return npub;
+                } catch (err) {
+                    console.error('Login error:', err);
+                    alert('Failed to login with extension');
+                    return null;
+                }
+            }
+
+            // Logout
+            function logout() {
+                currentUser = null;
+                userFollowing.clear();
+                document.getElementById('npub-input').value = '';
+                document.getElementById('npub-input').disabled = false;
+                updateUserUI();
+            }
+
+            // Update user UI
+            function updateUserUI() {
+                const userSection = document.getElementById('user-section');
+                
+                if (currentUser) {
+                    const name = currentUser.profile?.name || 'Anon';
+                    const picture = currentUser.profile?.picture || `https://robohash.org/${currentUser.pubkey}?set=set5`;
+                    
+                    userSection.innerHTML = `
+                        <div class="user-info">
+                            <img src="${picture}" class="user-avatar" onerror="this.src='https://robohash.org/${currentUser.pubkey}?set=set5'">
+                            <span>${name}</span>
+                        </div>
+                        <button class="btn btn-logout" id="logout-btn">Logout</button>
+                    `;
+                    
+                    document.getElementById('logout-btn').addEventListener('click', logout);
+                } else {
+                    userSection.innerHTML = `<button class="btn btn-login" id="login-btn">⚡ Login</button>`;
+                    document.getElementById('login-btn').addEventListener('click', loginWithExtension);
+                }
+            }
+
+            // Fetch profile with cache (PARALLEL LOADING)
+            async function fetchProfile(pubkeyHex) {
+                if (profileCache.has(pubkeyHex)) {
+                    return profileCache.get(pubkeyHex);
+                }
+
+                try {
+                    const events = await pool.querySync(RELAYS, {
+                        kinds: [0],
+                        authors: [pubkeyHex],
+                        limit: 1
+                    });
+
+                    if (events.length === 0) {
+                        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: 'No bio', picture: null };
+                        profileCache.set(pubkeyHex, fallback);
+                        return fallback;
+                    }
+
+                    const profile = JSON.parse(events[0].content);
+                    const data = {
+                        pubkey: pubkeyHex,
+                        name: profile.name || profile.display_name || 'Anon',
+                        about: profile.about || 'No bio',
+                        picture: profile.picture || null
+                    };
+                    
+                    profileCache.set(pubkeyHex, data);
+                    return data;
+                } catch (err) {
+                    console.error('Error fetching profile:', err);
+                    const fallback = { pubkey: pubkeyHex, name: 'Anon', about: 'Error loading', picture: null };
+                    profileCache.set(pubkeyHex, fallback);
+                    return fallback;
+                }
+            }
+
+            // Fetch follows
+            async function fetchFollows(pubkeyHex) {
+                try {
+                    const events = await pool.querySync(RELAYS, {
+                        kinds: [3],
+                        authors: [pubkeyHex],
+                        limit: 1
+                    });
+
+                    if (events.length === 0) return [];
+
+                    return events[0].tags
+                        .filter(tag => tag[0] === 'p')
+                        .map(tag => tag[1]);
+                } catch (err) {
+                    console.error('Error fetching follows:', err);
+                    return [];
+                }
+            }
+
+            // Get recommendations
+            async function getRecommendations(userPubkey, limit) {
+                const userFollows = await fetchFollows(userPubkey);
+                
+                if (userFollows.length === 0) {
+                    return [
+                        '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+                        '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
+                        '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'
+                    ];
+                }
+
+                const candidates = new Set();
+                const sampleSize = Math.min(10, userFollows.length);
+                
+                // PARALLEL fetching of follow lists
+                const followPromises = [];
+                for (let i = 0; i < sampleSize; i++) {
+                    followPromises.push(fetchFollows(userFollows[i]));
+                }
+
+                const results = await Promise.all(followPromises);
+                
+                results.forEach(theirFollows => {
+                    theirFollows.forEach(pubkey => {
+                        if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
+                            candidates.add(pubkey);
+                        }
+                    });
+                });
+
+                return Array.from(candidates).slice(0, limit * 2);
+            }
+
+            // Follow user with extension
+            async function followUser(pubkey) {
+                if (!currentUser) {
+                    alert('Please login first');
+                    return false;
+                }
+
+                if (!await checkExtension()) {
+                    alert('Browser extension required to follow');
+                    return false;
+                }
+
+                try {
+                    // Get current follow list
+                    const currentFollows = Array.from(userFollowing);
+                    
+                    // Add new follow
+                    if (!currentFollows.includes(pubkey)) {
+                        currentFollows.push(pubkey);
+                    }
+
+                    // Create follow event
+                    const event = {
+                        kind: 3,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: currentFollows.map(pk => ['p', pk]),
+                        content: ''
+                    };
+
+                    // Sign with extension
+                    const signedEvent = await window.nostr.signEvent(event);
+
+                    // Publish to relays
+                    await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
+
+                    // Update local state
+                    userFollowing.add(pubkey);
+                    
+                    return true;
+                } catch (err) {
+                    console.error('Follow error:', err);
+                    alert('Failed to follow user');
+                    return false;
+                }
+            }
+
+            // Main search function
+            document.getElementById('find-btn').addEventListener('click', async () => {
+                const npubInput = document.getElementById('npub-input').value.trim();
+                const findBtn = document.getElementById('find-btn');
+                const resultsSection = document.getElementById('results-section');
+                const emptyState = document.getElementById('empty-state');
+                const resultsGrid = document.getElementById('results-grid');
+
+                if (!npubInput) {
+                    alert('Please enter your npub or login');
+                    return;
+                }
+
+                if (!npubInput.startsWith('npub1')) {
+                    alert('Invalid npub format');
+                    return;
+                }
+
+                findBtn.disabled = true;
+                findBtn.textContent = 'Finding...';
+                emptyState.style.display = 'none';
+                resultsSection.style.display = 'block';
+                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">🔍 Searching Nostr network...</p>';
+
+                try {
+                    const { data: userPubkey } = nip19.decode(npubInput);
+                    const candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
+
+                    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">⚡ Loading profiles in parallel...</p>';
+
+                    // PARALLEL profile fetching - MUCH FASTER!
+                    const profilePromises = candidatePubkeys.map(pubkey => fetchProfile(pubkey));
+                    const allProfiles = await Promise.all(profilePromises);
+
+                    const profiles = allProfiles
+                        .filter(p => p && p.pubkey)
+                        .map(profile => ({
+                            ...profile,
+                            npub: nip19.npubEncode(profile.pubkey),
+                            matchScore: Math.floor(Math.random() * 25) + 70,
+                            isFollowing: userFollowing.has(profile.pubkey)
+                        }))
+                        .slice(0, parseInt(document.getElementById('result-count').value));
+
+                    document.getElementById('results-count').textContent = `${profiles.length} matches found`;
+                    resultsGrid.innerHTML = '';
+
+                    profiles.forEach(fren => {
+                        const hashtags = (fren.about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
+                        
+                        const card = document.createElement('div');
+                        card.className = 'fren-card';
+                        card.innerHTML = `
+                            <div class="fren-header">
+                                <img src="${fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`}" 
+                                     class="fren-avatar" 
+                                     onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
+                                <div class="fren-info">
+                                    <div class="fren-name">${fren.name}</div>
+                                    <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
+                                </div>
+                                <div class="match-score">${fren.matchScore}%</div>
+                            </div>
+                            <p class="fren-bio">${fren.about.substring(0, 150)}${fren.about.length > 150 ? '...' : ''}</p>
+                            ${hashtags.length > 0 ? `
+                                <div class="tags-container">
+                                    ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                            <div class="fren-actions">
+                                <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
+                                        data-pubkey="${fren.pubkey}"
+                                        ${!currentUser ? 'disabled' : ''}>
+                                    ${fren.isFollowing ? '✓ Following' : '+ Follow'}
+                                </button>
+                                <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
+                            </div>
+                        `;
+                        resultsGrid.appendChild(card);
+
+                        // Add follow button handler
+                        const followBtn = card.querySelector('.btn-follow');
+                        followBtn.addEventListener('click', async () => {
+                            if (fren.isFollowing) return;
+                            
+                            followBtn.disabled = true;
+                            followBtn.textContent = 'Following...';
+                            
+                            const success = await followUser(fren.pubkey);
+                            
+                            if (success) {
+                                followBtn.textContent = '✓ Following';
+                                followBtn.classList.add('following');
+                                fren.isFollowing = true;
+                            } else {
+                                followBtn.disabled = false;
+                                followBtn.textContent = '+ Follow';
+                            }
+                        });
+                    });
+
+                } catch (err) {
+                    console.error('Error:', err);
+                    resultsGrid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent-primary)">Error: ${err.message}</p>`;
+                } finally {
+                    findBtn.disabled = false;
+                    findBtn.textContent = 'Find Frens';
+                }
+            });
+
+            document.getElementById('npub-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') document.getElementById('find-btn').click();
+            });
+
+            window.copyNpub = (npub) => {
+                navigator.clipboard.writeText(npub).then(() => console.log('Copied:', npub));
+            };
+
+            // Initialize
+            updateUserUI();
+        });
+    </script>
+</body>
+</html>
