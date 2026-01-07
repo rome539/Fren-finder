@@ -1451,12 +1451,23 @@
     import { SimplePool, nip19, generateSecretKey, getPublicKey, finalizeEvent } from 'https://esm.sh/nostr-tools@2.7.2';
     import * as nip04 from 'https://esm.sh/nostr-tools@2.7.2/nip04';
     
-    window.NostrTools = { SimplePool, nip19, generateSecretKey, getPublicKey, finalizeEvent, nip04 };
+    // Import BunkerSigner and parseBunkerInput directly
+    import { BunkerSigner, parseBunkerInput } from 'https://esm.sh/nostr-tools@2.7.2/nip46';
+    
+    window.NostrTools = { 
+        SimplePool, 
+        nip19, 
+        generateSecretKey, 
+        getPublicKey, 
+        finalizeEvent, 
+        nip04,
+        nip46: { BunkerSigner, parseBunkerInput }
+    };
 </script>
 <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
-    
-    <script>
-        const profileCache = new Map();
+
+<script>
+        const profileCache = new Map();  
         const noteCache = new Map();
         let currentUser = null;
         let userFollowing = new Set();
@@ -1464,11 +1475,23 @@
         let bunkerConnection = null;
         let bunkerPubkey = null;
 
+        
+
         window.addEventListener('load', async function() {
-            if (typeof NostrTools === 'undefined') {
-                alert('Failed to load Nostr tools');
-                return;
-            }
+    // Timeout helper for mobile performance ← ✅ Added!
+    function withTimeout(promise, ms, errorMsg) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(errorMsg)), ms)
+            )
+        ]);
+    }
+    
+    if (typeof NostrTools === 'undefined') {
+        alert('Failed to load Nostr tools');
+        return;
+    }
 
             const { nip19, SimplePool } = NostrTools;
             const pool = new SimplePool();
@@ -1499,6 +1522,8 @@
                     'first post',
                     'new here'
                 ];
+
+                
                 
                 for (const phrase of spamPhrases) {
                     if (about.includes(phrase) && about.length < 50) {
@@ -1824,60 +1849,55 @@ function getClientSecret() {
     return secret;
 }
 
-            // Bunker login (NIP-46 Remote Signer) - Based on Coracle implementation
-            let bunkerBroker = null;
-            let bunkerAbortController = null;
+            // Bunker login using official BunkerSigner (same as Primal)
+let bunkerSigner = null;
+let bunkerAbortController = null;
 
-            function showBunkerLogin() {
+function showBunkerLogin() {
     const modal = document.getElementById('bunker-login-modal');
+    const statusEl = document.getElementById('bunker-status');
     const qrContainer = document.getElementById('qr-code-container');
     const connectionStringEl = document.getElementById('bunker-connection-string');
-    const statusEl = document.getElementById('bunker-status');
     
     qrContainer.innerHTML = '';
     connectionStringEl.textContent = '';
     
     bunkerAbortController = new AbortController();
     
-    // Get or create client secret with persistence
+    // Get or create persistent client secret
     const clientSecret = getClientSecret();
     const secretBytes = new Uint8Array(clientSecret.match(/.{2}/g).map(byte => parseInt(byte, 16)));
     const clientPubkey = NostrTools.getPublicKey(secretBytes);
     
+    // Generate bunker URL (nostrconnect://)
     const relayUrl = 'wss://relay.damus.io';
-    const appUrl = window.location.origin;
-    const appName = 'Fren Finder';
-    
     const metadata = {
-        url: appUrl,
-        name: appName,
-        perms: 'sign_event:3,sign_event:1,get_public_key,nip04_encrypt,nip04_decrypt'
+        name: 'Fren Finder',
+        url: window.location.origin,
+        perms: 'sign_event:3,get_public_key'
     };
     
     const metadataParam = encodeURIComponent(JSON.stringify(metadata));
     const connectionString = `nostrconnect://${clientPubkey}?relay=${encodeURIComponent(relayUrl)}&metadata=${metadataParam}`;
     
-    console.log('Generated nostrconnect URL:', connectionString);
-    
+    console.log('Bunker URL:', connectionString);
     connectionStringEl.textContent = connectionString;
     
-    // Generate QR code with canvas
+    // Generate QR code
     try {
         if (typeof qrcode !== 'undefined') {
-            const qr = qrcode(0, 'M');
+            const qr = qrcode(0, 'L');
             qr.addData(connectionString);
             qr.make();
             
             const canvas = document.createElement('canvas');
-            const size = 256;
-            canvas.width = size;
-            canvas.height = size;
+            canvas.width = 200;
+            canvas.height = 200;
             const ctx = canvas.getContext('2d');
-            
-            const cellSize = size / qr.getModuleCount();
+            const cellSize = 200 / qr.getModuleCount();
             
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, size, size);
+            ctx.fillRect(0, 0, 200, 200);
             
             ctx.fillStyle = '#000000';
             for (let row = 0; row < qr.getModuleCount(); row++) {
@@ -1889,213 +1909,123 @@ function getClientSecret() {
             }
             
             qrContainer.appendChild(canvas);
-            console.log('QR code generated successfully');
-        } else {
-            qrContainer.innerHTML = '<div style="padding: 2rem; text-align: center; background: var(--bg-secondary); border-radius: 0.5rem;"><p style="color: var(--text-secondary);">QR Code Unavailable</p></div>';
         }
     } catch (err) {
-        console.error('QR code error:', err);
-        qrContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">QR Error</div>';
+        console.error('QR error:', err);
     }
     
     modal.classList.add('visible');
     statusEl.className = 'bunker-status waiting';
-    statusEl.textContent = 'Waiting for signer to connect...';
+    statusEl.textContent = 'Scan with your signer app...';
     
+    // Copy button
     const copyBtn = document.getElementById('copy-connection-btn');
     copyBtn.style.display = 'block';
-    copyBtn.onclick = function() {
+    copyBtn.onclick = () => {
         navigator.clipboard.writeText(connectionString).then(() => {
             copyBtn.textContent = 'Copied!';
-            setTimeout(() => {
-                copyBtn.textContent = 'Copy Connection String';
-            }, 2000);
-        }).catch(err => {
-            console.error('Copy failed:', err);
+            setTimeout(() => copyBtn.textContent = 'Copy Connection String', 2000);
         });
     };
     
-    waitForNostrconnect(secretBytes, clientPubkey, relayUrl, statusEl);
+    // Connect using official BunkerSigner
+    connectBunker(connectionString, secretBytes, statusEl);
     
+    // Timeout
     setTimeout(() => {
         if (!bunkerAbortController.signal.aborted) {
             statusEl.className = 'bunker-status error';
-            statusEl.textContent = 'Connection timeout. Try scanning again.';
+            statusEl.textContent = 'Connection timeout';
         }
     }, 60000);
 }
 
-            async function waitForNostrconnect(clientSecret, clientPubkey, relayUrl, statusEl) {
-                try {
-                    const pool = new NostrTools.SimplePool();
-                    
-                    console.log('Waiting for nostrconnect response...');
-                    console.log('Client pubkey:', clientPubkey);
-                    
-                    // Subscribe to responses sent to our client pubkey
-                    const sub = pool.subscribeMany(
-                        [relayUrl],
-                        [
-                            {
-                                kinds: [24133],
-                                '#p': [clientPubkey],
-                                since: Math.floor(Date.now() / 1000) - 10
-                            }
-                        ],
-                        {
-                            onevent: async (event) => {
-                                console.log('Received nostrconnect response:', event);
-                                
-                                if (bunkerAbortController.signal.aborted) {
-                                    return;
-                                }
-                                
-                                try {
-                                    // Decrypt the response
-                                    const decrypted = await NostrTools.nip04.decrypt(
-                                        clientSecret,
-                                        event.pubkey,
-                                        event.content
-                                    );
-                                    
-                                    console.log('Decrypted response:', decrypted);
-                                    const response = JSON.parse(decrypted);
-                                    
-                                    // Check for connection acknowledgment
-                                    if (response.result === 'ack' || response.result) {
-                                        console.log('Connection acknowledged!');
-                                        statusEl.className = 'bunker-status connected';
-                                        statusEl.textContent = 'Connected! Getting your public key...';
-                                        
-                                        // Store connection details
-                                        bunkerConnection = {
-                                            clientSecret,
-                                            clientPubkey,
-                                            signerPubkey: event.pubkey,
-                                            relayUrl,
-                                            pool
-                                        };
-                                        
-                                        // Get public key
-                                        const userPubkey = await getRemotePublicKey(event.pubkey, clientSecret, relayUrl, pool);
-                                        
-                                        if (userPubkey) {
-                                            await completeBunkerLogin(userPubkey, statusEl);
-                                            bunkerAbortController.abort();
-                                            sub.close();
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error('Response processing error:', err);
-                                    statusEl.className = 'bunker-status error';
-                                    statusEl.textContent = 'Connection error: ' + err.message;
-                                }
-                            },
-                            oneose: () => {
-                                console.log('Subscription active');
-                            }
-                        }
-                    );
-                    
-                    // Clean up on abort
-                    bunkerAbortController.signal.addEventListener('abort', () => {
-                        sub.close();
-                    });
-                    
-                } catch (err) {
-                    console.error('Nostrconnect error:', err);
-                    statusEl.className = 'bunker-status error';
-                    statusEl.textContent = 'Failed to establish connection';
-                }
-            }
-
-            async function getRemotePublicKey(signerPubkey, clientSecret, relayUrl, pool) {
-    console.log('Requesting public key from signer...');
-    
-    const request = {
-        id: 'get_public_key-' + Date.now(),
-        method: 'get_public_key',
-        params: []
-    };
-    
-    const encrypted = await NostrTools.nip04.encrypt(
-        clientSecret,
-        signerPubkey,
-        JSON.stringify(request)
-    );
-    
-    const event = NostrTools.finalizeEvent({
-        kind: 24133,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['p', signerPubkey]],
-        content: encrypted
-    }, clientSecret);
-    
-    await pool.publish([relayUrl], event);
-    
-    console.log('Public key request sent');
-    
-    return new Promise((resolve) => {
-        const timeout = setTimeout(() => resolve(null), 10000);
+async function connectBunker(bunkerUrl, clientSecret, statusEl) {
+    try {
+        const { BunkerSigner } = NostrTools.nip46;
         
-        const sub = pool.subscribeMany(
-            [relayUrl],
-            [{
-                kinds: [24133],
-                '#p': [NostrTools.getPublicKey(clientSecret)],
-                since: Math.floor(Date.now() / 1000)
-            }],
-            {
-                onevent: async (evt) => {
-                    try {
-                        const decrypted = await NostrTools.nip04.decrypt(
-                            clientSecret,
-                            evt.pubkey,
-                            evt.content
-                        );
-                        
-                        const response = JSON.parse(decrypted);
-                        console.log('Public key response:', response);
-                        
-                        if (response.id === request.id && response.result) {
-                            clearTimeout(timeout);
-                            sub.close();
-                            resolve(response.result);
-                        }
-                    } catch (err) {
-                        console.error('Public key response error:', err);
-                    }
-                }
+        statusEl.className = 'bunker-status waiting';
+        statusEl.textContent = 'Connecting to signer...';
+        
+        // Parse the nostrconnect URL manually
+        const url = new URL(bunkerUrl);
+        const remotePubkey = url.hostname || url.pathname.replace('//', '');
+        const relayParam = url.searchParams.get('relay');
+        
+        if (!remotePubkey || !relayParam) {
+            throw new Error('Invalid connection URL format');
+        }
+        
+        console.log('Remote pubkey:', remotePubkey);
+        console.log('Relay:', relayParam);
+        
+        // Create bunker pointer object
+        const bunkerPointer = {
+            pubkey: remotePubkey,
+            relays: [relayParam]
+        };
+        
+        // Create BunkerSigner using direct constructor
+        bunkerSigner = new BunkerSigner(clientSecret, bunkerPointer, {
+            onauth: (url) => {
+                console.log('Auth URL:', url);
+                window.open(url, '_blank');
             }
-        );
-    });
+        });
+        
+        // Connect to the signer
+        await bunkerSigner.connect();
+        
+        statusEl.className = 'bunker-status connected';
+        statusEl.textContent = 'Connected! Getting your key...';
+        
+        // Get public key
+        const userPubkey = await bunkerSigner.getPublicKey();
+        
+        if (userPubkey) {
+            await completeBunkerLogin(userPubkey, statusEl);
+        } else {
+            throw new Error('Failed to get public key');
+        }
+        
+    } catch (err) {
+        console.error('Bunker connection error:', err);
+        statusEl.className = 'bunker-status error';
+        statusEl.textContent = 'Connection failed: ' + err.message;
+    }
 }
 
             async function completeBunkerLogin(userPubkey, statusEl) {
-                try {
-                    console.log('Completing login with pubkey:', userPubkey);
-                    
-                    const npub = nip19.npubEncode(userPubkey);
-                    const profile = await fetchProfile(userPubkey);
-                    currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
-                    const follows = await fetchFollows(userPubkey);
-                    userFollowing = new Set(follows);
-                    
-                    statusEl.className = 'bunker-status connected';
-                    statusEl.textContent = 'Login successful!';
-                    
-                    setTimeout(() => {
-                        document.getElementById('bunker-login-modal').classList.remove('visible');
-                        updateUserUI();
-                        document.getElementById('npub-input').value = npub;
-                        document.getElementById('npub-input').disabled = true;
-                    }, 1500);
-                } catch (err) {
-                    console.error('Login completion error:', err);
-                    statusEl.className = 'bunker-status error';
-                    statusEl.textContent = 'Login failed: ' + err.message;
-                }
-            }
+    try {
+        console.log('Completing login:', userPubkey);
+        
+        const npub = nip19.npubEncode(userPubkey);
+        const profile = await fetchProfile(userPubkey);
+        currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
+        const follows = await fetchFollows(userPubkey);
+        userFollowing = new Set(follows);
+        
+        // Store bunker connection
+        bunkerConnection = {
+            signer: bunkerSigner,
+            pubkey: userPubkey
+        };
+        
+        statusEl.className = 'bunker-status connected';
+        statusEl.textContent = 'Login successful!';
+        
+        setTimeout(() => {
+            document.getElementById('bunker-login-modal').classList.remove('visible');
+            updateUserUI();
+            document.getElementById('npub-input').value = npub;
+            document.getElementById('npub-input').disabled = true;
+        }, 1500);
+    } catch (err) {
+        console.error('Login error:', err);
+        statusEl.className = 'bunker-status error';
+        statusEl.textContent = 'Login failed: ' + err.message;
+    }
+}
 
             // Fetch profile with cache
             async function fetchProfile(pubkeyHex) {
@@ -2372,75 +2302,20 @@ function getClientSecret() {
                 }
             }
 
-            // Sign event with bunker
-            async function signEventWithBunker(event) {
-    if (!bunkerConnection) return null;
-
-    return new Promise((resolve) => {
-        const request = {
-            id: 'sign_event-' + Date.now(),
-            method: 'sign_event',
-            params: [JSON.stringify(event)]
-        };
-
-        const { clientSecret, clientPubkey, relayUrl, pool } = bunkerConnection;
-
-        const sub = pool.subscribeMany(
-            [relayUrl],
-            [{
-                kinds: [24133],
-                '#p': [clientPubkey],
-                since: Math.floor(Date.now() / 1000)
-            }],
-            {
-                onevent: async (evt) => {
-                    try {
-                        const decryptedContent = await NostrTools.nip04.decrypt(
-                            clientSecret,
-                            evt.pubkey,
-                            evt.content
-                        );
-
-                        const message = JSON.parse(decryptedContent);
-
-                        if (message.id === request.id && message.result) {
-                            sub.close();
-                            resolve(JSON.parse(message.result));
-                        }
-                    } catch (err) {
-                        console.error('Sign event error:', err);
-                    }
-                }
-            }
-        );
-
-        (async () => {
-            try {
-                const encrypted = await NostrTools.nip04.encrypt(
-                    clientSecret,
-                    bunkerConnection.signerPubkey,
-                    JSON.stringify(request)
-                );
-                
-                const evt = NostrTools.finalizeEvent({
-                    kind: 24133,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [['p', bunkerConnection.signerPubkey]],
-                    content: encrypted
-                }, clientSecret);
-                
-                await pool.publish([relayUrl], evt);
-            } catch (err) {
-                console.error('Failed to send bunker request:', err);
-                resolve(null);
-            }
-        })();
-
-        setTimeout(() => {
-            sub.close();
-            resolve(null);
-        }, 30000);
-    });
+            // Sign event using BunkerSigner
+async function signEventWithBunker(event) {
+    if (!bunkerConnection || !bunkerConnection.signer) {
+        throw new Error('Bunker not connected');
+    }
+    
+    try {
+        // Use official signer's signEvent method
+        const signedEvent = await bunkerConnection.signer.signEvent(event);
+        return signedEvent;
+    } catch (err) {
+        console.error('Bunker signing error:', err);
+        throw err;
+    }
 }
 
             // Create profile card (reusable function)
@@ -2764,8 +2639,10 @@ function getClientSecret() {
                 }
             });
 
-            updateUserUI();
-        });
+             updateUserUI();
+            
+    // ============ MAIN APPLICATION END ============
+        }); // End: window.addEventListener('load', async function() {
     </script>
 </body>
 </html>
