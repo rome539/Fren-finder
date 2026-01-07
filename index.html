@@ -388,6 +388,15 @@
             transform: scaleY(1);
         }
 
+        .fren-card.already-following {
+            opacity: 0.6;
+            background: var(--bg-tertiary);
+        }
+
+        .fren-card.already-following:hover {
+            opacity: 0.8;
+        }
+
         .fren-header {
             display: flex;
             align-items: flex-start;
@@ -2395,17 +2404,28 @@
                 connectionStringEl.textContent = connectionString;
                 
                 // Generate QR code
-                if (typeof QRCode !== 'undefined') {
-                    new QRCode(qrContainer, {
-                        text: connectionString,
-                        width: 256,
-                        height: 256,
-                        colorDark: '#000000',
-                        colorLight: '#ffffff',
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                } else {
-                    qrContainer.innerHTML = '<p style="color: var(--accent-primary);">QR Code library not loaded</p>';
+                try {
+                    if (typeof QRCode !== 'undefined') {
+                        new QRCode(qrContainer, {
+                            text: connectionString,
+                            width: 256,
+                            height: 256,
+                            colorDark: '#000000',
+                            colorLight: '#ffffff',
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    } else {
+                        // Fallback: show connection string in larger text
+                        qrContainer.innerHTML = `
+                            <div style="padding: 2rem; text-align: center; background: white; border-radius: 0.5rem;">
+                                <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">QR Code unavailable</p>
+                                <p style="color: #333; font-size: 0.75rem; word-break: break-all;">${connectionString}</p>
+                            </div>
+                        `;
+                    }
+                } catch (err) {
+                    console.error('QR code error:', err);
+                    qrContainer.innerHTML = `<p style="color: var(--accent-primary);">Failed to generate QR code</p>`;
                 }
                 
                 // Show modal
@@ -2812,12 +2832,15 @@
                 }
 
                 const candidates = new Set();
-                const sampleSize = Math.min(10, userFollows.length);
+                const sampleSize = Math.min(15, userFollows.length);
+                
+                // Randomize which follows to sample from
+                const shuffledFollows = [...userFollows].sort(() => Math.random() - 0.5);
                 
                 // Get second-degree connections
                 const followPromises = [];
                 for (let i = 0; i < sampleSize; i++) {
-                    followPromises.push(fetchFollows(userFollows[i]));
+                    followPromises.push(fetchFollows(shuffledFollows[i]));
                 }
 
                 const results = await Promise.all(followPromises);
@@ -2830,7 +2853,9 @@
                     });
                 });
 
-                return Array.from(candidates).slice(0, limit * 3);
+                // Randomize candidates and return more than needed
+                const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
+                return candidateArray.slice(0, limit * 3);
             }
 
             // Follow user
@@ -2943,6 +2968,11 @@
                 const card = document.createElement('div');
                 card.className = 'fren-card';
                 
+                // Add class if already following
+                if (fren.isFollowing) {
+                    card.classList.add('already-following');
+                }
+                
                 const hashtags = (fren.about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
                 
                 // Determine which metrics to highlight
@@ -3051,6 +3081,7 @@
                         alert('Please select at least one hashtag to search');
                         return;
                     }
+                    console.log('Hashtag discovery mode:', Array.from(selectedHashtags), 'Match mode:', matchMode);
                 }
 
                 if (!npubInput) {
@@ -3161,12 +3192,14 @@
                             // Apply spam filter
                             const hideSpam = document.getElementById('hide-spam').checked;
                             if (hideSpam && p.spamScore > 60) {
+                                console.log('Filtering spam:', p.name, 'Score:', p.spamScore);
                                 return false;
                             }
                             
                             // Apply NSFW filter
                             const hideNSFW = document.getElementById('hide-nsfw').checked;
                             if (hideNSFW && p.isNSFW) {
+                                console.log('Filtering NSFW:', p.name);
                                 return false;
                             }
                             
@@ -3177,18 +3210,28 @@
 
                     // Separate into new discoveries and already following
                     const hideFollowing = document.getElementById('hide-following').checked;
-                    const newProfiles = profiles.filter(p => !p.isFollowing);
-                    const followingProfiles = profiles.filter(p => p.isFollowing);
+                    
+                    let newProfiles, followingProfiles;
+                    
+                    if (hideFollowing) {
+                        // When hiding, separate them
+                        newProfiles = profiles.filter(p => !p.isFollowing);
+                        followingProfiles = profiles.filter(p => p.isFollowing);
+                    } else {
+                        // When showing, put all in main grid
+                        newProfiles = profiles;
+                        followingProfiles = [];
+                    }
 
-                    // Display new profiles
+                    // Display profiles
                     document.getElementById('results-count').textContent = `${newProfiles.length} matches`;
                     renderResults(newProfiles);
 
-                    // Display already following section if there are any
+                    // Display already following section if there are any AND hiding is enabled
                     const followingSection = document.getElementById('following-section');
                     const followingGrid = document.getElementById('following-grid');
                     
-                    if (followingProfiles.length > 0 && !hideFollowing) {
+                    if (followingProfiles.length > 0 && hideFollowing) {
                         followingSection.style.display = 'block';
                         document.getElementById('following-count').textContent = followingProfiles.length;
                         
