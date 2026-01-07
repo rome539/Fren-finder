@@ -2584,26 +2584,39 @@ async function signEventWithBunker(event) {
                     }
 
                     // Display profiles
-                    document.getElementById('results-count').textContent = `${newProfiles.length} matches`;
-                    renderResults(newProfiles);
+document.getElementById('results-count').textContent = `${newProfiles.length} matches`;
 
-                    // Display already following section if there are any AND hiding is enabled
-                    const followingSection = document.getElementById('following-section');
-                    const followingGrid = document.getElementById('following-grid');
-                    
-                    if (followingProfiles.length > 0 && hideFollowing) {
-                        followingSection.style.display = 'block';
-                        document.getElementById('following-count').textContent = followingProfiles.length;
-                        
-                        // Render following profiles in separate grid
-                        followingGrid.innerHTML = '';
-                        followingProfiles.forEach(fren => {
-                            const card = createProfileCard(fren);
-                            followingGrid.appendChild(card);
-                        });
-                    } else {
-                        followingSection.style.display = 'none';
-                    }
+// Show message if no new profiles found
+if (newProfiles.length === 0 && followingProfiles.length > 0) {
+    resultsGrid.innerHTML = `
+        <div style="text-align:center;padding:3rem;">
+            <h3 style="margin-bottom:1rem;">No New Discoveries</h3>
+            <p style="color:var(--text-secondary);">All ${followingProfiles.length} matches are people you already follow.</p>
+            <p style="color:var(--text-secondary);margin-top:0.5rem;">Try unchecking "Hide Already Following" or searching with different criteria.</p>
+        </div>
+    `;
+} else {
+    renderResults(newProfiles);
+}
+
+// Display already following section if there are any AND hiding is enabled
+const followingSection = document.getElementById('following-section');
+const followingGrid = document.getElementById('following-grid');
+
+if (followingProfiles.length > 0 && hideFollowing && newProfiles.length > 0) {
+    // Only show section if there are ALSO new profiles to display
+    followingSection.style.display = 'block';
+    document.getElementById('following-count').textContent = followingProfiles.length;
+    
+    // Render following profiles in separate grid
+    followingGrid.innerHTML = '';
+    followingProfiles.forEach(fren => {
+        const card = createProfileCard(fren);
+        followingGrid.appendChild(card);
+    });
+} else {
+    followingSection.style.display = 'none';
+}
 
                 } catch (err) {
                     console.error('Error:', err);
