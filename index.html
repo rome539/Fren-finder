@@ -1693,8 +1693,13 @@
         </footer>
     </div>
 
-    <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
-    <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script type="module">
+    import { SimplePool, nip19, generateSecretKey, getPublicKey, finalizeEvent } from 'https://esm.sh/nostr-tools@2.7.2';
+    import * as nip04 from 'https://esm.sh/nostr-tools@2.7.2/nip04';
+    
+    window.NostrTools = { SimplePool, nip19, generateSecretKey, getPublicKey, finalizeEvent, nip04 };
+</script>
+<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
     
     <script>
         const profileCache = new Map();
@@ -2400,108 +2405,117 @@
                 }
             }
 
+            // Get or create client secret
+function getClientSecret() {
+    let secret = localStorage.getItem('bunker_client_secret');
+    if (!secret) {
+        const secretKey = NostrTools.generateSecretKey();
+        secret = Array.from(secretKey).map(b => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('bunker_client_secret', secret);
+    }
+    return secret;
+}
+
             // Bunker login (NIP-46 Remote Signer) - Based on Coracle implementation
             let bunkerBroker = null;
             let bunkerAbortController = null;
 
             function showBunkerLogin() {
-                const modal = document.getElementById('bunker-login-modal');
-                const qrContainer = document.getElementById('qr-code-container');
-                const connectionStringEl = document.getElementById('bunker-connection-string');
-                const statusEl = document.getElementById('bunker-status');
-                
-                // Clear previous QR code
-                qrContainer.innerHTML = '';
-                connectionStringEl.textContent = '';
-                
-                // Create abort controller for this session
-                bunkerAbortController = new AbortController();
-                
-                // Generate connection details
-                const clientSecret = NostrTools.generateSecretKey();
-                const clientPubkey = NostrTools.getPublicKey(clientSecret);
-                
-                // Create nostrconnect URL (Coracle format)
-                const relayUrl = 'wss://relay.damus.io';
-                const appUrl = window.location.origin;
-                const appName = 'Fren Finder';
-                
-                // Build nostrconnect URL with metadata
-                const metadata = {
-                    url: appUrl,
-                    name: appName,
-                    perms: 'sign_event:3,get_public_key'
-                };
-                
-                const metadataParam = encodeURIComponent(JSON.stringify(metadata));
-                const connectionString = `nostrconnect://${clientPubkey}?relay=${encodeURIComponent(relayUrl)}&metadata=${metadataParam}`;
-                
-                console.log('Generated nostrconnect URL:', connectionString);
-                
-                // Display connection string
-                connectionStringEl.textContent = connectionString;
-                
-                // Generate QR code
-                try {
-                    if (typeof qrcode !== 'undefined') {
-                        console.log('Generating QR code...');
-                        const qr = qrcode(0, 'M');
-                        qr.addData(connectionString);
-                        qr.make();
-                        
-                        const qrDiv = document.createElement('div');
-                        qrDiv.innerHTML = qr.createImgTag(4, 8);
-                        qrDiv.style.textAlign = 'center';
-                        const img = qrDiv.querySelector('img');
-                        if (img) {
-                            img.style.width = '256px';
-                            img.style.height = '256px';
-                            img.style.imageRendering = 'pixelated';
-                        }
-                        qrContainer.appendChild(qrDiv);
-                        console.log('QR code generated successfully');
-                    } else {
-                        qrContainer.innerHTML = `
-                            <div style="padding: 2rem; text-align: center; background: var(--bg-secondary); border-radius: 0.5rem;">
-                                <p style="color: var(--text-secondary);">QR Code Unavailable</p>
-                            </div>
-                        `;
+    const modal = document.getElementById('bunker-login-modal');
+    const qrContainer = document.getElementById('qr-code-container');
+    const connectionStringEl = document.getElementById('bunker-connection-string');
+    const statusEl = document.getElementById('bunker-status');
+    
+    qrContainer.innerHTML = '';
+    connectionStringEl.textContent = '';
+    
+    bunkerAbortController = new AbortController();
+    
+    // Get or create client secret with persistence
+    const clientSecret = getClientSecret();
+    const secretBytes = new Uint8Array(clientSecret.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    const clientPubkey = NostrTools.getPublicKey(secretBytes);
+    
+    const relayUrl = 'wss://relay.damus.io';
+    const appUrl = window.location.origin;
+    const appName = 'Fren Finder';
+    
+    const metadata = {
+        url: appUrl,
+        name: appName,
+        perms: 'sign_event:3,sign_event:1,get_public_key,nip04_encrypt,nip04_decrypt'
+    };
+    
+    const metadataParam = encodeURIComponent(JSON.stringify(metadata));
+    const connectionString = `nostrconnect://${clientPubkey}?relay=${encodeURIComponent(relayUrl)}&metadata=${metadataParam}`;
+    
+    console.log('Generated nostrconnect URL:', connectionString);
+    
+    connectionStringEl.textContent = connectionString;
+    
+    // Generate QR code with canvas
+    try {
+        if (typeof qrcode !== 'undefined') {
+            const qr = qrcode(0, 'M');
+            qr.addData(connectionString);
+            qr.make();
+            
+            const canvas = document.createElement('canvas');
+            const size = 256;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            const cellSize = size / qr.getModuleCount();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < qr.getModuleCount(); row++) {
+                for (let col = 0; col < qr.getModuleCount(); col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
                     }
-                } catch (err) {
-                    console.error('QR code error:', err);
-                    qrContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">QR Error</div>`;
                 }
-                
-                // Show modal
-                modal.classList.add('visible');
-                statusEl.className = 'bunker-status waiting';
-                statusEl.textContent = 'Waiting for signer to connect...';
-                
-                // Show copy button
-                const copyBtn = document.getElementById('copy-connection-btn');
-                copyBtn.style.display = 'block';
-                copyBtn.onclick = function() {
-                    navigator.clipboard.writeText(connectionString).then(() => {
-                        copyBtn.textContent = 'Copied!';
-                        setTimeout(() => {
-                            copyBtn.textContent = 'Copy Connection String';
-                        }, 2000);
-                    }).catch(err => {
-                        console.error('Copy failed:', err);
-                    });
-                };
-                
-                // Wait for nostrconnect response
-                waitForNostrconnect(clientSecret, clientPubkey, relayUrl, statusEl);
-                
-                // Timeout after 60 seconds
-                setTimeout(() => {
-                    if (!bunkerAbortController.signal.aborted) {
-                        statusEl.className = 'bunker-status error';
-                        statusEl.textContent = 'Connection timeout. Try scanning again.';
-                    }
-                }, 60000);
             }
+            
+            qrContainer.appendChild(canvas);
+            console.log('QR code generated successfully');
+        } else {
+            qrContainer.innerHTML = '<div style="padding: 2rem; text-align: center; background: var(--bg-secondary); border-radius: 0.5rem;"><p style="color: var(--text-secondary);">QR Code Unavailable</p></div>';
+        }
+    } catch (err) {
+        console.error('QR code error:', err);
+        qrContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">QR Error</div>';
+    }
+    
+    modal.classList.add('visible');
+    statusEl.className = 'bunker-status waiting';
+    statusEl.textContent = 'Waiting for signer to connect...';
+    
+    const copyBtn = document.getElementById('copy-connection-btn');
+    copyBtn.style.display = 'block';
+    copyBtn.onclick = function() {
+        navigator.clipboard.writeText(connectionString).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy Connection String';
+            }, 2000);
+        }).catch(err => {
+            console.error('Copy failed:', err);
+        });
+    };
+    
+    waitForNostrconnect(secretBytes, clientPubkey, relayUrl, statusEl);
+    
+    setTimeout(() => {
+        if (!bunkerAbortController.signal.aborted) {
+            statusEl.className = 'bunker-status error';
+            statusEl.textContent = 'Connection timeout. Try scanning again.';
+        }
+    }, 60000);
+}
 
             async function waitForNostrconnect(clientSecret, clientPubkey, relayUrl, statusEl) {
                 try {
@@ -2588,73 +2602,66 @@
             }
 
             async function getRemotePublicKey(signerPubkey, clientSecret, relayUrl, pool) {
-                console.log('Requesting public key from signer...');
-                
-                const request = {
-                    id: 'get_public_key-' + Date.now(),
-                    method: 'get_public_key',
-                    params: []
-                };
-                
-                // Encrypt and send request
-                const encrypted = await NostrTools.nip04.encrypt(
-                    clientSecret,
-                    signerPubkey,
-                    JSON.stringify(request)
-                );
-                
-                const event = {
-                    kind: 24133,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [['p', signerPubkey]],
-                    content: encrypted
-                };
-                
-                const signed = NostrTools.finalizeEvent(event, clientSecret);
-                await pool.publish([relayUrl], signed);
-                
-                console.log('Public key request sent');
-                
-                // Wait for response
-                return new Promise((resolve) => {
-                    const timeout = setTimeout(() => {
-                        resolve(null);
-                    }, 10000);
-                    
-                    const sub = pool.subscribeMany(
-                        [relayUrl],
-                        [
-                            {
-                                kinds: [24133],
-                                '#p': [NostrTools.getPublicKey(clientSecret)],
-                                since: Math.floor(Date.now() / 1000)
-                            }
-                        ],
-                        {
-                            onevent: async (evt) => {
-                                try {
-                                    const decrypted = await NostrTools.nip04.decrypt(
-                                        clientSecret,
-                                        evt.pubkey,
-                                        evt.content
-                                    );
-                                    
-                                    const response = JSON.parse(decrypted);
-                                    console.log('Public key response:', response);
-                                    
-                                    if (response.id === request.id && response.result) {
-                                        clearTimeout(timeout);
-                                        sub.close();
-                                        resolve(response.result);
-                                    }
-                                } catch (err) {
-                                    console.error('Public key response error:', err);
-                                }
-                            }
+    console.log('Requesting public key from signer...');
+    
+    const request = {
+        id: 'get_public_key-' + Date.now(),
+        method: 'get_public_key',
+        params: []
+    };
+    
+    const encrypted = await NostrTools.nip04.encrypt(
+        clientSecret,
+        signerPubkey,
+        JSON.stringify(request)
+    );
+    
+    const event = NostrTools.finalizeEvent({
+        kind: 24133,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', signerPubkey]],
+        content: encrypted
+    }, clientSecret);
+    
+    await pool.publish([relayUrl], event);
+    
+    console.log('Public key request sent');
+    
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => resolve(null), 10000);
+        
+        const sub = pool.subscribeMany(
+            [relayUrl],
+            [{
+                kinds: [24133],
+                '#p': [NostrTools.getPublicKey(clientSecret)],
+                since: Math.floor(Date.now() / 1000)
+            }],
+            {
+                onevent: async (evt) => {
+                    try {
+                        const decrypted = await NostrTools.nip04.decrypt(
+                            clientSecret,
+                            evt.pubkey,
+                            evt.content
+                        );
+                        
+                        const response = JSON.parse(decrypted);
+                        console.log('Public key response:', response);
+                        
+                        if (response.id === request.id && response.result) {
+                            clearTimeout(timeout);
+                            sub.close();
+                            resolve(response.result);
                         }
-                    );
-                });
+                    } catch (err) {
+                        console.error('Public key response error:', err);
+                    }
+                }
             }
+        );
+    });
+}
 
             async function completeBunkerLogin(userPubkey, statusEl) {
                 try {
@@ -2959,79 +2966,74 @@
 
             // Sign event with bunker
             async function signEventWithBunker(event) {
-                if (!bunkerConnection) return null;
+    if (!bunkerConnection) return null;
 
-                return new Promise((resolve) => {
-                    const request = {
-                        id: 'sign_event-' + Date.now(),
-                        method: 'sign_event',
-                        params: [JSON.stringify(event)]
-                    };
+    return new Promise((resolve) => {
+        const request = {
+            id: 'sign_event-' + Date.now(),
+            method: 'sign_event',
+            params: [JSON.stringify(event)]
+        };
 
-                    const { clientSecret, clientPubkey, relayUrl, pool } = bunkerConnection;
+        const { clientSecret, clientPubkey, relayUrl, pool } = bunkerConnection;
 
-                    const sub = pool.subscribeMany(
-                        [relayUrl],
-                        [
-                            {
-                                kinds: [24133],
-                                '#p': [clientPubkey],
-                                since: Math.floor(Date.now() / 1000)
-                            }
-                        ],
-                        {
-                            onevent: async (evt) => {
-                                try {
-                                    const decryptedContent = await NostrTools.nip04.decrypt(
-                                        clientSecret,
-                                        evt.pubkey,
-                                        evt.content
-                                    );
+        const sub = pool.subscribeMany(
+            [relayUrl],
+            [{
+                kinds: [24133],
+                '#p': [clientPubkey],
+                since: Math.floor(Date.now() / 1000)
+            }],
+            {
+                onevent: async (evt) => {
+                    try {
+                        const decryptedContent = await NostrTools.nip04.decrypt(
+                            clientSecret,
+                            evt.pubkey,
+                            evt.content
+                        );
 
-                                    const message = JSON.parse(decryptedContent);
+                        const message = JSON.parse(decryptedContent);
 
-                                    if (message.id === request.id && message.result) {
-                                        sub.close();
-                                        resolve(JSON.parse(message.result));
-                                    }
-                                } catch (err) {
-                                    console.error('Sign event error:', err);
-                                }
-                            }
+                        if (message.id === request.id && message.result) {
+                            sub.close();
+                            resolve(JSON.parse(message.result));
                         }
-                    );
-
-                    // Send sign request
-                    (async () => {
-                        try {
-                            const encrypted = await NostrTools.nip04.encrypt(
-                                clientSecret,
-                                bunkerConnection.signerPubkey,
-                                JSON.stringify(request)
-                            );
-                            
-                            const event = {
-                                kind: 24133,
-                                created_at: Math.floor(Date.now() / 1000),
-                                tags: [['p', bunkerConnection.signerPubkey]],
-                                content: encrypted
-                            };
-                            
-                            const signed = NostrTools.finalizeEvent(event, clientSecret);
-                            await pool.publish([relayUrl], signed);
-                        } catch (err) {
-                            console.error('Failed to send bunker request:', err);
-                            resolve(null);
-                        }
-                    })();
-
-                    // Timeout after 30 seconds
-                    setTimeout(() => {
-                        sub.close();
-                        resolve(null);
-                    }, 30000);
-                });
+                    } catch (err) {
+                        console.error('Sign event error:', err);
+                    }
+                }
             }
+        );
+
+        (async () => {
+            try {
+                const encrypted = await NostrTools.nip04.encrypt(
+                    clientSecret,
+                    bunkerConnection.signerPubkey,
+                    JSON.stringify(request)
+                );
+                
+                const evt = NostrTools.finalizeEvent({
+                    kind: 24133,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [['p', bunkerConnection.signerPubkey]],
+                    content: encrypted
+                }, clientSecret);
+                
+                await pool.publish([relayUrl], evt);
+            } catch (err) {
+                console.error('Failed to send bunker request:', err);
+                resolve(null);
+            }
+        })();
+
+        setTimeout(() => {
+            sub.close();
+            resolve(null);
+        }, 30000);
+    });
+}
 
             // Create profile card (reusable function)
             function createProfileCard(fren) {
