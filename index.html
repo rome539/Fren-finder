@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fren Finder - Nostr Discovery</title>
+    <title>Fren Finder - Advanced Nostr Discovery</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -18,6 +18,7 @@
             --accent-primary: #c84e3a;
             --accent-secondary: #2d5f4f;
             --accent-success: #2d7a4f;
+            --accent-info: #3a6ea5;
             --border-color: #d4cec2;
             --shadow-color: rgba(26, 21, 18, 0.08);
             --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -33,6 +34,7 @@
             --accent-primary: #e8745e;
             --accent-secondary: #4a9276;
             --accent-success: #4a9a70;
+            --accent-info: #5a8ec5;
             --border-color: #3a3229;
             --shadow-color: rgba(0, 0, 0, 0.3);
         }
@@ -211,6 +213,48 @@
             cursor: not-allowed;
         }
 
+        .discovery-mode {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+            border-color: var(--accent-primary);
+        }
+
+        .mode-card.active {
+            border-color: var(--accent-primary);
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            box-shadow: 0 4px 16px var(--shadow-color);
+        }
+
+        .mode-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+
+        .mode-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
         .filter-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -230,6 +274,11 @@
             transition: var(--transition);
         }
 
+        select:focus {
+            outline: none;
+            border-color: var(--accent-secondary);
+        }
+
         .btn-primary {
             background: var(--accent-primary);
             color: var(--bg-primary);
@@ -244,6 +293,7 @@
             transition: var(--transition);
             font-weight: 600;
             box-shadow: 0 4px 12px rgba(200, 78, 58, 0.2);
+            width: 100%;
         }
 
         .btn-primary:hover {
@@ -268,6 +318,8 @@
             margin-bottom: 2rem;
             padding-bottom: 1rem;
             border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .results-header h2 {
@@ -275,10 +327,26 @@
             font-weight: 600;
         }
 
+        .results-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
         .results-count {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.85rem;
             color: var(--text-secondary);
+        }
+
+        .sort-dropdown {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
         }
 
         .results-grid {
@@ -296,11 +364,6 @@
             transition: var(--transition);
             position: relative;
             overflow: hidden;
-        }
-
-        .fren-card.loading {
-            opacity: 0.6;
-            pointer-events: none;
         }
 
         .fren-card::before {
@@ -381,6 +444,37 @@
             margin-bottom: 1.25rem;
             font-size: 1rem;
             line-height: 1.6;
+        }
+
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .metric-badge {
+            background: var(--bg-tertiary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .metric-badge.high {
+            background: var(--accent-success);
+            color: var(--bg-primary);
+            border-color: var(--accent-success);
+        }
+
+        .metric-badge.medium {
+            background: var(--accent-info);
+            color: var(--bg-primary);
+            border-color: var(--accent-info);
         }
 
         .tags-container {
@@ -467,25 +561,6 @@
             color: var(--text-primary);
         }
 
-        .extension-notice {
-            background: var(--bg-secondary);
-            border: 2px solid var(--accent-primary);
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .extension-notice h3 {
-            color: var(--accent-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .extension-notice a {
-            color: var(--accent-primary);
-            text-decoration: underline;
-        }
-
         footer {
             border-top: 1px solid var(--border-color);
             padding: 2rem 0;
@@ -496,15 +571,843 @@
             font-size: 0.75rem;
         }
 
-        .skeleton {
-            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s ease-in-out infinite;
+        .toggle-group {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
         }
 
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+            background-color: var(--bg-primary);
+        }
+
+        .toggle-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .already-following-section {
+            margin-top: 3rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+        }
+
+        .following-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .following-header h3 {
+            font-size: 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .following-count {
+            background: var(--accent-info);
+            color: var(--bg-primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .following-toggle-icon {
+            font-size: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .following-toggle-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .following-content {
+            display: none;
+            padding-top: 1.5rem;
+        }
+
+        .following-content.visible {
+            display: block;
+        }
+
+        .hashtag-search-container {
+            display: none;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-primary);
+            border-radius: 0.75rem;
+        }
+
+        .hashtag-search-container.visible {
+            display: block;
+        }
+
+        .hashtag-input-wrapper {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .hashtag-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        .hashtag-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .hashtag-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .tag-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 10;
+        }
+
+        .tag-suggestions.visible {
+            display: block;
+        }
+
+        .tag-suggestion-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .tag-suggestion-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            min-height: 2.5rem;
+        }
+
+        .selected-tag {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .tag-remove:hover {
+            transform: scale(1.2);
+        }
+
+        .match-mode-toggle {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .match-mode-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .match-mode-btn.active {
+            background: var(--accent-secondary);
+            color: var(--bg-primary);
+            border-color: var(--accent-secondary);
+        }
+
+        .match-mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .popular-tags {
+            margin-top: 1rem;
+        }
+
+        .popular-tags-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .popular-tags-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .popular-tag {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .popular-tag:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        .cross-reference-container {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+        }
+
+        .cross-ref-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cross-ref-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .cross-ref-toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+        }
+
+        .cross-ref-toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .cross-ref-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+            border-radius: 34px;
+        }
+
+        .cross-ref-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+
+        .cross-ref-toggle-switch input:checked + .cross-ref-toggle-slider {
+            background-color: var(--accent-info);
+            border-color: var(--accent-info);
+        }
+
+        .cross-ref-toggle-switch input:checked + .cross-ref-toggle-slider:before {
+            transform: translateX(18px);
+            background-color: var(--bg-primary);
+        }
+
+        .cross-ref-input {
+            width: 100%;
+            padding: 0.875rem 1.25rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+            display: none;
+        }
+
+        .cross-ref-input.visible {
+            display: block;
+        }
+
+        .cross-ref-input:focus {
+            outline: none;
+            border-color: var(--accent-info);
+        }
+
+        .comparison-results {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .comparison-results.visible {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .comparison-category {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .comparison-category h4 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            color: var(--accent-info);
+        }
+
+        .comparison-count {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .comparison-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .follow-packs-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+        }
+
+        .follow-packs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0;
+            cursor: pointer;
+            padding: 0.75rem;
+            transition: var(--transition);
+        }
+
+        .follow-packs-header:hover {
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+        }
+
+        .follow-packs-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .packs-toggle-icon {
+            font-size: 1.25rem;
+            transition: var(--transition);
+            color: var(--text-secondary);
+        }
+
+        .packs-toggle-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .follow-packs-content {
+            display: none;
+            padding-top: 1rem;
+        }
+
+        .follow-packs-content.visible {
+            display: block;
+        }
+
+        .follow-packs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .follow-pack-card {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .follow-pack-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+            border-color: var(--accent-success);
+        }
+
+        .pack-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .pack-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
+        }
+
+        .pack-count {
+            background: var(--accent-success);
+            color: var(--bg-primary);
+            padding: 0.25rem 0.6rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .pack-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .pack-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-follow-pack {
+            flex: 1;
+            padding: 0.65rem;
+            background: var(--accent-success);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-follow-pack:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 122, 79, 0.3);
+        }
+
+        .btn-follow-pack:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-preview-pack {
+            padding: 0.65rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-primary);
+        }
+
+        .btn-preview-pack:hover {
+            background: var(--bg-secondary);
+        }
+
+        .pack-preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .pack-preview-modal.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pack-preview-content {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .pack-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .pack-preview-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pack-preview-close {
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .pack-preview-close:hover {
+            color: var(--accent-primary);
+            transform: scale(1.2);
+        }
+
+        .pack-preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .pack-preview-item {
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .bunker-login-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .bunker-login-modal.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bunker-login-content {
+            background: var(--bg-primary);
+            border: 2px solid var(--accent-info);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .bunker-login-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .bunker-login-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent-info);
+        }
+
+        .bunker-close {
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .bunker-close:hover {
+            color: var(--accent-primary);
+            transform: scale(1.2);
+        }
+
+        .bunker-instructions {
+            margin-bottom: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .bunker-instructions ol {
+            text-align: left;
+            padding-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .bunker-instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .qr-code-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1.5rem auto;
+            max-width: 300px;
+        }
+
+        .bunker-connection-string {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            word-break: break-all;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .bunker-status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .bunker-status.waiting {
+            color: var(--accent-info);
+        }
+
+        .bunker-status.connected {
+            color: var(--accent-success);
+        }
+
+        .bunker-status.error {
+            color: var(--accent-primary);
+        }
+
+        .btn-bunker {
+            background: var(--accent-info);
+            color: var(--bg-primary);
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(58, 110, 165, 0.2);
+            transition: var(--transition);
+        }
+
+        .btn-bunker:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 110, 165, 0.3);
+        }
+
+        .login-dropdown {
+            position: relative;
+        }
+
+        .login-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 8px 24px var(--shadow-color);
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        .login-menu.visible {
+            display: block;
+        }
+
+        .login-option {
+            padding: 0.875rem 1.25rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .login-option:last-child {
+            border-bottom: none;
+        }
+
+        .login-option:hover {
+            background: var(--bg-secondary);
         }
 
         @media (max-width: 768px) {
@@ -512,6 +1415,8 @@
             .header-content { flex-direction: column; }
             .filter-row { grid-template-columns: 1fr; }
             .results-grid { grid-template-columns: 1fr; }
+            .discovery-mode { grid-template-columns: 1fr; }
+            .toggle-group { flex-direction: column; gap: 1rem; }
         }
     </style>
 </head>
@@ -521,7 +1426,7 @@
             <div class="header-content">
                 <div class="logo-section">
                     <h1>Fren Finder</h1>
-                    <p class="subtitle">Nostr Discovery Engine</p>
+                    <p class="subtitle">Advanced Nostr Discovery</p>
                 </div>
                 <div class="header-actions">
                     <div id="user-section"></div>
@@ -531,61 +1436,251 @@
         </header>
 
         <main>
-            <div id="extension-notice" class="extension-notice" style="display: none;">
-                <h3>⚡ Browser Extension Required</h3>
-                <p>To follow users, please install a Nostr browser extension like <a href="https://getalby.com" target="_blank">Alby</a> or <a href="https://github.com/fiatjaf/nos2x" target="_blank">nos2x</a></p>
-            </div>
-
             <section class="search-section">
                 <div class="input-group">
-                    <label for="npub-input">Nostr Public Key (or use Login)</label>
-                    <input type="text" id="npub-input" placeholder="npub1... (or click Login to use your extension)">
+                    <label for="npub-input">Your Nostr Public Key</label>
+                    <input type="text" id="npub-input" placeholder="npub1... (or click Login)">
+                </div>
+
+                <div class="cross-reference-container">
+                    <div class="cross-ref-toggle">
+                        <label class="cross-ref-toggle-switch">
+                            <input type="checkbox" id="enable-cross-ref">
+                            <span class="cross-ref-toggle-slider"></span>
+                        </label>
+                        <div class="cross-ref-label">
+                            Cross-Reference With Another Account
+                        </div>
+                    </div>
+                    <input type="text" 
+                           class="cross-ref-input" 
+                           id="cross-ref-input" 
+                           placeholder="Enter another npub to compare networks">
+                    
+                    <div class="comparison-results" id="comparison-results">
+                        <div class="comparison-category">
+                            <h4>You Follow</h4>
+                            <div class="comparison-count" id="you-only-count">0</div>
+                            <div class="comparison-desc">Accounts only you follow</div>
+                        </div>
+                        <div class="comparison-category">
+                            <h4>Both Follow</h4>
+                            <div class="comparison-count" id="mutual-count">0</div>
+                            <div class="comparison-desc">Shared connections</div>
+                        </div>
+                        <div class="comparison-category">
+                            <h4>They Follow</h4>
+                            <div class="comparison-count" id="them-only-count">0</div>
+                            <div class="comparison-desc">Accounts only they follow</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Discovery Mode</label>
+                    <div class="discovery-mode">
+                        <div class="mode-card active" data-mode="social">
+                            <div class="mode-title">Social Graph</div>
+                            <div class="mode-desc">Friends of friends</div>
+                        </div>
+                        <div class="mode-card" data-mode="interests">
+                            <div class="mode-title">Shared Interests</div>
+                            <div class="mode-desc">Hashtag matching</div>
+                        </div>
+                        <div class="mode-card" data-mode="engagement">
+                            <div class="mode-title">High Engagement</div>
+                            <div class="mode-desc">Active posters</div>
+                        </div>
+                        <div class="mode-card" data-mode="niche">
+                            <div class="mode-title">Niche Communities</div>
+                            <div class="mode-desc">Specific topics</div>
+                        </div>
+                        <div class="mode-card" data-mode="hashtags">
+                            <div class="mode-title">Hashtag Discovery</div>
+                            <div class="mode-desc">Search by tags</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hashtag-search-container" id="hashtag-search">
+                    <div class="hashtag-input-wrapper">
+                        <input type="text" 
+                               class="hashtag-input" 
+                               id="hashtag-input" 
+                               placeholder="Enter hashtags (e.g., bitcoin, nostr, photography)">
+                        <div class="tag-suggestions" id="tag-suggestions"></div>
+                    </div>
+
+                    <div class="selected-tags" id="selected-tags"></div>
+
+                    <div class="match-mode-toggle">
+                        <button class="match-mode-btn active" id="match-any">Match ANY Tag</button>
+                        <button class="match-mode-btn" id="match-all">Match ALL Tags</button>
+                    </div>
+
+                    <div class="popular-tags">
+                        <div class="popular-tags-label">Popular Tags</div>
+                        <div class="popular-tags-grid" id="popular-tags"></div>
+                    </div>
+                </div>
+
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="hide-spam" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Hide Spam</span>
+                    </div>
+
+                    <div class="toggle-item">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="hide-nsfw" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Hide NSFW</span>
+                    </div>
+
+                    <div class="toggle-item">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="hide-following" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Hide Already Following</span>
+                    </div>
                 </div>
 
                 <div class="filter-row">
                     <div class="input-group">
+                        <label for="min-followers">Min Network Size</label>
+                        <select id="min-followers">
+                            <option value="0">Any Size</option>
+                            <option value="10">Small (10+)</option>
+                            <option value="50">Medium (50+)</option>
+                            <option value="100">Large (100+)</option>
+                            <option value="500">Very Large (500+)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="activity-level">Activity Level</label>
+                        <select id="activity-level">
+                            <option value="any">Any Activity</option>
+                            <option value="high">Very Active</option>
+                            <option value="medium">Moderately Active</option>
+                            <option value="low">Occasional</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
                         <label for="result-count">Results</label>
                         <select id="result-count">
-                            <option value="10">10 Frens</option>
-                            <option value="25">25 Frens</option>
-                            <option value="50">50 Frens</option>
+                            <option value="10">10 Profiles</option>
+                            <option value="25">25 Profiles</option>
+                            <option value="50">50 Profiles</option>
                         </select>
                     </div>
                 </div>
 
-                <button class="btn-primary" id="find-btn">Find Frens</button>
+                <button class="btn-primary" id="find-btn">Discover Frens</button>
             </section>
+
+            <section class="follow-packs-section">
+                <div class="follow-packs-header" id="packs-header">
+                    <h3>Quick Follow Packs</h3>
+                    <span class="packs-toggle-icon" id="packs-icon">▼</span>
+                </div>
+                <div class="follow-packs-content" id="packs-content">
+                    <div class="follow-packs-grid" id="follow-packs-grid"></div>
+                </div>
+            </section>
+
+            <div class="pack-preview-modal" id="pack-preview-modal">
+                <div class="pack-preview-content">
+                    <div class="pack-preview-header">
+                        <h3 id="preview-pack-name"></h3>
+                        <span class="pack-preview-close" id="close-preview">×</span>
+                    </div>
+                    <div class="pack-preview-list" id="preview-pack-list"></div>
+                </div>
+            </div>
+
+            <div class="bunker-login-modal" id="bunker-login-modal">
+                <div class="bunker-login-content">
+                    <div class="bunker-login-header">
+                        <h3>Remote Signer Login</h3>
+                        <span class="bunker-close" id="close-bunker">×</span>
+                    </div>
+                    <div class="bunker-instructions">
+                        <p>Use your mobile app to sign in securely:</p>
+                        <ol>
+                            <li>Open Primal, Amethyst, or any NIP-46 compatible app</li>
+                            <li>Go to Settings → Remote Signer</li>
+                            <li>Scan this QR code</li>
+                            <li>Approve the connection</li>
+                        </ol>
+                    </div>
+                    <div class="qr-code-container" id="qr-code-container"></div>
+                    <div class="bunker-connection-string" id="bunker-connection-string"></div>
+                    <div class="bunker-status waiting" id="bunker-status">Waiting for connection...</div>
+                </div>
+            </div>
 
             <section class="results-section" id="results-section">
                 <div class="results-header">
-                    <h2>Recommended Frens</h2>
-                    <span class="results-count" id="results-count">0 matches found</span>
+                    <h2>Discovered Frens</h2>
+                    <div class="results-info">
+                        <span class="results-count" id="results-count">0 matches</span>
+                        <select class="sort-dropdown" id="sort-by">
+                            <option value="match">Best Match</option>
+                            <option value="followers">Most Followers</option>
+                            <option value="mutual">Most Mutual</option>
+                            <option value="recent">Recently Active</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="results-grid" id="results-grid"></div>
+
+                <div class="already-following-section" id="following-section" style="display: none;">
+                    <div class="following-header" id="following-header">
+                        <h3>People You Already Follow</h3>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <span class="following-count" id="following-count">0</span>
+                            <span class="following-toggle-icon" id="following-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="following-content" id="following-content">
+                        <div class="results-grid" id="following-grid"></div>
+                    </div>
+                </div>
             </section>
 
             <section id="empty-state" class="empty-state">
                 <h3>Discover Your Nostr Community</h3>
-                <p>Login with your browser extension or enter an npub to find people with similar interests and connections.</p>
+                <p>Choose a discovery mode and find people based on multiple matching signals</p>
             </section>
         </main>
 
         <footer>
-            <p>Fren Finder - Built for the Nostr Protocol</p>
+            <p>Fren Finder - Advanced Discovery for Nostr</p>
         </footer>
     </div>
 
     <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <script>
-        // Profile cache to avoid re-fetching
         const profileCache = new Map();
+        const noteCache = new Map();
         let currentUser = null;
         let userFollowing = new Set();
+        let discoveryMode = 'social';
+        let bunkerConnection = null;
+        let bunkerPubkey = null;
 
         window.addEventListener('load', async function() {
             if (typeof NostrTools === 'undefined') {
-                alert('Failed to load Nostr tools. Please refresh.');
+                alert('Failed to load Nostr tools');
                 return;
             }
 
@@ -593,7 +1688,7 @@
             const pool = new SimplePool();
             const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
 
-            // Theme
+            // Theme toggle
             document.getElementById('theme-btn').addEventListener('click', () => {
                 const html = document.documentElement;
                 const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -602,44 +1697,625 @@
             });
             document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
 
-            // Check for NIP-07 extension
+            // Spam detection function
+            function detectSpam(profile, notes) {
+                let spamScore = 0;
+                const name = (profile.name || '').toLowerCase();
+                const about = (profile.about || '').toLowerCase();
+                
+                // Check for common spam phrases
+                const spamPhrases = [
+                    'hello world',
+                    'test test',
+                    'testing 123',
+                    'this is a test',
+                    'hello nostr',
+                    'first post',
+                    'new here'
+                ];
+                
+                for (const phrase of spamPhrases) {
+                    if (about.includes(phrase) && about.length < 50) {
+                        spamScore += 30;
+                    }
+                }
+                
+                // Empty or very short bio
+                if (about.length === 0) spamScore += 20;
+                if (about.length > 0 && about.length < 10) spamScore += 15;
+                
+                // Suspicious name patterns
+                if (name.match(/^user\d+$/i)) spamScore += 25;
+                if (name.match(/^anon\d+$/i)) spamScore += 20;
+                if (name === 'anon' || name === '') spamScore += 10;
+                
+                // No profile picture
+                if (!profile.picture) spamScore += 10;
+                
+                // No recent activity
+                if (notes && notes.length === 0) spamScore += 20;
+                if (notes && notes.length === 1) spamScore += 10;
+                
+                // Very repetitive content
+                if (notes && notes.length > 1) {
+                    const contents = notes.map(n => n.content.toLowerCase());
+                    const uniqueContents = new Set(contents);
+                    if (uniqueContents.size < notes.length / 2) {
+                        spamScore += 15;
+                    }
+                }
+                
+                return spamScore; // 0-100, higher = more likely spam
+            }
+
+            // NSFW detection function
+            function detectNSFW(profile) {
+                const about = (profile.about || '').toLowerCase();
+                const name = (profile.name || '').toLowerCase();
+                
+                const nsfwTags = [
+                    '#nsfw',
+                    '#xxx',
+                    '#adult',
+                    '#18+',
+                    '#porn',
+                    '#onlyfans',
+                    'nsfw',
+                    '18+'
+                ];
+                
+                for (const tag of nsfwTags) {
+                    if (about.includes(tag) || name.includes(tag)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+
+            // Discovery mode selection
+            document.querySelectorAll('.mode-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    discoveryMode = this.dataset.mode;
+                    
+                    // Show/hide hashtag search interface
+                    const hashtagSearch = document.getElementById('hashtag-search');
+                    if (discoveryMode === 'hashtags') {
+                        hashtagSearch.classList.add('visible');
+                    } else {
+                        hashtagSearch.classList.remove('visible');
+                    }
+                });
+            });
+
+            // Hashtag discovery setup
+            const selectedHashtags = new Set();
+            let matchMode = 'any'; // 'any' or 'all'
+
+            const POPULAR_TAGS = [
+                'bitcoin', 'nostr', 'lightning', 'crypto', 'privacy',
+                'art', 'photography', 'music', 'writing', 'design',
+                'coding', 'tech', 'ai', 'web3', 'freedom',
+                'travel', 'food', 'fitness', 'nature', 'coffee',
+                'startup', 'business', 'marketing', 'trading', 'investing'
+            ];
+
+            const TAG_SUGGESTIONS = [
+                'bitcoin', 'nostr', 'lightning', 'crypto', 'btc',
+                'art', 'photography', 'music', 'artist', 'creative',
+                'coding', 'developer', 'programming', 'tech', 'software',
+                'design', 'ui', 'ux', 'web', 'frontend',
+                'writing', 'author', 'blog', 'content', 'writer',
+                'privacy', 'security', 'opensource', 'linux', 'decentralized',
+                'travel', 'adventure', 'nature', 'hiking', 'outdoors',
+                'food', 'cooking', 'recipe', 'chef', 'foodie',
+                'fitness', 'health', 'yoga', 'running', 'gym',
+                'gaming', 'game', 'gamer', 'esports', 'streamer',
+                'business', 'startup', 'entrepreneur', 'founder', 'investing',
+                'philosophy', 'science', 'history', 'education', 'learning'
+            ];
+
+            // Render popular tags
+            function renderPopularTags() {
+                const container = document.getElementById('popular-tags');
+                container.innerHTML = '';
+                POPULAR_TAGS.forEach(tag => {
+                    const tagEl = document.createElement('div');
+                    tagEl.className = 'popular-tag';
+                    tagEl.textContent = `#${tag}`;
+                    tagEl.addEventListener('click', () => addHashtag(tag));
+                    container.appendChild(tagEl);
+                });
+            }
+            renderPopularTags();
+
+            // Add hashtag to selection
+            function addHashtag(tag) {
+                const normalized = tag.toLowerCase().replace(/^#/, '');
+                if (!selectedHashtags.has(normalized)) {
+                    selectedHashtags.add(normalized);
+                    renderSelectedTags();
+                }
+                document.getElementById('hashtag-input').value = '';
+                document.getElementById('tag-suggestions').classList.remove('visible');
+            }
+
+            // Remove hashtag from selection
+            function removeHashtag(tag) {
+                selectedHashtags.delete(tag);
+                renderSelectedTags();
+            }
+
+            // Render selected tags
+            function renderSelectedTags() {
+                const container = document.getElementById('selected-tags');
+                container.innerHTML = '';
+                
+                if (selectedHashtags.size === 0) {
+                    container.innerHTML = '<div style="color: var(--text-tertiary); font-style: italic;">No tags selected</div>';
+                    return;
+                }
+
+                selectedHashtags.forEach(tag => {
+                    const tagEl = document.createElement('div');
+                    tagEl.className = 'selected-tag';
+                    tagEl.innerHTML = `
+                        #${tag}
+                        <span class="tag-remove" onclick="removeHashtag('${tag}')">×</span>
+                    `;
+                    container.appendChild(tagEl);
+                });
+            }
+            renderSelectedTags();
+
+            // Make removeHashtag available globally
+            window.removeHashtag = removeHashtag;
+
+            // Cross-reference toggle
+            let crossRefEnabled = false;
+            let crossRefData = null;
+
+            document.getElementById('enable-cross-ref').addEventListener('change', function() {
+                crossRefEnabled = this.checked;
+                const crossRefInput = document.getElementById('cross-ref-input');
+                const comparisonResults = document.getElementById('comparison-results');
+                
+                if (crossRefEnabled) {
+                    crossRefInput.classList.add('visible');
+                } else {
+                    crossRefInput.classList.remove('visible');
+                    comparisonResults.classList.remove('visible');
+                    crossRefData = null;
+                }
+            });
+
+            // Analyze cross-reference when input changes
+            document.getElementById('cross-ref-input').addEventListener('blur', async function() {
+                const crossRefNpub = this.value.trim();
+                
+                if (!crossRefNpub || !crossRefNpub.startsWith('npub1')) {
+                    return;
+                }
+
+                const mainNpub = document.getElementById('npub-input').value.trim();
+                if (!mainNpub || !mainNpub.startsWith('npub1')) {
+                    alert('Please enter your main npub first');
+                    return;
+                }
+
+                try {
+                    // Fetch both follow lists
+                    const { data: mainPubkey } = nip19.decode(mainNpub);
+                    const { data: crossPubkey } = nip19.decode(crossRefNpub);
+
+                    const mainFollows = await fetchFollows(mainPubkey);
+                    const crossFollows = await fetchFollows(crossPubkey);
+
+                    // Calculate overlaps
+                    const mainSet = new Set(mainFollows);
+                    const crossSet = new Set(crossFollows);
+
+                    const youOnly = mainFollows.filter(p => !crossSet.has(p));
+                    const themOnly = crossFollows.filter(p => !mainSet.has(p));
+                    const mutual = mainFollows.filter(p => crossSet.has(p));
+
+                    // Store for later use
+                    crossRefData = {
+                        youOnly: youOnly,
+                        themOnly: themOnly,
+                        mutual: mutual
+                    };
+
+                    // Display comparison stats
+                    document.getElementById('you-only-count').textContent = youOnly.length;
+                    document.getElementById('mutual-count').textContent = mutual.length;
+                    document.getElementById('them-only-count').textContent = themOnly.length;
+                    document.getElementById('comparison-results').classList.add('visible');
+
+                } catch (err) {
+                    console.error('Cross-reference error:', err);
+                    alert('Failed to analyze cross-reference');
+                }
+            });
+
+            // Follow Packs
+            const FOLLOW_PACKS = [
+                {
+                    name: 'Nostr Core Devs',
+                    description: 'Core developers building the Nostr protocol',
+                    npubs: [
+                        'npub1sg6plzptd64u62a78hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m', // jack
+                        'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6', // fiatjaf
+                        'npub1xtscya34g58tk0z605fvr788k263gsu6cy9x0mhnm87echrgufzsevkk5s', // jb55
+                        'npub1gcxzte5zlkncx26j68ez60fzkvtkm9e0vrwdcvsjakxf9mu9qewqlfnj5z', // vitorpamplona
+                        'npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8', // hzrd149
+                    ]
+                },
+                {
+                    name: 'Bitcoin OGs',
+                    description: 'Original Bitcoin thought leaders and educators',
+                    npubs: [
+                        'npub1sg6plzptd64u62a78hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m', // jack
+                        'npub1qny3tkh0acurzla8x3zy4nhrjz5zd8l9sy9jys09umwng00manysew95gx', // saifedean
+                        'npub15dqlghlewk84wz3pkqqvzl2w2w36f97g89ljds8x6c094nlu02vqjllm5m', // niftynei
+                        'npub1a2cww4kn9wqte4ry70vyfwqyqvpswksna27rtxd8vty6c74era8sdcw83a', // dergigi
+                    ]
+                },
+                {
+                    name: 'Nostr Artists',
+                    description: 'Talented artists and creators on Nostr',
+                    npubs: [
+                        'npub1r0rs5q2gk0e3dk3nlc7gnu378ec6cnlenqp8a3cjhyzu6f8k5sgs4sq9ac', // ROCKSTAR
+                        'npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8', // yegorpetrov
+                    ]
+                },
+                {
+                    name: 'Privacy Advocates',
+                    description: 'Champions of privacy and freedom technology',
+                    npubs: [
+                        'npub1sg6plzptd64u62a78hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m', // jack
+                        'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6', // fiatjaf
+                        'npub1az9xj85cmxv8e9j9y80lvqp97crsqdu2fpu3srwthd99qfu9qsgstam8y8', // hzrd149
+                    ]
+                },
+                {
+                    name: 'Lightning Builders',
+                    description: 'Developers working on Lightning Network',
+                    npubs: [
+                        'npub1xtscya34g58tk0z605fvr788k263gsu6cy9x0mhnm87echrgufzsevkk5s', // jb55
+                        'npub15dqlghlewk84wz3pkqqvzl2w2w36f97g89ljds8x6c094nlu02vqjllm5m', // niftynei
+                    ]
+                },
+                {
+                    name: 'Nostr Educators',
+                    description: 'People teaching others about Nostr',
+                    npubs: [
+                        'npub1a2cww4kn9wqte4ry70vyfwqyqvpswksna27rtxd8vty6c74era8sdcw83a', // dergigi
+                        'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6', // fiatjaf
+                    ]
+                }
+            ];
+
+            // Render follow packs
+            function renderFollowPacks() {
+                const container = document.getElementById('follow-packs-grid');
+                container.innerHTML = '';
+
+                FOLLOW_PACKS.forEach((pack, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'follow-pack-card';
+                    card.innerHTML = `
+                        <div class="pack-header">
+                            <div class="pack-name">${pack.name}</div>
+                            <div class="pack-count">${pack.npubs.length}</div>
+                        </div>
+                        <div class="pack-description">${pack.description}</div>
+                        <div class="pack-actions">
+                            <button class="btn-follow-pack" data-pack-index="${index}" ${!currentUser ? 'disabled' : ''}>
+                                Follow All
+                            </button>
+                            <button class="btn-preview-pack" data-pack-index="${index}">
+                                Preview
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                // Add event listeners to follow buttons
+                document.querySelectorAll('.btn-follow-pack').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const packIndex = parseInt(this.dataset.packIndex);
+                        await followPack(packIndex, this);
+                    });
+                });
+
+                // Add event listeners to preview buttons
+                document.querySelectorAll('.btn-preview-pack').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const packIndex = parseInt(this.dataset.packIndex);
+                        showPackPreview(packIndex);
+                    });
+                });
+            }
+
+            // Show pack preview modal with names
+            async function showPackPreview(packIndex) {
+                const pack = FOLLOW_PACKS[packIndex];
+                const modal = document.getElementById('pack-preview-modal');
+                const packName = document.getElementById('preview-pack-name');
+                const packList = document.getElementById('preview-pack-list');
+
+                packName.textContent = pack.name;
+                packList.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:1rem;">Loading profiles...</p>';
+
+                modal.classList.add('visible');
+
+                // Fetch profiles for all npubs in pack
+                const profilePromises = pack.npubs.map(async (npub) => {
+                    try {
+                        const { data: pubkeyHex } = nip19.decode(npub);
+                        const profile = await fetchProfile(pubkeyHex);
+                        return {
+                            name: profile.name || 'Anon',
+                            npub: npub,
+                            picture: profile.picture
+                        };
+                    } catch (err) {
+                        return {
+                            name: 'Unknown',
+                            npub: npub,
+                            picture: null
+                        };
+                    }
+                });
+
+                const profiles = await Promise.all(profilePromises);
+
+                // Render profiles with names
+                packList.innerHTML = '';
+                profiles.forEach(profile => {
+                    const item = document.createElement('div');
+                    item.className = 'pack-preview-item';
+                    item.style.display = 'flex';
+                    item.style.alignItems = 'center';
+                    item.style.gap = '0.75rem';
+                    
+                    const picture = profile.picture || `https://robohash.org/${profile.npub}?set=set5`;
+                    
+                    item.innerHTML = `
+                        <img src="${picture}" 
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"
+                             onerror="this.src='https://robohash.org/${profile.npub}?set=set5'">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">${profile.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis;">${profile.npub.substring(0, 20)}...</div>
+                        </div>
+                    `;
+                    packList.appendChild(item);
+                });
+            }
+
+            // Close preview modal
+            document.getElementById('close-preview').addEventListener('click', function() {
+                document.getElementById('pack-preview-modal').classList.remove('visible');
+            });
+
+            // Close modal when clicking outside
+            document.getElementById('pack-preview-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('visible');
+                }
+            });
+
+            // Follow entire pack
+            async function followPack(packIndex, buttonElement) {
+                if (!currentUser) {
+                    alert('Please login first');
+                    return;
+                }
+
+                const useBunker = currentUser.bunker && bunkerConnection;
+                const useExtension = !useBunker && await checkExtension();
+
+                if (!useBunker && !useExtension) {
+                    alert('No signing method available');
+                    return;
+                }
+
+                const pack = FOLLOW_PACKS[packIndex];
+                buttonElement.disabled = true;
+                buttonElement.textContent = 'Following...';
+
+                try {
+                    // Decode all npubs to hex
+                    const packPubkeys = pack.npubs.map(npub => {
+                        const { data } = nip19.decode(npub);
+                        return data;
+                    });
+
+                    // Get current follows
+                    const currentFollows = Array.from(userFollowing);
+
+                    // Add pack members that aren't already followed
+                    packPubkeys.forEach(pubkey => {
+                        if (!currentFollows.includes(pubkey)) {
+                            currentFollows.push(pubkey);
+                            userFollowing.add(pubkey);
+                        }
+                    });
+
+                    // Create and sign event
+                    const event = {
+                        kind: 3,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: currentFollows.map(pk => ['p', pk]),
+                        content: ''
+                    };
+
+                    let signedEvent;
+                    
+                    if (useBunker) {
+                        signedEvent = await signEventWithBunker(event);
+                        if (!signedEvent) {
+                            throw new Error('Bunker signing failed');
+                        }
+                    } else {
+                        signedEvent = await window.nostr.signEvent(event);
+                    }
+
+                    await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
+
+                    buttonElement.textContent = 'Followed';
+                    buttonElement.style.background = 'var(--accent-secondary)';
+                    
+                    setTimeout(() => {
+                        buttonElement.disabled = false;
+                        buttonElement.textContent = 'Follow All';
+                        buttonElement.style.background = '';
+                    }, 3000);
+
+                } catch (err) {
+                    console.error('Follow pack error:', err);
+                    alert('Failed to follow pack');
+                    buttonElement.disabled = false;
+                    buttonElement.textContent = 'Follow All';
+                }
+            }
+
+            // Initial render
+            renderFollowPacks();
+
+            // Re-render when user logs in/out
+            const originalUpdateUserUI = updateUserUI;
+            updateUserUI = function() {
+                originalUpdateUserUI();
+                renderFollowPacks();
+            };
+
+            // Hashtag input with suggestions
+            const hashtagInput = document.getElementById('hashtag-input');
+            const tagSuggestions = document.getElementById('tag-suggestions');
+
+            hashtagInput.addEventListener('input', function() {
+                const value = this.value.toLowerCase().replace(/^#/, '');
+                
+                if (value.length < 2) {
+                    tagSuggestions.classList.remove('visible');
+                    return;
+                }
+
+                const matches = TAG_SUGGESTIONS.filter(tag => 
+                    tag.includes(value) && !selectedHashtags.has(tag)
+                ).slice(0, 10);
+
+                if (matches.length === 0) {
+                    tagSuggestions.classList.remove('visible');
+                    return;
+                }
+
+                tagSuggestions.innerHTML = '';
+                matches.forEach(tag => {
+                    const item = document.createElement('div');
+                    item.className = 'tag-suggestion-item';
+                    item.textContent = `#${tag}`;
+                    item.addEventListener('click', () => addHashtag(tag));
+                    tagSuggestions.appendChild(item);
+                });
+
+                tagSuggestions.classList.add('visible');
+            });
+
+            // Handle Enter key
+            hashtagInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const value = this.value.trim().toLowerCase().replace(/^#/, '');
+                    if (value) {
+                        addHashtag(value);
+                    }
+                }
+            });
+
+            // Close suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!hashtagInput.contains(e.target) && !tagSuggestions.contains(e.target)) {
+                    tagSuggestions.classList.remove('visible');
+                }
+            });
+
+            // Match mode toggle
+            document.getElementById('match-any').addEventListener('click', function() {
+                matchMode = 'any';
+                document.getElementById('match-any').classList.add('active');
+                document.getElementById('match-all').classList.remove('active');
+            });
+
+            document.getElementById('match-all').addEventListener('click', function() {
+                matchMode = 'all';
+                document.getElementById('match-all').classList.add('active');
+                document.getElementById('match-any').classList.remove('active');
+            });
+
+            // Toggle for already following section
+            document.getElementById('following-header').addEventListener('click', function() {
+                const content = document.getElementById('following-content');
+                const icon = document.getElementById('following-icon');
+                
+                if (content.classList.contains('visible')) {
+                    content.classList.remove('visible');
+                    icon.classList.remove('expanded');
+                } else {
+                    content.classList.add('visible');
+                    icon.classList.add('expanded');
+                }
+            });
+
+            // Toggle for follow packs
+            document.getElementById('packs-header').addEventListener('click', function() {
+                const content = document.getElementById('packs-content');
+                const icon = document.getElementById('packs-icon');
+                
+                if (content.classList.contains('visible')) {
+                    content.classList.remove('visible');
+                    icon.classList.remove('expanded');
+                } else {
+                    content.classList.add('visible');
+                    icon.classList.add('expanded');
+                }
+            });
+
+            // Check for extension
             async function checkExtension() {
                 return typeof window.nostr !== 'undefined';
             }
 
-            // Login with extension
+            // Login
             async function loginWithExtension() {
-                if (!await checkExtension()) {
-                    document.getElementById('extension-notice').style.display = 'block';
+                if (typeof window.nostr === 'undefined') {
+                    alert('Please install a Nostr browser extension (Alby, nos2x)');
                     return null;
                 }
 
                 try {
                     const pubkey = await window.nostr.getPublicKey();
                     const npub = nip19.npubEncode(pubkey);
-                    
-                    // Fetch user profile
                     const profile = await fetchProfile(pubkey);
-                    
                     currentUser = { pubkey, npub, profile };
-                    
-                    // Fetch user's following list
                     const follows = await fetchFollows(pubkey);
                     userFollowing = new Set(follows);
-                    
                     updateUserUI();
                     document.getElementById('npub-input').value = npub;
                     document.getElementById('npub-input').disabled = true;
-                    
                     return npub;
                 } catch (err) {
                     console.error('Login error:', err);
-                    alert('Failed to login with extension');
+                    alert('Failed to login');
                     return null;
                 }
             }
 
-            // Logout
             function logout() {
                 currentUser = null;
                 userFollowing.clear();
@@ -648,14 +2324,11 @@
                 updateUserUI();
             }
 
-            // Update user UI
             function updateUserUI() {
                 const userSection = document.getElementById('user-section');
-                
                 if (currentUser) {
                     const name = currentUser.profile?.name || 'Anon';
                     const picture = currentUser.profile?.picture || `https://robohash.org/${currentUser.pubkey}?set=set5`;
-                    
                     userSection.innerHTML = `
                         <div class="user-info">
                             <img src="${picture}" class="user-avatar" onerror="this.src='https://robohash.org/${currentUser.pubkey}?set=set5'">
@@ -663,19 +2336,287 @@
                         </div>
                         <button class="btn btn-logout" id="logout-btn">Logout</button>
                     `;
-                    
                     document.getElementById('logout-btn').addEventListener('click', logout);
                 } else {
-                    userSection.innerHTML = `<button class="btn btn-login" id="login-btn">⚡ Login</button>`;
-                    document.getElementById('login-btn').addEventListener('click', loginWithExtension);
+                    userSection.innerHTML = `
+                        <div class="login-dropdown">
+                            <button class="btn btn-login" id="login-btn">Login</button>
+                            <div class="login-menu" id="login-menu">
+                                <div class="login-option" id="extension-login">Extension Login</div>
+                                <div class="login-option" id="bunker-login-option">Remote Signer</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const loginBtn = document.getElementById('login-btn');
+                    const loginMenu = document.getElementById('login-menu');
+                    
+                    loginBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        loginMenu.classList.toggle('visible');
+                    });
+                    
+                    document.getElementById('extension-login').addEventListener('click', function() {
+                        loginMenu.classList.remove('visible');
+                        loginWithExtension();
+                    });
+                    
+                    document.getElementById('bunker-login-option').addEventListener('click', function() {
+                        loginMenu.classList.remove('visible');
+                        showBunkerLogin();
+                    });
+                    
+                    // Close menu when clicking outside
+                    document.addEventListener('click', function() {
+                        loginMenu.classList.remove('visible');
+                    });
                 }
             }
 
-            // Fetch profile with cache (PARALLEL LOADING)
-            async function fetchProfile(pubkeyHex) {
-                if (profileCache.has(pubkeyHex)) {
-                    return profileCache.get(pubkeyHex);
+            // Bunker login (NIP-46 Remote Signer)
+            function showBunkerLogin() {
+                const modal = document.getElementById('bunker-login-modal');
+                const qrContainer = document.getElementById('qr-code-container');
+                const connectionStringEl = document.getElementById('bunker-connection-string');
+                const statusEl = document.getElementById('bunker-status');
+                
+                // Clear previous QR code
+                qrContainer.innerHTML = '';
+                
+                // Generate connection details
+                const clientSecret = NostrTools.generateSecretKey();
+                const clientPubkey = NostrTools.getPublicKey(clientSecret);
+                
+                // Create bunker connection string (nostr+walletconnect format)
+                const relayUrl = 'wss://relay.damus.io';
+                const connectionString = `nostr+walletconnect://${clientPubkey}?relay=${encodeURIComponent(relayUrl)}&secret=${NostrTools.nip19.nsecEncode(clientSecret)}`;
+                
+                // Display connection string
+                connectionStringEl.textContent = connectionString;
+                
+                // Generate QR code
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(qrContainer, {
+                        text: connectionString,
+                        width: 256,
+                        height: 256,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } else {
+                    qrContainer.innerHTML = '<p style="color: var(--accent-primary);">QR Code library not loaded</p>';
                 }
+                
+                // Show modal
+                modal.classList.add('visible');
+                statusEl.className = 'bunker-status waiting';
+                statusEl.textContent = 'Waiting for connection...';
+                
+                // Start listening for connection
+                initBunkerConnection(clientSecret, clientPubkey, relayUrl, statusEl);
+            }
+
+            async function initBunkerConnection(clientSecret, clientPubkey, relayUrl, statusEl) {
+                try {
+                    const pool = new NostrTools.SimplePool();
+                    
+                    // Subscribe to messages sent to our client pubkey
+                    const sub = pool.subscribeMany(
+                        [relayUrl],
+                        [
+                            {
+                                kinds: [24133], // NIP-46 response event
+                                '#p': [clientPubkey],
+                                since: Math.floor(Date.now() / 1000)
+                            }
+                        ],
+                        {
+                            onevent: async (event) => {
+                                console.log('Received bunker event:', event);
+                                
+                                // Decrypt the message
+                                try {
+                                    const decryptedContent = await NostrTools.nip04.decrypt(
+                                        clientSecret,
+                                        event.pubkey,
+                                        event.content
+                                    );
+                                    
+                                    const message = JSON.parse(decryptedContent);
+                                    console.log('Decrypted message:', message);
+                                    
+                                    // Handle connect response
+                                    if (message.result === 'ack' || message.result) {
+                                        bunkerPubkey = event.pubkey;
+                                        bunkerConnection = { clientSecret, clientPubkey, relayUrl, pool };
+                                        
+                                        statusEl.className = 'bunker-status connected';
+                                        statusEl.textContent = 'Connected! Fetching profile...';
+                                        
+                                        // Get public key from remote signer
+                                        const userPubkey = await getBunkerPublicKey();
+                                        if (userPubkey) {
+                                            await completeBunkerLogin(userPubkey, statusEl);
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Decrypt error:', err);
+                                }
+                            },
+                            oneose: () => {
+                                console.log('Subscription established');
+                            }
+                        }
+                    );
+                    
+                    // Send connect request
+                    const connectRequest = {
+                        id: 'connect-' + Date.now(),
+                        method: 'connect',
+                        params: [clientPubkey]
+                    };
+                    
+                    // Wait a moment for subscription to be ready
+                    setTimeout(async () => {
+                        await sendBunkerRequest(connectRequest, null, clientSecret, relayUrl, pool);
+                    }, 1000);
+                    
+                } catch (err) {
+                    console.error('Bunker connection error:', err);
+                    statusEl.className = 'bunker-status error';
+                    statusEl.textContent = 'Connection failed. Please try again.';
+                }
+            }
+
+            async function sendBunkerRequest(request, remotePubkey, clientSecret, relayUrl, pool) {
+                const targetPubkey = remotePubkey || bunkerPubkey;
+                
+                if (!targetPubkey) {
+                    // For initial connect, use a broadcast approach
+                    const content = JSON.stringify(request);
+                    
+                    const event = {
+                        kind: 24133,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [],
+                        content: content
+                    };
+                    
+                    const signedEvent = NostrTools.finalizeEvent(event, clientSecret);
+                    await pool.publish([relayUrl], signedEvent);
+                    return;
+                }
+                
+                // Encrypt request
+                const encryptedContent = await NostrTools.nip04.encrypt(
+                    clientSecret,
+                    targetPubkey,
+                    JSON.stringify(request)
+                );
+                
+                const event = {
+                    kind: 24133,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [['p', targetPubkey]],
+                    content: encryptedContent
+                };
+                
+                const signedEvent = NostrTools.finalizeEvent(event, clientSecret);
+                await pool.publish([relayUrl], signedEvent);
+            }
+
+            async function getBunkerPublicKey() {
+                if (!bunkerConnection) return null;
+                
+                return new Promise((resolve) => {
+                    const request = {
+                        id: 'get_public_key-' + Date.now(),
+                        method: 'get_public_key',
+                        params: []
+                    };
+                    
+                    const { clientSecret, relayUrl, pool } = bunkerConnection;
+                    
+                    const sub = pool.subscribeMany(
+                        [relayUrl],
+                        [
+                            {
+                                kinds: [24133],
+                                '#p': [bunkerConnection.clientPubkey],
+                                since: Math.floor(Date.now() / 1000)
+                            }
+                        ],
+                        {
+                            onevent: async (event) => {
+                                try {
+                                    const decryptedContent = await NostrTools.nip04.decrypt(
+                                        clientSecret,
+                                        event.pubkey,
+                                        event.content
+                                    );
+                                    
+                                    const message = JSON.parse(decryptedContent);
+                                    
+                                    if (message.id === request.id && message.result) {
+                                        sub.close();
+                                        resolve(message.result);
+                                    }
+                                } catch (err) {
+                                    console.error('Get pubkey error:', err);
+                                }
+                            }
+                        }
+                    );
+                    
+                    sendBunkerRequest(request, bunkerPubkey, clientSecret, relayUrl, pool);
+                    
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        sub.close();
+                        resolve(null);
+                    }, 10000);
+                });
+            }
+
+            async function completeBunkerLogin(userPubkey, statusEl) {
+                try {
+                    const npub = nip19.npubEncode(userPubkey);
+                    const profile = await fetchProfile(userPubkey);
+                    currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
+                    const follows = await fetchFollows(userPubkey);
+                    userFollowing = new Set(follows);
+                    
+                    statusEl.className = 'bunker-status connected';
+                    statusEl.textContent = 'Login successful!';
+                    
+                    setTimeout(() => {
+                        document.getElementById('bunker-login-modal').classList.remove('visible');
+                        updateUserUI();
+                        document.getElementById('npub-input').value = npub;
+                        document.getElementById('npub-input').disabled = true;
+                    }, 1500);
+                } catch (err) {
+                    console.error('Complete login error:', err);
+                    statusEl.className = 'bunker-status error';
+                    statusEl.textContent = 'Login failed. Please try again.';
+                }
+            }
+
+            // Close bunker modal
+            document.getElementById('close-bunker').addEventListener('click', function() {
+                document.getElementById('bunker-login-modal').classList.remove('visible');
+            });
+
+            document.getElementById('bunker-login-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('visible');
+                }
+            });
+
+            // Fetch profile with cache
+            async function fetchProfile(pubkeyHex) {
+                if (profileCache.has(pubkeyHex)) return profileCache.get(pubkeyHex);
 
                 try {
                     const events = await pool.querySync(RELAYS, {
@@ -685,7 +2626,7 @@
                     });
 
                     if (events.length === 0) {
-                        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: 'No bio', picture: null };
+                        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
                         profileCache.set(pubkeyHex, fallback);
                         return fallback;
                     }
@@ -694,17 +2635,34 @@
                     const data = {
                         pubkey: pubkeyHex,
                         name: profile.name || profile.display_name || 'Anon',
-                        about: profile.about || 'No bio',
+                        about: profile.about || '',
                         picture: profile.picture || null
                     };
                     
                     profileCache.set(pubkeyHex, data);
                     return data;
                 } catch (err) {
-                    console.error('Error fetching profile:', err);
-                    const fallback = { pubkey: pubkeyHex, name: 'Anon', about: 'Error loading', picture: null };
+                    const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
                     profileCache.set(pubkeyHex, fallback);
                     return fallback;
+                }
+            }
+
+            // Fetch recent notes for engagement analysis
+            async function fetchRecentNotes(pubkeyHex, limit = 10) {
+                if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
+
+                try {
+                    const events = await pool.querySync(RELAYS, {
+                        kinds: [1],
+                        authors: [pubkeyHex],
+                        limit: limit
+                    });
+
+                    noteCache.set(pubkeyHex, events);
+                    return events;
+                } catch (err) {
+                    return [];
                 }
             }
 
@@ -723,12 +2681,125 @@
                         .filter(tag => tag[0] === 'p')
                         .map(tag => tag[1]);
                 } catch (err) {
-                    console.error('Error fetching follows:', err);
                     return [];
                 }
             }
 
-            // Get recommendations
+            // Calculate advanced match score based on multiple metrics
+            // SCORING BREAKDOWN:
+            // 
+            // Social Score (0-100):
+            //   - Each mutual follow = +10 points
+            //   - If they follow you = +20 bonus
+            // 
+            // Interest Score (0-100):
+            //   - Each shared hashtag = +25 points
+            //   - Compares hashtags in your bio vs theirs
+            // 
+            // Engagement Score (0-100):
+            //   - Based on recent posting activity
+            //   - More posts = higher score
+            // 
+            // Niche Score (0-100):
+            //   - Measures topic consistency
+            //   - High = focused on specific topics
+            //   - Low = diverse interests
+            // 
+            // FINAL SCORE depends on selected mode:
+            //   Social Graph: 70% social, 20% interests, 10% engagement
+            //   Shared Interests: 70% interests, 20% social, 10% niche
+            //   High Engagement: 70% engagement, 20% social, 10% interests
+            //   Niche Communities: 70% niche, 20% interests, 10% social
+            //   Hashtag Discovery: 100% hashtag match based on selected tags
+            function calculateMatchScore(userProfile, candidateProfile, userFollows, candidateFollows, candidateNotes, searchTags = null) {
+                let scores = {
+                    social: 0,      // Friend graph overlap
+                    interests: 0,   // Shared hashtags/topics
+                    engagement: 0,  // Activity level
+                    niche: 0,       // Specific topic depth
+                    hashtag: 0      // Hashtag search match
+                };
+
+                // Social graph analysis
+                if (userFollows && candidateFollows) {
+                    const mutualFollows = candidateFollows.filter(f => userFollows.includes(f)).length;
+                    const followsYou = candidateFollows.includes(userProfile.pubkey);
+                    scores.social = Math.min(100, (mutualFollows * 10) + (followsYou ? 20 : 0));
+                }
+
+                // Interest matching (hashtags)
+                const userHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
+                const candidateHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
+                const sharedHashtags = userHashtags.filter(h => 
+                    candidateHashtags.some(ch => ch.toLowerCase() === h.toLowerCase())
+                ).length;
+                scores.interests = Math.min(100, sharedHashtags * 25);
+
+                // Engagement analysis
+                if (candidateNotes && candidateNotes.length > 0) {
+                    const avgNotesPerDay = candidateNotes.length / 7; // Assuming last week
+                    scores.engagement = Math.min(100, avgNotesPerDay * 15);
+                }
+
+                // Niche community detection (hashtag consistency)
+                if (candidateHashtags.length > 0) {
+                    const uniqueTopics = new Set(candidateHashtags.map(h => h.toLowerCase())).size;
+                    const topicDepth = candidateHashtags.length / uniqueTopics;
+                    scores.niche = Math.min(100, topicDepth * 20);
+                }
+
+                // Hashtag search matching (for hashtag discovery mode)
+                if (searchTags && searchTags.size > 0) {
+                    const candidateHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
+                    const candidateTagsLower = candidateHashtags.map(h => h.toLowerCase().replace('#', ''));
+                    
+                    const searchArray = Array.from(searchTags);
+                    const matches = searchArray.filter(tag => 
+                        candidateTagsLower.some(ct => ct.includes(tag))
+                    );
+                    
+                    if (matchMode === 'all') {
+                        // ALL tags must be present
+                        scores.hashtag = matches.length === searchArray.length ? 100 : 0;
+                    } else {
+                        // ANY tag match
+                        scores.hashtag = Math.min(100, (matches.length / searchArray.length) * 100);
+                    }
+                }
+
+                // Weight scores based on discovery mode
+                let finalScore = 0;
+                switch(discoveryMode) {
+                    case 'social':
+                        finalScore = scores.social * 0.7 + scores.interests * 0.2 + scores.engagement * 0.1;
+                        break;
+                    case 'interests':
+                        finalScore = scores.interests * 0.7 + scores.social * 0.2 + scores.niche * 0.1;
+                        break;
+                    case 'engagement':
+                        finalScore = scores.engagement * 0.7 + scores.social * 0.2 + scores.interests * 0.1;
+                        break;
+                    case 'niche':
+                        finalScore = scores.niche * 0.7 + scores.interests * 0.2 + scores.social * 0.1;
+                        break;
+                    case 'hashtags':
+                        finalScore = scores.hashtag * 0.8 + scores.engagement * 0.15 + scores.social * 0.05;
+                        break;
+                }
+
+                return {
+                    total: Math.min(99, Math.max(60, Math.round(finalScore))),
+                    breakdown: scores
+                };
+            }
+
+            // Get recommendations based on discovery mode
+            // HOW IT WORKS:
+            // 1. Fetches your follow list (people you follow)
+            // 2. Samples 10 of your follows
+            // 3. Gets their follow lists (second-degree connections)
+            // 4. Filters out people you already follow and yourself
+            // 5. Returns candidates for scoring
             async function getRecommendations(userPubkey, limit) {
                 const userFollows = await fetchFollows(userPubkey);
                 
@@ -743,7 +2814,7 @@
                 const candidates = new Set();
                 const sampleSize = Math.min(10, userFollows.length);
                 
-                // PARALLEL fetching of follow lists
+                // Get second-degree connections
                 const followPromises = [];
                 for (let i = 0; i < sampleSize; i++) {
                     followPromises.push(fetchFollows(userFollows[i]));
@@ -759,31 +2830,31 @@
                     });
                 });
 
-                return Array.from(candidates).slice(0, limit * 2);
+                return Array.from(candidates).slice(0, limit * 3);
             }
 
-            // Follow user with extension
+            // Follow user
             async function followUser(pubkey) {
                 if (!currentUser) {
                     alert('Please login first');
                     return false;
                 }
 
-                if (!await checkExtension()) {
-                    alert('Browser extension required to follow');
+                // Check if using bunker or extension
+                const useBunker = currentUser.bunker && bunkerConnection;
+                const useExtension = !useBunker && await checkExtension();
+
+                if (!useBunker && !useExtension) {
+                    alert('No signing method available');
                     return false;
                 }
 
                 try {
-                    // Get current follow list
                     const currentFollows = Array.from(userFollowing);
-                    
-                    // Add new follow
                     if (!currentFollows.includes(pubkey)) {
                         currentFollows.push(pubkey);
                     }
 
-                    // Create follow event
                     const event = {
                         kind: 3,
                         created_at: Math.floor(Date.now() / 1000),
@@ -791,30 +2862,196 @@
                         content: ''
                     };
 
-                    // Sign with extension
-                    const signedEvent = await window.nostr.signEvent(event);
-
-                    // Publish to relays
-                    await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
-
-                    // Update local state
-                    userFollowing.add(pubkey);
+                    let signedEvent;
                     
+                    if (useBunker) {
+                        // Sign with bunker
+                        signedEvent = await signEventWithBunker(event);
+                        if (!signedEvent) {
+                            throw new Error('Bunker signing failed');
+                        }
+                    } else {
+                        // Sign with extension
+                        signedEvent = await window.nostr.signEvent(event);
+                    }
+
+                    await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
+                    userFollowing.add(pubkey);
                     return true;
                 } catch (err) {
                     console.error('Follow error:', err);
-                    alert('Failed to follow user');
                     return false;
                 }
             }
 
-            // Main search function
+            // Sign event with bunker
+            async function signEventWithBunker(event) {
+                if (!bunkerConnection) return null;
+
+                return new Promise((resolve) => {
+                    const request = {
+                        id: 'sign_event-' + Date.now(),
+                        method: 'sign_event',
+                        params: [JSON.stringify(event)]
+                    };
+
+                    const { clientSecret, clientPubkey, relayUrl, pool } = bunkerConnection;
+
+                    const sub = pool.subscribeMany(
+                        [relayUrl],
+                        [
+                            {
+                                kinds: [24133],
+                                '#p': [clientPubkey],
+                                since: Math.floor(Date.now() / 1000)
+                            }
+                        ],
+                        {
+                            onevent: async (evt) => {
+                                try {
+                                    const decryptedContent = await NostrTools.nip04.decrypt(
+                                        clientSecret,
+                                        evt.pubkey,
+                                        evt.content
+                                    );
+
+                                    const message = JSON.parse(decryptedContent);
+
+                                    if (message.id === request.id && message.result) {
+                                        sub.close();
+                                        resolve(JSON.parse(message.result));
+                                    }
+                                } catch (err) {
+                                    console.error('Sign event error:', err);
+                                }
+                            }
+                        }
+                    );
+
+                    sendBunkerRequest(request, bunkerPubkey, clientSecret, relayUrl, pool);
+
+                    // Timeout after 30 seconds
+                    setTimeout(() => {
+                        sub.close();
+                        resolve(null);
+                    }, 30000);
+                });
+            }
+
+            // Create profile card (reusable function)
+            function createProfileCard(fren) {
+                const card = document.createElement('div');
+                card.className = 'fren-card';
+                
+                const hashtags = (fren.about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
+                
+                // Determine which metrics to highlight
+                let metricsHTML = '<div class="metrics-container">';
+                
+                // Add cross-reference badge if applicable
+                if (fren.crossRefCategory) {
+                    if (fren.crossRefCategory === 'mutual') {
+                        metricsHTML += `<span class="metric-badge high">Both Follow</span>`;
+                    } else if (fren.crossRefCategory === 'you-only') {
+                        metricsHTML += `<span class="metric-badge medium">You Follow</span>`;
+                    } else if (fren.crossRefCategory === 'them-only') {
+                        metricsHTML += `<span class="metric-badge medium">They Follow</span>`;
+                    }
+                }
+                
+                if (fren.scores.breakdown.social > 40) {
+                    metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
+                }
+                if (fren.scores.breakdown.interests > 40) {
+                    metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
+                }
+                if (fren.scores.breakdown.engagement > 40) {
+                    metricsHTML += `<span class="metric-badge high">Active</span>`;
+                }
+                metricsHTML += '</div>';
+                
+                card.innerHTML = `
+                    <div class="fren-header">
+                        <img src="${fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`}" 
+                             class="fren-avatar" 
+                             onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
+                        <div class="fren-info">
+                            <div class="fren-name">${fren.name}</div>
+                            <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
+                        </div>
+                        <div class="match-score">${fren.scores.total}%</div>
+                    </div>
+                    <p class="fren-bio">${fren.about.substring(0, 150)}${fren.about.length > 150 ? '...' : ''}</p>
+                    ${metricsHTML}
+                    ${hashtags.length > 0 ? `
+                        <div class="tags-container">
+                            ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="fren-actions">
+                        <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
+                                data-pubkey="${fren.pubkey}"
+                                ${!currentUser ? 'disabled' : ''}>
+                            ${fren.isFollowing ? 'Following' : 'Follow'}
+                        </button>
+                        <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
+                    </div>
+                `;
+
+                const followBtn = card.querySelector('.btn-follow');
+                followBtn.addEventListener('click', async () => {
+                    if (fren.isFollowing) return;
+                    followBtn.disabled = true;
+                    followBtn.textContent = 'Following...';
+                    const success = await followUser(fren.pubkey);
+                    if (success) {
+                        followBtn.textContent = 'Following';
+                        followBtn.classList.add('following');
+                        fren.isFollowing = true;
+                    } else {
+                        followBtn.disabled = false;
+                        followBtn.textContent = 'Follow';
+                    }
+                });
+
+                return card;
+            }
+
+            // Render results
+            function renderResults(profiles) {
+                const resultsGrid = document.getElementById('results-grid');
+                resultsGrid.innerHTML = '';
+
+                profiles.forEach(fren => {
+                    const card = createProfileCard(fren);
+                    resultsGrid.appendChild(card);
+                });
+            }
+
+            // Sort results
+            document.getElementById('sort-by').addEventListener('change', function() {
+                const currentProfiles = Array.from(document.querySelectorAll('.fren-card')).map(card => {
+                    // Extract data from cards - in real app, store profiles globally
+                    return null;
+                });
+                // Implement sorting logic here
+            });
+
+            // Main search
             document.getElementById('find-btn').addEventListener('click', async () => {
                 const npubInput = document.getElementById('npub-input').value.trim();
                 const findBtn = document.getElementById('find-btn');
                 const resultsSection = document.getElementById('results-section');
                 const emptyState = document.getElementById('empty-state');
                 const resultsGrid = document.getElementById('results-grid');
+
+                // Validate hashtag mode
+                if (discoveryMode === 'hashtags') {
+                    if (selectedHashtags.size === 0) {
+                        alert('Please select at least one hashtag to search');
+                        return;
+                    }
+                }
 
                 if (!npubInput) {
                     alert('Please enter your npub or login');
@@ -827,94 +3064,150 @@
                 }
 
                 findBtn.disabled = true;
-                findBtn.textContent = 'Finding...';
+                findBtn.textContent = 'Discovering...';
                 emptyState.style.display = 'none';
                 resultsSection.style.display = 'block';
-                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">🔍 Searching Nostr network...</p>';
+                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
 
                 try {
                     const { data: userPubkey } = nip19.decode(npubInput);
-                    const candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
+                    const userProfile = await fetchProfile(userPubkey);
+                    const userFollows = await fetchFollows(userPubkey);
+                    
+                    let candidatePubkeys;
+                    
+                    // Use cross-reference data if enabled
+                    if (crossRefEnabled && crossRefData) {
+                        // Combine all three groups for discovery
+                        const allCandidates = [
+                            ...crossRefData.youOnly,
+                            ...crossRefData.themOnly,
+                            ...crossRefData.mutual
+                        ];
+                        
+                        // Remove duplicates and limit
+                        candidatePubkeys = Array.from(new Set(allCandidates))
+                            .slice(0, parseInt(document.getElementById('result-count').value) * 2);
+                        
+                        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
+                    } else {
+                        candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
+                        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+                    }
+                    
+                    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
-                    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">⚡ Loading profiles in parallel...</p>';
-
-                    // PARALLEL profile fetching - MUCH FASTER!
+                    // Fetch all data in parallel
                     const profilePromises = candidatePubkeys.map(pubkey => fetchProfile(pubkey));
-                    const allProfiles = await Promise.all(profilePromises);
+                    const followPromises = candidatePubkeys.map(pubkey => fetchFollows(pubkey));
+                    const notePromises = candidatePubkeys.map(pubkey => fetchRecentNotes(pubkey));
+
+                    const [allProfiles, allFollows, allNotes] = await Promise.all([
+                        Promise.all(profilePromises),
+                        Promise.all(followPromises),
+                        Promise.all(notePromises)
+                    ]);
 
                     const profiles = allProfiles
-                        .filter(p => p && p.pubkey)
-                        .map(profile => ({
-                            ...profile,
-                            npub: nip19.npubEncode(profile.pubkey),
-                            matchScore: Math.floor(Math.random() * 25) + 70,
-                            isFollowing: userFollowing.has(profile.pubkey)
-                        }))
+                        .map((profile, idx) => {
+                            if (!profile.pubkey) return null;
+                            
+                            // Spam detection
+                            const spamScore = detectSpam(profile, allNotes[idx]);
+                            const isNSFW = detectNSFW(profile);
+                            
+                            const scores = calculateMatchScore(
+                                userProfile,
+                                profile,
+                                userFollows,
+                                allFollows[idx],
+                                allNotes[idx],
+                                discoveryMode === 'hashtags' ? selectedHashtags : null
+                            );
+
+                            const mutual = allFollows[idx].filter(f => userFollows.includes(f)).length;
+
+                            // Determine cross-reference category
+                            let crossRefCategory = null;
+                            if (crossRefEnabled && crossRefData) {
+                                if (crossRefData.mutual.includes(profile.pubkey)) {
+                                    crossRefCategory = 'mutual';
+                                } else if (crossRefData.youOnly.includes(profile.pubkey)) {
+                                    crossRefCategory = 'you-only';
+                                } else if (crossRefData.themOnly.includes(profile.pubkey)) {
+                                    crossRefCategory = 'them-only';
+                                }
+                            }
+
+                            return {
+                                ...profile,
+                                npub: nip19.npubEncode(profile.pubkey),
+                                scores: scores,
+                                mutual: mutual,
+                                isFollowing: userFollowing.has(profile.pubkey),
+                                spamScore: spamScore,
+                                isNSFW: isNSFW,
+                                crossRefCategory: crossRefCategory
+                            };
+                        })
+                        .filter(p => {
+                            if (!p) return false;
+                            
+                            // In hashtag mode, filter out profiles with no matching tags
+                            if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
+                                return false;
+                            }
+                            
+                            // Apply spam filter
+                            const hideSpam = document.getElementById('hide-spam').checked;
+                            if (hideSpam && p.spamScore > 60) {
+                                return false;
+                            }
+                            
+                            // Apply NSFW filter
+                            const hideNSFW = document.getElementById('hide-nsfw').checked;
+                            if (hideNSFW && p.isNSFW) {
+                                return false;
+                            }
+                            
+                            return true;
+                        })
+                        .sort((a, b) => b.scores.total - a.scores.total)
                         .slice(0, parseInt(document.getElementById('result-count').value));
 
-                    document.getElementById('results-count').textContent = `${profiles.length} matches found`;
-                    resultsGrid.innerHTML = '';
+                    // Separate into new discoveries and already following
+                    const hideFollowing = document.getElementById('hide-following').checked;
+                    const newProfiles = profiles.filter(p => !p.isFollowing);
+                    const followingProfiles = profiles.filter(p => p.isFollowing);
 
-                    profiles.forEach(fren => {
-                        const hashtags = (fren.about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
+                    // Display new profiles
+                    document.getElementById('results-count').textContent = `${newProfiles.length} matches`;
+                    renderResults(newProfiles);
+
+                    // Display already following section if there are any
+                    const followingSection = document.getElementById('following-section');
+                    const followingGrid = document.getElementById('following-grid');
+                    
+                    if (followingProfiles.length > 0 && !hideFollowing) {
+                        followingSection.style.display = 'block';
+                        document.getElementById('following-count').textContent = followingProfiles.length;
                         
-                        const card = document.createElement('div');
-                        card.className = 'fren-card';
-                        card.innerHTML = `
-                            <div class="fren-header">
-                                <img src="${fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`}" 
-                                     class="fren-avatar" 
-                                     onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
-                                <div class="fren-info">
-                                    <div class="fren-name">${fren.name}</div>
-                                    <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
-                                </div>
-                                <div class="match-score">${fren.matchScore}%</div>
-                            </div>
-                            <p class="fren-bio">${fren.about.substring(0, 150)}${fren.about.length > 150 ? '...' : ''}</p>
-                            ${hashtags.length > 0 ? `
-                                <div class="tags-container">
-                                    ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
-                                </div>
-                            ` : ''}
-                            <div class="fren-actions">
-                                <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
-                                        data-pubkey="${fren.pubkey}"
-                                        ${!currentUser ? 'disabled' : ''}>
-                                    ${fren.isFollowing ? '✓ Following' : '+ Follow'}
-                                </button>
-                                <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
-                            </div>
-                        `;
-                        resultsGrid.appendChild(card);
-
-                        // Add follow button handler
-                        const followBtn = card.querySelector('.btn-follow');
-                        followBtn.addEventListener('click', async () => {
-                            if (fren.isFollowing) return;
-                            
-                            followBtn.disabled = true;
-                            followBtn.textContent = 'Following...';
-                            
-                            const success = await followUser(fren.pubkey);
-                            
-                            if (success) {
-                                followBtn.textContent = '✓ Following';
-                                followBtn.classList.add('following');
-                                fren.isFollowing = true;
-                            } else {
-                                followBtn.disabled = false;
-                                followBtn.textContent = '+ Follow';
-                            }
+                        // Render following profiles in separate grid
+                        followingGrid.innerHTML = '';
+                        followingProfiles.forEach(fren => {
+                            const card = createProfileCard(fren);
+                            followingGrid.appendChild(card);
                         });
-                    });
+                    } else {
+                        followingSection.style.display = 'none';
+                    }
 
                 } catch (err) {
                     console.error('Error:', err);
                     resultsGrid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent-primary)">Error: ${err.message}</p>`;
                 } finally {
                     findBtn.disabled = false;
-                    findBtn.textContent = 'Find Frens';
+                    findBtn.textContent = 'Discover Frens';
                 }
             });
 
@@ -926,7 +3219,6 @@
                 navigator.clipboard.writeText(npub).then(() => console.log('Copied:', npub));
             };
 
-            // Initialize
             updateUserUI();
         });
     </script>
