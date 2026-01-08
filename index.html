@@ -1445,10 +1445,11 @@
         </footer>
     </div>
 
-    <script type="module">
-  import * as NostrTools from "https://esm.sh/nostr-tools@2.19.4";
+   <script type="module">
+  import * as NostrTools from "https://esm.sh/nostr-tools@2.7.2";
+  import * as nip46 from "https://esm.sh/nostr-tools@2.7.2/nip46";
 
-  window.NostrTools = NostrTools;
+  window.NostrTools = { ...NostrTools, nip46 };
 </script>
 <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
 
@@ -1800,10 +1801,22 @@ document.getElementById('hashtag-input').addEventListener('keypress', (e) => {
             }
 
             function updateUserUI() {
-                const userSection = document.getElementById('user-section');
-                if (currentUser) {
-                    const name = currentUser.profile?.name || 'Anon';
-                    const picture = currentUser.profile?.picture || `https://robohash.org/${currentUser.pubkey}?set=set5`;
+    const npubInput = document.getElementById('npub-input');
+
+    if (currentUser && currentUser.npub) {
+        npubInput.value = currentUser.npub;
+        npubInput.disabled = true;
+    } else {
+        npubInput.value = '';
+        npubInput.disabled = false;
+    }
+
+    const userSection = document.getElementById('user-section');
+
+    if (currentUser) {
+        const name = currentUser.profile?.name || 'Anon';
+        const picture = currentUser.profile?.picture || 
+            `https://robohash.org/${currentUser.pubkey}?set=set5`;
                     userSection.innerHTML = `
                         <div class="user-info">
                             <img src="${picture}" class="user-avatar" onerror="this.src='https://robohash.org/${currentUser.pubkey}?set=set5'">
@@ -1859,7 +1872,10 @@ document.getElementById('hashtag-input').addEventListener('keypress', (e) => {
 }
 
 function makeNostrConnectSecret() {
-  return crypto.randomUUID(); // short + safe
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
             // Bunker login using official BunkerSigner (same as Primal)
@@ -1880,8 +1896,9 @@ async function showBunkerLogin() {
   const clientPubkey = NostrTools.getPublicKey(clientSecretKey);
 
   const relays = [
-  'wss://relay.primal.net',
-  'wss://relay.damus.io'
+  'wss://relay.damus.io',
+  'wss://relay.nsec.app',
+  'wss://nostr.wine'
 ];
 
 const secret = makeNostrConnectSecret();
@@ -1947,64 +1964,142 @@ const connectionString =
 }
 
 async function connectBunker(connectionString, clientSecretKeyBytes, statusEl) {
+  // Check if nip46 exists
+  if (!NostrTools.nip46 || !NostrTools.nip46.BunkerSigner) {
+    statusEl.className = 'bunker-status error';
+    statusEl.textContent = 'Bunker not supported. Please use Extension Login.';
+    console.error('NostrTools.nip46 not available');
+    return;
+  }
+
   const { BunkerSigner } = NostrTools.nip46;
 
   statusEl.className = 'bunker-status waiting';
-  statusEl.textContent = 'Waiting for signer connection...';
+  statusEl.textContent = 'Waiting for signer approval...';
 
   try {
-    bunkerSigner = await BunkerSigner.fromURI(
+    // Parse URL manually
+    const url = new URL(connectionString);
+    const remotePubkey = url.hostname || url.pathname.replace('//', '');
+    const relays = url.searchParams.getAll('relay');
+    const secret = url.searchParams.get('secret');
+
+    console.log('Parsed connection:', { remotePubkey, relays, secret });
+
+    if (!remotePubkey || relays.length === 0) {
+      throw new Error('Invalid connection string format');
+    }
+
+    console.log('Creating BunkerSigner...');
+
+    // Try the constructor directly
+    bunkerSigner = new BunkerSigner(
       clientSecretKeyBytes,
-      connectionString,
       {
-        pool: window._nostrPool   // MUST be SimplePool
+        pubkey: remotePubkey,
+        relays: relays,
+        secret: secret
+      },
+      window._nostrPool,
+      {
+        onauth: (url) => {
+          console.log('Auth URL:', url);
+          window.open(url, '_blank');
+        }
       }
     );
+
+    console.log('BunkerSigner created, calling connect() with 60s timeout...');
+
+    // Add 60 second timeout
+    const connectPromise = bunkerSigner.connect();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout after 60 seconds')), 60000)
+    );
+
+    await Promise.race([connectPromise, timeoutPromise]);
+
+    console.log('Connected! Getting public key...');
 
     statusEl.className = 'bunker-status connected';
     statusEl.textContent = 'Connected! Getting your key...';
 
     const userPubkey = await bunkerSigner.getPublicKey();
+    
+    if (!userPubkey) {
+      throw new Error('Failed to get public key from signer');
+    }
+
+    console.log('Got pubkey:', userPubkey);
     await completeBunkerLogin(userPubkey, bunkerSigner);
 
   } catch (err) {
-    console.error(err);
+    console.error('Bunker connection error:', err);
     statusEl.className = 'bunker-status error';
-    statusEl.textContent = 'Connection failed: ' + err.message;
+    
+    if (err.message.includes('timeout')) {
+      statusEl.textContent = 'Connection timeout. Make sure you approved in your signer app.';
+    } else {
+      statusEl.textContent = 'Connection failed: ' + err.message;
+    }
   }
 }
 
             async function completeBunkerLogin(userPubkey, signer) {
-  const npub = NostrTools.nip19.npubEncode(userPubkey);
-  const profile = await fetchProfile(userPubkey);
-  const follows = await fetchFollows(userPubkey);
+  try {
+    const statusEl = document.getElementById('bunker-status');
+    const input = document.getElementById('npub-input');
 
-  currentUser = {
-    pubkey: userPubkey,
-    npub,
-    profile,
-    bunker: true
-  };
+    statusEl.className = 'bunker-status connected';
+    statusEl.textContent = 'Loading your profile...';
 
-  userFollowing = new Set(follows);
-  bunkerConnection = { signer, pubkey: userPubkey };
+    const npub = NostrTools.nip19.npubEncode(userPubkey);
+    const profile = await fetchProfile(userPubkey);
 
-  document.getElementById('bunker-login-modal').classList.remove('visible');
-  updateUserUI();
+    statusEl.textContent = 'Loading your follows...';
+    const follows = await fetchFollows(userPubkey);
 
-  const input = document.getElementById('npub-input');
-  input.value = npub;
-  input.disabled = true;
+    // ✅ set state FIRST
+    currentUser = {
+      pubkey: userPubkey,
+      npub,
+      profile,
+      bunker: true
+    };
+
+    userFollowing = new Set(follows);
+    bunkerConnection = { signer, pubkey: userPubkey };
+
+    // ✅ DEBUG: prove currentUser is set
+    console.log('✅ completeBunkerLogin set currentUser:', currentUser);
+
+    // ✅ update UI IMMEDIATELY (this is the important part)
+    updateUserUI();
+
+    // ✅ DEBUG: prove input changed
+    console.log('✅ after updateUserUI npub-input value:', input?.value);
+
+    statusEl.textContent = 'Login successful!';
+
+    setTimeout(() => {
+      document.getElementById('bunker-login-modal').classList.remove('visible');
+      // (optional) update again after modal closes
+      updateUserUI();
+    }, 500);
+
+  } catch (err) {
+    console.error('Complete login error:', err);
+    const statusEl = document.getElementById('bunker-status');
+    statusEl.className = 'bunker-status error';
+    statusEl.textContent = 'Login failed: ' + err.message;
+  }
 }
 
-            async function fetchProfile(pubkeyHex) {
-    if (profileCache.has(pubkeyHex)) {
-        return profileCache.get(pubkeyHex);
-    }
+// Fetch profile
+async function fetchProfile(pubkeyHex) {
+    if (profileCache.has(pubkeyHex)) return profileCache.get(pubkeyHex);
 
     try {
-        console.log('Fetching profile for:', pubkeyHex.substring(0, 8) + '...');
-        
         const events = await pool.querySync(RELAYS, {
             kinds: [0],
             authors: [pubkeyHex],
@@ -2012,28 +2107,26 @@ async function connectBunker(connectionString, clientSecretKeyBytes, statusEl) {
         });
 
         if (events.length === 0) {
-            console.log('No profile found for:', pubkeyHex.substring(0, 8));
-            const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
-            profileCache.set(pubkeyHex, fallback);
-            return fallback;
+            return {
+                pubkey: pubkeyHex,
+                name: 'Anonymous',
+                about: '',
+                picture: null
+            };
         }
 
         const profile = JSON.parse(events[0].content);
-        const data = {
-            pubkey: pubkeyHex,
-            name: profile.name || profile.display_name || 'Anon',
-            about: profile.about || '',
-            picture: profile.picture || null
-        };
-        
-        console.log('Profile loaded:', data.name);
-        profileCache.set(pubkeyHex, data);
-        return data;
+        profile.pubkey = pubkeyHex;
+        profileCache.set(pubkeyHex, profile);
+        return profile;
     } catch (err) {
         console.error('Profile fetch error:', err);
-        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
-        profileCache.set(pubkeyHex, fallback);
-        return fallback;
+        return {
+            pubkey: pubkeyHex,
+            name: 'Anonymous',
+            about: '',
+            picture: null
+        };
     }
 }
 
@@ -2428,12 +2521,11 @@ if (searchTags && searchTags.size > 0) {
 }
 
 
-            // Follow user
             async function followUser(pubkey) {
-                if (!currentUser) {
-                    alert('Please login first');
-                    return false;
-                }
+    if (!currentUser) {
+        alert('Please login first');
+        return false;
+    }
 
                 // Check if using bunker or extension
                 const useBunker = currentUser.bunker && bunkerConnection;
@@ -2444,18 +2536,18 @@ if (searchTags && searchTags.size > 0) {
                     return false;
                 }
 
-                try {
-                    const currentFollows = Array.from(userFollowing);
-                    if (!currentFollows.includes(pubkey)) {
-                        currentFollows.push(pubkey);
-                    }
+    try {
+        const currentFollows = Array.from(userFollowing);
+        if (!currentFollows.includes(pubkey)) {
+            currentFollows.push(pubkey);
+        }
 
-                    const event = {
-                        kind: 3,
-                        created_at: Math.floor(Date.now() / 1000),
-                        tags: currentFollows.map(pk => ['p', pk]),
-                        content: ''
-                    };
+        const event = {
+            kind: 3,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: currentFollows.map(pk => ['p', pk]),
+            content: ''
+        };
 
                     let signedEvent;
                     
@@ -2592,46 +2684,59 @@ async function signEventWithBunker(event) {
 
             // Main search
             document.getElementById('find-btn').addEventListener('click', async () => {
-                const npubInput = document.getElementById('npub-input').value.trim();
-                const findBtn = document.getElementById('find-btn');
-                const resultsSection = document.getElementById('results-section');
-                const emptyState = document.getElementById('empty-state');
-                const resultsGrid = document.getElementById('results-grid');
+    const findBtn = document.getElementById('find-btn');
+    const resultsSection = document.getElementById('results-section');
+    const emptyState = document.getElementById('empty-state');
+    const resultsGrid = document.getElementById('results-grid');
 
-                // Validate hashtag mode
-                if (discoveryMode === 'hashtags') {
-                    if (selectedHashtags.size === 0) {
-                        alert('Please select at least one hashtag to search');
-                        return;
-                    }
-                    console.log('Hashtag discovery mode:', Array.from(selectedHashtags), 'Match mode:', matchMode);
-                }
+    // Validate hashtag mode
+    if (discoveryMode === 'hashtags') {
+        if (selectedHashtags.size === 0) {
+            alert('Please select at least one hashtag to search');
+            return;
+        }
+        console.log('Hashtag discovery mode:', Array.from(selectedHashtags), 'Match mode:', matchMode);
+    }
 
-                if (!npubInput) {
-                    alert('Please enter your npub or login');
-                    return;
-                }
+    // ✅ SOURCE OF TRUTH: logged in user first, otherwise manual input
+    let userPubkey;
 
-                if (!npubInput.startsWith('npub1')) {
-                    alert('Invalid npub format');
-                    return;
-                }
+    if (currentUser && currentUser.pubkey) {
+        userPubkey = currentUser.pubkey; // extension OR bunker
+    } else {
+        const npubInput = document.getElementById('npub-input').value.trim();
 
-                // Prevent multiple simultaneous searches
-                if (findBtn.disabled) {
-                    return;
-                }
+        if (!npubInput) {
+            alert('Please enter your npub or login');
+            return;
+        }
 
-                findBtn.disabled = true;
-                findBtn.textContent = 'Discovering...';
-                emptyState.style.display = 'none';
-                resultsSection.style.display = 'block';
-                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+        if (!npubInput.startsWith('npub1')) {
+            alert('Invalid npub format');
+            return;
+        }
 
-                try {
-                    const { data: userPubkey } = nip19.decode(npubInput);
-                    const userProfile = await fetchProfile(userPubkey);
-                    const userFollows = await fetchFollows(userPubkey);
+        userPubkey = nip19.decode(npubInput).data;
+    }
+
+    // Prevent multiple simultaneous searches
+    if (findBtn.disabled) return;
+
+    findBtn.disabled = true;
+    findBtn.textContent = 'Discovering...';
+    emptyState.style.display = 'none';
+    resultsSection.style.display = 'block';
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+
+    try {
+        const userProfile = await fetchProfile(userPubkey);
+        const userFollows = await fetchFollows(userPubkey);
+
+        // ✅ if not logged in, still use follows to mark "already following"
+        if (!currentUser) {
+            userFollowing = new Set(userFollows);
+            console.log('Loaded follows for manual npub:', userFollowing.size);
+        }
                     
                     if (!currentUser) {
         userFollowing = new Set(userFollows);
