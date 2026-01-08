@@ -357,14 +357,16 @@
         }
 
         .fren-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 0.75rem;
-            padding: 1.75rem;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-        }
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.75rem;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
 
         .fren-card::before {
             content: '';
@@ -504,11 +506,12 @@
         }
 
         .fren-actions {
-            display: flex;
-            gap: 0.75rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border-color);
-        }
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+}
 
         .btn-follow {
             flex: 1;
@@ -1270,10 +1273,6 @@
                             <div class="mode-title">Shared Interests</div>
                             <div class="mode-desc">Hashtag matching</div>
                         </div>
-                        <div class="mode-card" data-mode="engagement">
-                            <div class="mode-title">High Engagement</div>
-                            <div class="mode-desc">Active posters</div>
-                        </div>
                         <div class="mode-card" data-mode="niche">
                             <div class="mode-title">Niche Communities</div>
                             <div class="mode-desc">Specific topics</div>
@@ -1308,30 +1307,35 @@
                 </div>
 
                 <div class="toggle-group">
-                    <div class="toggle-item">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="hide-spam" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Hide Spam</span>
-                    </div>
-
-                    <div class="toggle-item">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="hide-nsfw" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Hide NSFW</span>
-                    </div>
-
-                    <div class="toggle-item">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="hide-following" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">Hide Already Following</span>
-                    </div>
-                </div>
+    <div class="toggle-item">
+        <label class="toggle-switch">
+            <input type="checkbox" id="hide-spam" checked>
+            <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Hide Spam</span>
+    </div>
+    <div class="toggle-item">
+        <label class="toggle-switch">
+            <input type="checkbox" id="hide-nsfw" checked>
+            <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Hide NSFW</span>
+    </div>
+    <div class="toggle-item">
+        <label class="toggle-switch">
+            <input type="checkbox" id="hide-following" checked>
+            <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Hide Already Following</span>
+    </div>
+    <div class="toggle-item">
+        <label class="toggle-switch">
+            <input type="checkbox" id="recent-activity-only" checked>
+            <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Posted Within a Month</span>
+    </div>
+</div>
 
                 <div class="filter-row">
                     <div class="input-group">
@@ -1409,17 +1413,11 @@
 
             <section class="results-section" id="results-section">
                 <div class="results-header">
-                    <h2>Discovered Frens</h2>
-                    <div class="results-info">
-                        <span class="results-count" id="results-count">0 matches</span>
-                        <select class="sort-dropdown" id="sort-by">
-                            <option value="match">Best Match</option>
-                            <option value="followers">Most Followers</option>
-                            <option value="mutual">Most Mutual</option>
-                            <option value="recent">Recently Active</option>
-                        </select>
-                    </div>
-                </div>
+    <h2>Discovered Frens</h2>
+    <div class="results-info">
+        <span class="results-count" id="results-count">0 matches</span>
+    </div>
+</div>
                 <div class="results-grid" id="results-grid"></div>
 
                 <div class="already-following-section" id="following-section" style="display: none;">
@@ -1495,7 +1493,7 @@
 
             const { nip19, SimplePool } = NostrTools;
             const pool = new SimplePool();
-            const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
+            const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://purplepag.es', 'wss://nostr.wine'];
 
             // Theme toggle
             document.getElementById('theme-btn').addEventListener('click', () => {
@@ -1642,6 +1640,18 @@
             }
             renderPopularTags();
 
+            document.getElementById('match-any').addEventListener('click', function() {
+    matchMode = 'any';
+    document.querySelectorAll('.match-mode-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+});
+
+document.getElementById('match-all').addEventListener('click', function() {
+    matchMode = 'all';
+    document.querySelectorAll('.match-mode-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+});
+
             // Add hashtag to selection
             function addHashtag(tag) {
                 const normalized = tag.toLowerCase().replace(/^#/, '');
@@ -1652,6 +1662,16 @@
                 document.getElementById('hashtag-input').value = '';
                 document.getElementById('tag-suggestions').classList.remove('visible');
             }
+
+            // Need to add hashtag input handler
+document.getElementById('hashtag-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const tag = e.target.value.trim();
+        if (tag) {
+            addHashtag(tag);
+        }
+    }
+});
 
             // Remove hashtag from selection
             function removeHashtag(tag) {
@@ -1870,7 +1890,8 @@ function showBunkerLogin() {
     const clientPubkey = NostrTools.getPublicKey(secretBytes);
     
     // Generate bunker URL (nostrconnect://)
-    const relayUrl = 'wss://relay.damus.io';
+    // Generate bunker URL (nostrconnect://)
+const relayUrl = 'wss://relay.primal.net';
     const metadata = {
         name: 'Fren Finder',
         url: window.location.origin,
@@ -2027,42 +2048,48 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
     }
 }
 
-            // Fetch profile with cache
             async function fetchProfile(pubkeyHex) {
-                if (profileCache.has(pubkeyHex)) return profileCache.get(pubkeyHex);
+    if (profileCache.has(pubkeyHex)) {
+        return profileCache.get(pubkeyHex);
+    }
 
-                try {
-                    const events = await pool.querySync(RELAYS, {
-                        kinds: [0],
-                        authors: [pubkeyHex],
-                        limit: 1
-                    });
+    try {
+        console.log('Fetching profile for:', pubkeyHex.substring(0, 8) + '...');
+        
+        const events = await pool.querySync(RELAYS, {
+            kinds: [0],
+            authors: [pubkeyHex],
+            limit: 1
+        });
 
-                    if (events.length === 0) {
-                        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
-                        profileCache.set(pubkeyHex, fallback);
-                        return fallback;
-                    }
+        if (events.length === 0) {
+            console.log('No profile found for:', pubkeyHex.substring(0, 8));
+            const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
+            profileCache.set(pubkeyHex, fallback);
+            return fallback;
+        }
 
-                    const profile = JSON.parse(events[0].content);
-                    const data = {
-                        pubkey: pubkeyHex,
-                        name: profile.name || profile.display_name || 'Anon',
-                        about: profile.about || '',
-                        picture: profile.picture || null
-                    };
-                    
-                    profileCache.set(pubkeyHex, data);
-                    return data;
-                } catch (err) {
-                    const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
-                    profileCache.set(pubkeyHex, fallback);
-                    return fallback;
-                }
-            }
+        const profile = JSON.parse(events[0].content);
+        const data = {
+            pubkey: pubkeyHex,
+            name: profile.name || profile.display_name || 'Anon',
+            about: profile.about || '',
+            picture: profile.picture || null
+        };
+        
+        console.log('Profile loaded:', data.name);
+        profileCache.set(pubkeyHex, data);
+        return data;
+    } catch (err) {
+        console.error('Profile fetch error:', err);
+        const fallback = { pubkey: pubkeyHex, name: 'Anon', about: '', picture: null };
+        profileCache.set(pubkeyHex, fallback);
+        return fallback;
+    }
+}
 
             // Fetch recent notes for engagement analysis
-            async function fetchRecentNotes(pubkeyHex, limit = 10) {
+            async function fetchRecentNotes(pubkeyHex, limit = 50) {  // Changed from 10 to 50
                 if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
 
                 try {
@@ -2097,6 +2124,104 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
                     return [];
                 }
             }
+
+            // Batch fetch helper to avoid rate limiting
+async function batchFetch(items, fetchFn, batchSize = 10, delayMs = 100) {
+    const results = [];
+    
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`);
+        
+        try {
+            const batchResults = await Promise.all(
+                batch.map(item => fetchFn(item).catch(err => {
+                    console.error('Batch item error:', err);
+                    return null; // Return null instead of failing entire batch
+                }))
+            );
+            
+            results.push(...batchResults);
+        } catch (err) {
+            console.error('Batch error:', err);
+            // Push nulls for failed batch
+            results.push(...Array(batch.length).fill(null));
+        }
+        
+        // Small delay between batches to avoid rate limits
+        if (i + batchSize < items.length) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    
+    return results;
+}
+
+            // Search for users who post about specific hashtags
+async function searchUsersByHashtags(hashtags, limit = 50) {
+    console.log('Searching posts for hashtags:', hashtags);
+    
+    const userCandidates = new Map(); // pubkey -> post count
+    const hashtagArray = Array.from(hashtags);
+    
+    try {
+        // Search for notes with these hashtags
+        for (const tag of hashtagArray) {
+            console.log('Searching for #' + tag);
+            
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1], // Text notes
+                '#t': [tag.toLowerCase()], // Hashtag search
+                limit: 100 // Get 100 posts per tag
+            });
+            
+            console.log(`Found ${events.length} posts for #${tag}`);
+            
+            // Count posts per user
+            events.forEach(event => {
+                const count = userCandidates.get(event.pubkey) || 0;
+                userCandidates.set(event.pubkey, count + 1);
+            });
+
+            // ADD DELAY between hashtag searches to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Sort by number of matching posts and return top users
+        const sortedUsers = Array.from(userCandidates.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by post count
+            .slice(0, limit)
+            .map(([pubkey]) => pubkey);
+        
+        console.log(`Found ${sortedUsers.length} unique users posting about these topics`);
+        return sortedUsers;
+        
+    } catch (err) {
+        console.error('Hashtag search error:', err);
+        return [];
+    }
+}
+
+// Get hashtags from user's recent posts (not just bio)
+async function getUserPostHashtags(pubkey, limit = 20) {
+    try {
+        const events = await pool.querySync(RELAYS, {
+            kinds: [1],
+            authors: [pubkey],
+            limit: limit
+        });
+        
+        const hashtags = new Set();
+        events.forEach(event => {
+            const tags = event.tags.filter(t => t[0] === 't');
+            tags.forEach(t => hashtags.add(t[1].toLowerCase()));
+        });
+        
+        return Array.from(hashtags);
+    } catch (err) {
+        return [];
+    }
+}
 
             // Calculate advanced match score based on multiple metrics
             // SCORING BREAKDOWN:
@@ -2140,13 +2265,31 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
                     scores.social = Math.min(100, (mutualFollows * 10) + (followsYou ? 20 : 0));
                 }
 
-                // Interest matching (hashtags)
-                const userHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
-                const candidateHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
-                const sharedHashtags = userHashtags.filter(h => 
-                    candidateHashtags.some(ch => ch.toLowerCase() === h.toLowerCase())
-                ).length;
-                scores.interests = Math.min(100, sharedHashtags * 25);
+                // Interest matching (hashtags from both bio AND posts)
+const userBioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
+const candidateBioHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
+
+// Extract hashtags from actual posts (much more accurate!)
+const userPostHashtags = new Set();
+if (candidateNotes) {
+    candidateNotes.forEach(note => {
+        const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+        tags.forEach(tag => userPostHashtags.add(tag));
+    });
+}
+
+// Combine bio and post hashtags for candidate
+const allCandidateHashtags = [
+    ...candidateBioHashtags.map(h => h.toLowerCase().replace('#', '')),
+    ...Array.from(userPostHashtags)
+];
+
+// Check overlap with user's bio hashtags
+const sharedHashtags = userBioHashtags.filter(h => 
+    allCandidateHashtags.some(ch => ch === h.toLowerCase().replace('#', ''))
+).length;
+
+scores.interests = Math.min(100, sharedHashtags * 25);
 
                 // Engagement analysis
                 if (candidateNotes && candidateNotes.length > 0) {
@@ -2154,31 +2297,84 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
                     scores.engagement = Math.min(100, avgNotesPerDay * 15);
                 }
 
-                // Niche community detection (hashtag consistency)
-                if (candidateHashtags.length > 0) {
-                    const uniqueTopics = new Set(candidateHashtags.map(h => h.toLowerCase())).size;
-                    const topicDepth = candidateHashtags.length / uniqueTopics;
-                    scores.niche = Math.min(100, topicDepth * 20);
-                }
+                // Niche community detection (RARITY-BASED - finds uncommon topics)
+const candidateBioTags = (candidateProfile.about || '').match(/#\w+/gi) || [];
+const candidatePostTags = new Set();
+if (candidateNotes) {
+    candidateNotes.forEach(note => {
+        const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+        tags.forEach(tag => candidatePostTags.add(tag));
+    });
+}
+
+// Combine all their hashtags
+const allTopics = [
+    ...candidateBioTags.map(h => h.toLowerCase().replace('#', '')),
+    ...Array.from(candidatePostTags)
+];
+
+// Score based on RARITY (uncommon topics = high score)
+if (allTopics.length > 0 && window.topicPopularity) {
+    const rarityScores = allTopics.map(topic => {
+        const popularity = window.topicPopularity.get(topic) || 1;
+        const totalProfiles = window.topicPopularity.size;
+        // Rarity: topics that appear in <10% of profiles get bonus
+        const rarityPercent = (popularity / totalProfiles) * 100;
+        return rarityPercent < 10 ? (100 - rarityPercent * 5) : 0;
+    });
+    
+    const avgRarity = rarityScores.reduce((a, b) => a + b, 0) / rarityScores.length;
+    scores.niche = Math.min(100, Math.max(0, avgRarity));
+} else {
+    scores.niche = 0;
+}
 
                 // Hashtag search matching (for hashtag discovery mode)
-                if (searchTags && searchTags.size > 0) {
-                    const candidateHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
-                    const candidateTagsLower = candidateHashtags.map(h => h.toLowerCase().replace('#', ''));
-                    
-                    const searchArray = Array.from(searchTags);
-                    const matches = searchArray.filter(tag => 
-                        candidateTagsLower.some(ct => ct.includes(tag))
-                    );
-                    
-                    if (matchMode === 'all') {
-                        // ALL tags must be present
-                        scores.hashtag = matches.length === searchArray.length ? 100 : 0;
-                    } else {
-                        // ANY tag match
-                        scores.hashtag = Math.min(100, (matches.length / searchArray.length) * 100);
-                    }
-                }
+if (searchTags && searchTags.size > 0) {
+    // Get hashtags from BOTH bio and posts
+    const bioHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
+    const postHashtags = new Set();
+    if (candidateNotes) {
+        candidateNotes.forEach(note => {
+            const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+            tags.forEach(tag => postHashtags.add(tag));
+        });
+    }
+    
+    // Combine all hashtags
+    const allCandidateHashtags = [
+        ...bioHashtags.map(h => h.toLowerCase().replace('#', '')),
+        ...Array.from(postHashtags)
+    ];
+    
+    // DEBUG: Show what we're finding
+    if (candidateProfile.pubkey === userProfile.pubkey) {
+        console.log('🔍 YOUR HASHTAG DEBUG:');
+        console.log('  Bio hashtags:', bioHashtags);
+        console.log('  Post hashtags:', Array.from(postHashtags));
+        console.log('  All combined:', allCandidateHashtags);
+        console.log('  Searching for:', Array.from(searchTags));
+        console.log('  Your notes count:', candidateNotes?.length);
+    }
+    
+    const searchArray = Array.from(searchTags);
+    const matches = searchArray.filter(tag => 
+        allCandidateHashtags.some(ct => ct.includes(tag))
+    );
+    
+    if (candidateProfile.pubkey === userProfile.pubkey) {
+        console.log('  Matches found:', matches);
+        console.log('  Final hashtag score:', matches.length > 0 ? ((matches.length / searchArray.length) * 100) : 0);
+    }
+    
+    if (matchMode === 'all') {
+        // ALL tags must be present
+        scores.hashtag = matches.length === searchArray.length ? 100 : 0;
+    } else {
+        // ANY tag match
+        scores.hashtag = Math.min(100, (matches.length / searchArray.length) * 100);
+    }
+}
 
                 // Weight scores based on discovery mode
                 let finalScore = 0;
@@ -2188,9 +2384,6 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
                         break;
                     case 'interests':
                         finalScore = scores.interests * 0.7 + scores.social * 0.2 + scores.niche * 0.1;
-                        break;
-                    case 'engagement':
-                        finalScore = scores.engagement * 0.7 + scores.social * 0.2 + scores.interests * 0.1;
                         break;
                     case 'niche':
                         finalScore = scores.niche * 0.7 + scores.interests * 0.2 + scores.social * 0.1;
@@ -2214,42 +2407,77 @@ async function connectBunker(bunkerUrl, clientSecret, statusEl) {
             // 4. Filters out people you already follow and yourself
             // 5. Returns candidates for scoring
             async function getRecommendations(userPubkey, limit) {
-                const userFollows = await fetchFollows(userPubkey);
-                
-                if (userFollows.length === 0) {
-                    return [
-                        '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
-                        '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
-                        '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'
-                    ];
-                }
+    const userFollows = await fetchFollows(userPubkey);
+    
+    console.log('User follows:', userFollows.length);
+    
+    // If user has no follows, search for popular accounts instead
+    if (userFollows.length === 0) {
+        console.log('No follows found, searching popular users...');
+        
+        try {
+            // Get recent popular posts to find active users
+            const recentEvents = await pool.querySync(RELAYS, {
+                kinds: [1],
+                limit: 200
+            });
+            
+            // Count posts per user
+            const userCounts = new Map();
+            recentEvents.forEach(event => {
+                const count = userCounts.get(event.pubkey) || 0;
+                userCounts.set(event.pubkey, count + 1);
+            });
+            
+            // Return top active users
+            const topUsers = Array.from(userCounts.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit * 3)
+                .map(([pubkey]) => pubkey);
+            
+            console.log('Found', topUsers.length, 'popular users');
+            return topUsers;
+        } catch (err) {
+            console.error('Error finding popular users:', err);
+            // Fallback to some known good accounts
+            return [
+                '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+                '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
+                '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+                'npub1sn0wdenkukak0d9dfczzeacvhkrgz92ak56egt7vdgzn8pv2wfqqhrjdv9', // @jack
+                'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6', // fiatjaf
+            ];
+        }
+    }
 
-                const candidates = new Set();
-                const sampleSize = Math.min(15, userFollows.length);
-                
-                // Randomize which follows to sample from
-                const shuffledFollows = [...userFollows].sort(() => Math.random() - 0.5);
-                
-                // Get second-degree connections
-                const followPromises = [];
-                for (let i = 0; i < sampleSize; i++) {
-                    followPromises.push(fetchFollows(shuffledFollows[i]));
-                }
+    const candidates = new Set();
+    const sampleSize = Math.min(20, userFollows.length); // Increased from 15 to 20
+    
+    console.log('Sampling', sampleSize, 'of your', userFollows.length, 'follows');
+    
+    const shuffledFollows = [...userFollows].sort(() => Math.random() - 0.5);
+    
+    const followPromises = [];
+    for (let i = 0; i < sampleSize; i++) {
+        followPromises.push(fetchFollows(shuffledFollows[i]));
+    }
 
-                const results = await Promise.all(followPromises);
-                
-                results.forEach(theirFollows => {
-                    theirFollows.forEach(pubkey => {
-                        if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
-                            candidates.add(pubkey);
-                        }
-                    });
-                });
-
-                // Randomize candidates and return more than needed
-                const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
-                return candidateArray.slice(0, limit * 3);
+    const results = await Promise.all(followPromises);
+    
+    results.forEach(theirFollows => {
+        theirFollows.forEach(pubkey => {
+            if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
+                candidates.add(pubkey);
             }
+        });
+    });
+
+    const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
+    console.log('Generated', candidateArray.length, 'total candidates');
+    
+    return candidateArray.slice(0, limit * 5); // Increased multiplier from 3 to 5
+}
+
 
             // Follow user
             async function followUser(pubkey) {
@@ -2413,15 +2641,6 @@ async function signEventWithBunker(event) {
                 });
             }
 
-            // Sort results
-            document.getElementById('sort-by').addEventListener('change', function() {
-                const currentProfiles = Array.from(document.querySelectorAll('.fren-card')).map(card => {
-                    // Extract data from cards - in real app, store profiles globally
-                    return null;
-                });
-                // Implement sorting logic here
-            });
-
             // Main search
             document.getElementById('find-btn').addEventListener('click', async () => {
                 const npubInput = document.getElementById('npub-input').value.trim();
@@ -2465,108 +2684,216 @@ async function signEventWithBunker(event) {
                     const userProfile = await fetchProfile(userPubkey);
                     const userFollows = await fetchFollows(userPubkey);
                     
+                    if (!currentUser) {
+        userFollowing = new Set(userFollows);
+        console.log('Loaded follows for manual npub:', userFollowing.size);
+    }
+
                     let candidatePubkeys;
-                    
-                    // Use cross-reference data if enabled
-                    if (crossRefEnabled && crossRefData) {
-                        // Combine all three groups for discovery
-                        const allCandidates = [
-                            ...crossRefData.youOnly,
-                            ...crossRefData.themOnly,
-                            ...crossRefData.mutual
-                        ];
-                        
-                        // Remove duplicates and limit
-                        candidatePubkeys = Array.from(new Set(allCandidates))
-                            .slice(0, parseInt(document.getElementById('result-count').value) * 2);
-                        
-                        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
-                    } else {
-                        candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
-                        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
-                    }
+
+// For hashtag discovery mode, ALWAYS do global search (ignore cross-ref)
+if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
+    candidatePubkeys = await searchUsersByHashtags(selectedHashtags, parseInt(document.getElementById('result-count').value) * 3);
+
+ // DEBUG: Check if you're in the results
+    console.log('=== HASHTAG SEARCH DEBUG ===');
+    console.log('Found candidates:', candidatePubkeys.length);
+    console.log('Your pubkey:', userPubkey);
+    console.log('Are you in results?', candidatePubkeys.includes(userPubkey));
+    console.log('First 5 candidates:', candidatePubkeys.slice(0, 5));
+}
+
+// Use cross-reference data if enabled (for other modes)
+else if (crossRefEnabled && crossRefData) {
+    const allCandidates = [
+        ...crossRefData.youOnly,
+        ...crossRefData.themOnly,
+        ...crossRefData.mutual
+    ];
+    
+    candidatePubkeys = Array.from(new Set(allCandidates))
+        .slice(0, parseInt(document.getElementById('result-count').value) * 2);
+    
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
+}
+// Default: social graph recommendations
+else {
+    candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+}
                     
                     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
-                    // Fetch all data in parallel
-                    const profilePromises = candidatePubkeys.map(pubkey => fetchProfile(pubkey));
-                    const followPromises = candidatePubkeys.map(pubkey => fetchFollows(pubkey));
-                    const notePromises = candidatePubkeys.map(pubkey => fetchRecentNotes(pubkey));
+                    // Fetch data in parallel batches to avoid rate limiting (MUCH FASTER!)
+console.log('Fetching', candidatePubkeys.length, 'profiles, follows, and notes...');
 
-                    const [allProfiles, allFollows, allNotes] = await Promise.all([
-                        Promise.all(profilePromises),
-                        Promise.all(followPromises),
-                        Promise.all(notePromises)
-                    ]);
+const [allProfiles, allFollows, allNotes] = await Promise.all([
+    batchFetch(candidatePubkeys, fetchProfile, 5, 300),  // Reduced from 10 to 5, increased delay
+    batchFetch(candidatePubkeys, fetchFollows, 5, 300),
+    batchFetch(candidatePubkeys, (pk) => fetchRecentNotes(pk, 50), 5, 300)
+]);
+
+// Build topic popularity map for niche detection
+const topicPopularity = new Map();
+allNotes.forEach((notes, idx) => {
+    if (!notes) return;
+    const profile = allProfiles[idx];
+    if (!profile) return;
+    
+    // Get hashtags from bio
+    const bioHashtags = (profile.about || '').match(/#\w+/gi) || [];
+    bioHashtags.forEach(tag => {
+        const normalized = tag.toLowerCase().replace('#', '');
+        topicPopularity.set(normalized, (topicPopularity.get(normalized) || 0) + 1);
+    });
+    
+    // Get hashtags from posts
+    notes.forEach(note => {
+        const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+        tags.forEach(tag => {
+            topicPopularity.set(tag, (topicPopularity.get(tag) || 0) + 1);
+        });
+    });
+});
+
+console.log('Topic popularity map built:', topicPopularity.size, 'unique topics');
+
+// Make available to scoring function
+window.topicPopularity = topicPopularity;
+
+// DEBUG: Check what we got
+console.log('Profiles loaded:', allProfiles.filter(p => p !== null).length, '/', allProfiles.length);
+console.log('Sample profile:', allProfiles[0]);
+
+console.log('All data fetched!');
 
                     const profiles = allProfiles
-                        .map((profile, idx) => {
-                            if (!profile.pubkey) return null;
-                            
-                            // Spam detection
-                            const spamScore = detectSpam(profile, allNotes[idx]);
-                            const isNSFW = detectNSFW(profile);
-                            
-                            const scores = calculateMatchScore(
-                                userProfile,
-                                profile,
-                                userFollows,
-                                allFollows[idx],
-                                allNotes[idx],
-                                discoveryMode === 'hashtags' ? selectedHashtags : null
-                            );
+    .map((profile, idx) => {
+        if (!profile.pubkey) return null;
+        
+        const spamScore = detectSpam(profile, allNotes[idx]);
+        const isNSFW = detectNSFW(profile);
+        
+        const scores = calculateMatchScore(
+            userProfile,
+            profile,
+            userFollows,
+            allFollows[idx],
+            allNotes[idx],
+            discoveryMode === 'hashtags' ? selectedHashtags : null
+        );
 
-                            const mutual = allFollows[idx].filter(f => userFollows.includes(f)).length;
+        const mutual = allFollows[idx].filter(f => userFollows.includes(f)).length;
 
-                            // Determine cross-reference category
-                            let crossRefCategory = null;
-                            if (crossRefEnabled && crossRefData) {
-                                if (crossRefData.mutual.includes(profile.pubkey)) {
-                                    crossRefCategory = 'mutual';
-                                } else if (crossRefData.youOnly.includes(profile.pubkey)) {
-                                    crossRefCategory = 'you-only';
-                                } else if (crossRefData.themOnly.includes(profile.pubkey)) {
-                                    crossRefCategory = 'them-only';
-                                }
-                            }
+        let crossRefCategory = null;
+        if (crossRefEnabled && crossRefData) {
+            if (crossRefData.mutual.includes(profile.pubkey)) {
+                crossRefCategory = 'mutual';
+            } else if (crossRefData.youOnly.includes(profile.pubkey)) {
+                crossRefCategory = 'you-only';
+            } else if (crossRefData.themOnly.includes(profile.pubkey)) {
+                crossRefCategory = 'them-only';
+            }
+        }
 
-                            return {
-                                ...profile,
-                                npub: nip19.npubEncode(profile.pubkey),
-                                scores: scores,
-                                mutual: mutual,
-                                isFollowing: userFollowing.has(profile.pubkey),
-                                spamScore: spamScore,
-                                isNSFW: isNSFW,
-                                crossRefCategory: crossRefCategory
-                            };
-                        })
-                        .filter(p => {
-                            if (!p) return false;
-                            
-                            // In hashtag mode, filter out profiles with no matching tags
-                            if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
-                                return false;
-                            }
-                            
-                            // Apply spam filter
-                            const hideSpam = document.getElementById('hide-spam').checked;
-                            if (hideSpam && p.spamScore > 60) {
-                                console.log('Filtering spam:', p.name, 'Score:', p.spamScore);
-                                return false;
-                            }
-                            
-                            // Apply NSFW filter
-                            const hideNSFW = document.getElementById('hide-nsfw').checked;
-                            if (hideNSFW && p.isNSFW) {
-                                console.log('Filtering NSFW:', p.name);
-                                return false;
-                            }
-                            
-                            return true;
-                        })
-                        .sort((a, b) => b.scores.total - a.scores.total)
-                        .slice(0, parseInt(document.getElementById('result-count').value));
+        return {
+    ...profile,
+    npub: nip19.npubEncode(profile.pubkey),
+    scores: scores,
+    mutual: mutual,
+    isFollowing: userFollowing.has(profile.pubkey),
+    spamScore: spamScore,
+    isNSFW: isNSFW,
+    crossRefCategory: crossRefCategory,
+    notes: allNotes[idx],
+    follows: allFollows[idx]
+};
+    })
+
+    .filter(p => {
+    if (!p) {
+        console.log('❌ Filtered: null profile');
+        return false;
+    }
+    
+    // DEBUG: Track YOUR profile specifically
+    const isYou = p.pubkey === userPubkey;
+    if (isYou) console.log('🔍 Checking YOUR profile:', p.name);
+    
+    if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
+        if (isYou) console.log('❌ YOU filtered: hashtag score is 0');
+        return false;
+    }
+    
+    const hideSpam = document.getElementById('hide-spam').checked;
+    if (hideSpam && p.spamScore > 60) {
+        if (isYou) console.log('❌ YOU filtered: spam score', p.spamScore);
+        console.log('Filtering spam:', p.name, 'Score:', p.spamScore);
+        return false;
+    }
+    
+    const hideNSFW = document.getElementById('hide-nsfw').checked;
+    if (hideNSFW && p.isNSFW) {
+        if (isYou) console.log('❌ YOU filtered: NSFW');
+        console.log('Filtering NSFW:', p.name);
+        return false;
+    }
+    
+    const recentActivityOnly = document.getElementById('recent-activity-only').checked;
+    if (recentActivityOnly) {
+        const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
+        const hasRecentNote = p.notes?.some(note => note.created_at > thirtyDaysAgo);
+        
+        if (!hasRecentNote) {
+            if (isYou) console.log('❌ YOU filtered: no recent activity');
+            console.log('Filtering inactive:', p.name, '- no posts in last 30 days');
+            return false;
+        }
+    }
+    
+    const minFollowers = parseInt(document.getElementById('min-followers').value);
+    if (minFollowers > 0) {
+        const followCount = p.follows?.length || 0;
+        if (followCount < minFollowers) {
+            if (isYou) console.log('❌ YOU filtered: network too small', followCount);
+            console.log('Filtering small network:', p.name, 'Follows:', followCount);
+            return false;
+        }
+    }
+    
+    const activityLevel = document.getElementById('activity-level').value;
+    if (activityLevel !== 'any' && p.notes) {
+        const tenDaysAgo = Math.floor(Date.now() / 1000) - (10 * 24 * 60 * 60);
+        const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
+        
+        const recentPosts = p.notes.filter(note => note.created_at > tenDaysAgo).length;
+        const monthPosts = p.notes.filter(note => note.created_at > thirtyDaysAgo).length;
+        
+        if (activityLevel === 'high' && recentPosts < 5) {
+            if (isYou) console.log('❌ YOU filtered: activity level too low', recentPosts);
+            console.log('Filtering low activity:', p.name, 'Recent posts:', recentPosts);
+            return false;
+        }
+        if (activityLevel === 'medium' && recentPosts < 2) {
+            if (isYou) console.log('❌ YOU filtered: activity level too low', recentPosts);
+            console.log('Filtering low activity:', p.name, 'Recent posts:', recentPosts);
+            return false;
+        }
+        if (activityLevel === 'low' && monthPosts < 1) {
+            if (isYou) console.log('❌ YOU filtered: no monthly activity', monthPosts);
+            console.log('Filtering inactive:', p.name, 'Month posts:', monthPosts);
+            return false;
+        }
+    }
+    
+    if (isYou) console.log('✅ YOU passed all filters!');
+    return true;
+})
+
+
+    .sort((a, b) => b.scores.total - a.scores.total)
+    .slice(0, parseInt(document.getElementById('result-count').value));
 
                     // Separate into new discoveries and already following
                     const hideFollowing = document.getElementById('hide-following').checked;
@@ -2616,6 +2943,7 @@ if (followingProfiles.length > 0 && hideFollowing && newProfiles.length > 0) {
     });
 } else {
     followingSection.style.display = 'none';
+    followingGrid.innerHTML = '';  // ✅ CLEAR the grid when hiding!
 }
 
                 } catch (err) {
@@ -2634,6 +2962,19 @@ if (followingProfiles.length > 0 && hideFollowing && newProfiles.length > 0) {
             window.copyNpub = (npub) => {
                 navigator.clipboard.writeText(npub).then(() => console.log('Copied:', npub));
             };
+
+            document.getElementById('following-header').addEventListener('click', function() {
+                const content = document.getElementById('following-content');
+                const icon = document.getElementById('following-icon');
+                
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    icon.textContent = '▼';
+                } else {
+                    content.style.display = 'none';
+                    icon.textContent = '▶';
+                }
+            });
 
             // Close bunker modal
             document.getElementById('close-bunker').addEventListener('click', function() {
