@@ -2444,11 +2444,15 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
 
     const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
 
-    const relays = [
-        'wss://relay.primal.net',
-        'wss://relay.damus.io',
-        'wss://relay.nsec.app'
-    ];
+    const NIP46_RELAYS = [
+  'wss://relay.nsec.app'
+];
+
+const PUBLIC_RELAYS = [
+  'wss://relay.primal.net',
+  'wss://relay.damus.io',
+  'wss://nos.lol'
+];
 
     await Promise.all(relays.map(r => pool.publish([r], event)));
 }
