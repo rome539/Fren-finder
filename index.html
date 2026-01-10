@@ -1453,6 +1453,14 @@
 </script>
 <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
 
+<script type="module">
+  import * as NostrTools from "https://esm.sh/nostr-tools@2.7.2";
+  import * as nip46 from "https://esm.sh/nostr-tools@2.7.2/nip46";
+
+  window.NostrTools = { ...NostrTools, nip46 };
+</script>
+<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+
 <script>
 const profileCache = new Map();  
 const noteCache = new Map();
@@ -1460,6 +1468,7 @@ let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
 let bunkerConnection = null;
+let bunkerLoginInProgress = false;
 
 window.addEventListener('load', async function() {
     if (typeof NostrTools === 'undefined') {
@@ -1698,23 +1707,23 @@ window.addEventListener('load', async function() {
     }
 
     function logout() {
-        currentUser = null;
-        userFollowing.clear();
-        bunkerConnection = null;
-        
-        if (window._bunkerSub) {
-            window._bunkerSub.close();
-            window._bunkerSub = null;
-        }
-        if (window._bunkerHeartbeat) {
-            clearInterval(window._bunkerHeartbeat);
-            window._bunkerHeartbeat = null;
-        }
-        
-        document.getElementById('npub-input').value = '';
-        document.getElementById('npub-input').disabled = false;
-        updateUserUI();
+    currentUser = null;
+    userFollowing.clear();
+    bunkerConnection = null;
+
+    if (window._bunkerSub) {
+        window._bunkerSub.close();
+        window._bunkerSub = null;
     }
+    if (window._bunkerHeartbeat) {
+        clearInterval(window._bunkerHeartbeat);
+        window._bunkerHeartbeat = null;
+    }
+    
+    document.getElementById('npub-input').value = '';
+    document.getElementById('npub-input').disabled = false;
+    updateUserUI();
+}
 
     function updateUserUI() {
         const userSection = document.getElementById('user-section');
@@ -1775,186 +1784,234 @@ window.addEventListener('load', async function() {
         }
     }
 
-    // Bunker helper functions
-    function getClientSecretKeyBytes() {
-        let hex = localStorage.getItem('bunker_client_secret_hex');
-        if (!hex) {
-            const sk = NostrTools.generateSecretKey();
-            hex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
-            localStorage.setItem('bunker_client_secret_hex', hex);
+    // Debug: Listen for ALL NIP-46 events to see what the signer is doing
+const debugSub = window._nostrPool.subscribeMany(
+    ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'],
+    [{ kinds: [24133], since: Math.floor(Date.now() / 1000) }],
+    {
+        onevent(event) {
+            console.log('=== DEBUG: ANY NIP-46 EVENT ===');
+            console.log('From:', event.pubkey);
+            console.log('Tags:', event.tags);
+            console.log('To (p-tag):', event.tags.find(t => t[0] === 'p')?.[1]);
         }
-        return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
     }
+);
+
+    function getClientSecretKeyBytes() {
+    // Generate a fresh secret every time for security
+    const sk = NostrTools.generateSecretKey();
+    const hex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
+    return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
+}
 
     function makeNostrConnectSecret() {
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Bunker login - Manual NIP-46
-    async function showBunkerLogin() {
-        const modal = document.getElementById('bunker-login-modal');
-        const statusEl = document.getElementById('bunker-status');
-        const qrContainer = document.getElementById('qr-code-container');
-        const connectionStringEl = document.getElementById('bunker-connection-string');
+    // Add this at the top with other global variables
+let bunkerLoginInProgress = false;
 
-        qrContainer.innerHTML = '';
-        connectionStringEl.textContent = '';
+async function showBunkerLogin() {
+    // Prevent multiple simultaneous login attempts
+    if (bunkerLoginInProgress) {
+        console.log('Bunker login already in progress');
+        return;
+    }
+    
+    bunkerLoginInProgress = true;
+    
+    const modal = document.getElementById('bunker-login-modal');
+    const statusEl = document.getElementById('bunker-status');
+    const qrContainer = document.getElementById('qr-code-container');
+    const connectionStringEl = document.getElementById('bunker-connection-string');
 
-        const bunkerClientSecret = getClientSecretKeyBytes();
-        const clientPubkey = NostrTools.getPublicKey(bunkerClientSecret);
+    console.log('=== SHOW BUNKER LOGIN CALLED ===');
 
-        const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-        const secret = makeNostrConnectSecret();
+    qrContainer.innerHTML = '';
+    connectionStringEl.textContent = '';
 
-        const params = new URLSearchParams();
-        relays.forEach(r => params.append('relay', r));
-        params.append('secret', secret);
-        params.append('name', 'Fren Finder');
+    const bunkerClientSecret = getClientSecretKeyBytes();
+    const clientPubkey = NostrTools.getPublicKey(bunkerClientSecret);
 
-        const connectionString = `nostrconnect://${clientPubkey}?${params.toString()}`;
-        connectionStringEl.textContent = connectionString;
+    console.log('=== NEW BUNKER CONNECTION ===');
+    console.log('Client pubkey:', clientPubkey);
+    console.log('Client secret length:', bunkerClientSecret.length);
 
-        // Render QR
-        try {
-            if (typeof qrcode !== 'undefined') {
-                const qr = qrcode(0, 'L');
-                qr.addData(connectionString);
-                qr.make();
+    const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
+    const secret = makeNostrConnectSecret();
 
-                const canvas = document.createElement('canvas');
-                canvas.width = 200;
-                canvas.height = 200;
-                const ctx = canvas.getContext('2d');
-                const cellSize = 200 / qr.getModuleCount();
+    const params = new URLSearchParams();
+    relays.forEach(r => params.append('relay', r));
+    params.append('secret', secret);
+    params.append('name', 'Fren Finder');
 
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, 200, 200);
+    const connectionString = `nostrconnect://${clientPubkey}?${params.toString()}`;
+    connectionStringEl.textContent = connectionString;
 
-                ctx.fillStyle = '#000000';
-                for (let row = 0; row < qr.getModuleCount(); row++) {
-                    for (let col = 0; col < qr.getModuleCount(); col++) {
-                        if (qr.isDark(row, col)) {
-                            ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                        }
+    console.log('Connection string:', connectionString);
+
+    // Render QR
+    try {
+        if (typeof qrcode !== 'undefined') {
+            const qr = qrcode(0, 'L');
+            qr.addData(connectionString);
+            qr.make();
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            const cellSize = 200 / qr.getModuleCount();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 200, 200);
+
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < qr.getModuleCount(); row++) {
+                for (let col = 0; col < qr.getModuleCount(); col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
                     }
                 }
-
-                qrContainer.appendChild(canvas);
             }
-        } catch (err) {
-            console.error('QR error:', err);
+
+            qrContainer.appendChild(canvas);
+            console.log('QR code rendered');
+        } else {
+            console.error('qrcode library not loaded');
         }
-
-        modal.classList.add('visible');
-        statusEl.className = 'bunker-status waiting';
-        statusEl.textContent = 'Scan with your signer app...';
-
-        const copyBtn = document.getElementById('copy-connection-btn');
-        copyBtn.style.display = 'block';
-        copyBtn.textContent = 'Copy Connection String';
-        copyBtn.onclick = () => {
-            navigator.clipboard.writeText(connectionString).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => (copyBtn.textContent = 'Copy Connection String'), 2000);
-            });
-        };
-
-        listenForBunkerConnection(relays, clientPubkey, bunkerClientSecret, statusEl);
+    } catch (err) {
+        console.error('QR error:', err);
     }
+
+    modal.classList.add('visible');
+    statusEl.className = 'bunker-status waiting';
+    statusEl.textContent = 'Scan with your signer app...';
+
+    const copyBtn = document.getElementById('copy-connection-btn');
+    copyBtn.style.display = 'block';
+    copyBtn.textContent = 'Copy Connection String';
+    copyBtn.onclick = () => {
+        navigator.clipboard.writeText(connectionString).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => (copyBtn.textContent = 'Copy Connection String'), 2000);
+        });
+    };
+
+    console.log('About to call listenForBunkerConnection...');
+    listenForBunkerConnection(relays, clientPubkey, bunkerClientSecret, statusEl);
+    console.log('listenForBunkerConnection called');
+}
 
     function listenForBunkerConnection(relays, clientPubkey, clientSecret, statusEl) {
-        console.log('Listening for bunker connection...');
-        
-        const sub = pool.subscribeMany(relays, [
-            {
-                kinds: [24133],
-                '#p': [clientPubkey],
-                since: Math.floor(Date.now() / 1000) - 60
-            }
-        ], {
-            onevent(event) {
-                console.log('Received NIP-46 event:', event);
-                handleBunkerMessage(event, clientSecret, statusEl);
-            },
-            oneose() {
-                console.log('Subscription established');
-            }
-        });
-
-        window._bunkerSub = sub;
-    }
-
-    async function handleBunkerMessage(event, clientSecret, statusEl) {
-        console.log('=== START handleBunkerMessage ===');
-        
-        try {
-            const remotePubkey = String(event.pubkey);
-            const content = String(event.content);
-            
-            console.log('Attempting decrypt...');
-            console.log('Remote pubkey:', remotePubkey.substring(0, 8) + '...');
-            console.log('Content:', content.substring(0, 30) + '...');
-            
-            let decrypted;
-            
-            // Try nip44 first (preferred for NIP-46)
-            try {
-                console.log('Trying nip44.decrypt...');
-                if (NostrTools.nip44) {
-                    const conversationKey = NostrTools.nip44.getConversationKey(
-                        clientSecret, 
-                        remotePubkey
-                    );
-                    decrypted = NostrTools.nip44.decrypt(content, conversationKey);
-                } else {
-                    throw new Error('nip44 not available');
-                }
-            } catch (e1) {
-                console.log('nip44 failed, trying nip04...');
-                
-                // Fallback to nip04
-                const secretKeyHex = Array.from(clientSecret)
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-                decrypted = await NostrTools.nip04.decrypt(secretKeyHex, remotePubkey, content);
-            }
-            
-            console.log('Decrypt succeeded! Content:', decrypted);
-            
-            const message = JSON.parse(decrypted);
-            console.log('Parsed message:', message);
-            
-            if (message.result === 'ack' || message.method === 'connect') {
-                console.log('Connection acknowledged!');
-                
-                statusEl.className = 'bunker-status connected';
-                statusEl.textContent = 'Connected! Getting your public key...';
-                
-                await requestPublicKey(remotePubkey, clientSecret);
-            }
-            
-            if (message.result && typeof message.result === 'string' && message.result.length === 64) {
-                console.log('Got public key:', message.result);
-                await completeBunkerLogin(message.result, remotePubkey, clientSecret);
-            }
-        } catch (err) {
-            console.error('=== ERROR ===');
-            console.error(err);
-            
-            statusEl.className = 'bunker-status error';
-            statusEl.textContent = 'Decryption failed. Try extension login instead.';
+    console.log('=== listenForBunkerConnection CALLED ===');
+    console.log('Client pubkey:', clientPubkey);
+    
+    // Track if we've requested the public key
+    let publicKeyRequested = false;
+    
+    const sub = pool.subscribeMany(relays, [
+        {
+            kinds: [24133],
+            '#p': [clientPubkey],
+            since: Math.floor(Date.now() / 1000) - 60
         }
-    }
+    ], {
+        async onevent(event) {
+            console.log('=== RECEIVED NIP-46 EVENT ===');
+            console.log('Event from:', event.pubkey);
+            
+            try {
+                const remotePubkey = String(event.pubkey);
+                const content = String(event.content);
+                
+                let decrypted;
+                
+                try {
+                    if (NostrTools.nip44) {
+                        const conversationKey = NostrTools.nip44.getConversationKey(
+                            clientSecret, 
+                            remotePubkey
+                        );
+                        decrypted = NostrTools.nip44.decrypt(content, conversationKey);
+                    } else {
+                        throw new Error('nip44 not available');
+                    }
+                } catch (e1) {
+                    const secretKeyHex = Array.from(clientSecret)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                    decrypted = await NostrTools.nip04.decrypt(secretKeyHex, remotePubkey, content);
+                }
+                
+                console.log('Decrypted message:', decrypted);
+                
+                const message = JSON.parse(decrypted);
+                console.log('Message:', message);
+                
+                // Handle connection acknowledgment
+                if ((message.result === 'ack' || message.method === 'connect') && !publicKeyRequested) {
+                    console.log('=== GOT CONNECTION ACK - REQUESTING PUBKEY ===');
+                    
+                    statusEl.className = 'bunker-status connected';
+                    statusEl.textContent = 'Connected! Getting your public key...';
+                    
+                    publicKeyRequested = true;
+                    await requestPublicKey(remotePubkey, clientSecret);
+                    return;
+                }
+                
+                // Handle responses with 64-char string results
+                if (message.result && typeof message.result === 'string' && message.result.length === 64) {
+                    console.log('Got 64-char string:', message.result);
+                    
+                    // If we've requested the public key, this should be it
+                    // Otherwise it's probably the connection secret being echoed back
+                    if (publicKeyRequested) {
+                        console.log('=== THIS IS THE PUBLIC KEY ===');
+                        await completeBunkerLogin(message.result, remotePubkey, clientSecret);
+                    } else {
+                        console.log('=== IGNORING - CONNECTION SECRET, NOT PUBKEY ===');
+                        // This is the first response with the connection secret
+                        // Now request the actual public key
+                        console.log('First contact - requesting public key...');
+                        
+                        statusEl.className = 'bunker-status connected';
+                        statusEl.textContent = 'Connected! Getting your public key...';
+                        
+                        publicKeyRequested = true;
+                        await requestPublicKey(remotePubkey, clientSecret);
+                    }
+                }
+                
+            } catch (err) {
+                console.error('=== ERROR ===');
+                console.error(err);
+                statusEl.className = 'bunker-status error';
+                statusEl.textContent = 'Error: ' + err.message;
+            }
+        },
+        oneose() {
+            console.log('=== SUBSCRIPTION EOSE ===');
+        }
+    });
+    
+    window._bunkerSub = sub;
+}
 
     async function requestPublicKey(remotePubkey, clientSecret) {
         console.log('Requesting public key from:', remotePubkey);
         
+        const requestId = crypto.randomUUID();
         const request = {
-            id: crypto.randomUUID(),
+            id: requestId,
             method: 'get_public_key',
             params: []
         };
+        
+        console.log('Request:', request);
         
         // Use nip44 for encryption
         let encrypted;
@@ -1963,7 +2020,6 @@ window.addEventListener('load', async function() {
                 const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
                 encrypted = NostrTools.nip44.encrypt(JSON.stringify(request), conversationKey);
             } else {
-                // Fallback to nip04
                 const secretKeyHex = Array.from(clientSecret)
                     .map(b => b.toString(16).padStart(2, '0'))
                     .join('');
@@ -1974,7 +2030,6 @@ window.addEventListener('load', async function() {
             throw err;
         }
         
-        // Create unsigned event first, then finalize
         const unsignedEvent = {
             kind: 24133,
             created_at: Math.floor(Date.now() / 1000),
@@ -1985,144 +2040,144 @@ window.addEventListener('load', async function() {
         
         const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
         
-        console.log('Sending get_public_key request');
+        console.log('Sending get_public_key request, ID:', requestId);
         
         const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
         await Promise.all(relays.map(relay => pool.publish([relay], event)));
+        
+        return requestId;
     }
 
-    async function completeBunkerLogin(userPubkey, remotePubkey, clientSecret) {
+   async function completeBunkerLogin(userPubkey, remotePubkey, clientSecret) {
     try {
         const statusEl = document.getElementById('bunker-status');
+
+        console.log('=== COMPLETING BUNKER LOGIN ===');
+        console.log('User pubkey:', userPubkey);
 
         statusEl.className = 'bunker-status connected';
         statusEl.textContent = 'Loading your profile...';
 
         const npub = nip19.npubEncode(userPubkey);
+        console.log('Encoded npub:', npub);
+        
         const profile = await fetchProfile(userPubkey);
+        console.log('Fetched profile:', profile);
 
         statusEl.textContent = 'Loading your follows...';
         const follows = await fetchFollows(userPubkey);
+        console.log('Follows count:', follows.length);
 
         currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
         userFollowing = new Set(follows);
         bunkerConnection = { remotePubkey, clientSecret };
 
-        console.log('=== BUNKER LOGIN COMPLETE ===');
-        console.log('Current user set:', currentUser);
-        console.log('Bunker connection set:', {
-            remotePubkey: bunkerConnection.remotePubkey,
-            hasClientSecret: !!bunkerConnection.clientSecret,
-            clientSecretLength: bunkerConnection.clientSecret?.length
-        });
-        console.log('User following count:', userFollowing.size);
-        
-        // Test that we can derive the client pubkey
-        const testClientPubkey = NostrTools.getPublicKey(bunkerConnection.clientSecret);
-        console.log('Can derive client pubkey:', testClientPubkey);
-
+        console.log('currentUser set to:', currentUser);
         updateUserUI();
 
         statusEl.textContent = 'Login successful!';
 
-            // Start heartbeat monitoring - ping every 30 seconds
-            const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
+        // Start heartbeat monitoring
+        const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
 
-            let consecutiveFailures = 0;
-            const maxFailures = 2;
+        let consecutiveFailures = 0;
+        const maxFailures = 3;
 
-            const heartbeatInterval = setInterval(async () => {
-                try {
-                    console.log('Sending heartbeat ping...');
+        const heartbeatInterval = setInterval(async () => {
+            if (!bunkerConnection || !bunkerConnection.remotePubkey) {
+                console.warn('Bunker connection lost, stopping heartbeat');
+                clearInterval(heartbeatInterval);
+                return;
+            }
+
+            try {
+                console.log('Sending heartbeat ping...');
+                
+                const pingRequest = {
+                    id: crypto.randomUUID(),
+                    method: 'ping',
+                    params: []
+                };
+                
+                let encrypted;
+                if (NostrTools.nip44) {
+                    const conversationKey = NostrTools.nip44.getConversationKey(
+                        bunkerConnection.clientSecret, 
+                        bunkerConnection.remotePubkey
+                    );
+                    encrypted = NostrTools.nip44.encrypt(JSON.stringify(pingRequest), conversationKey);
+                } else {
+                    const secretKeyHex = Array.from(bunkerConnection.clientSecret)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                    encrypted = await NostrTools.nip04.encrypt(
+                        secretKeyHex, 
+                        bunkerConnection.remotePubkey, 
+                        JSON.stringify(pingRequest)
+                    );
+                }
+                
+                const unsignedEvent = {
+                    kind: 24133,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [['p', bunkerConnection.remotePubkey]],
+                    content: encrypted,
+                    pubkey: NostrTools.getPublicKey(bunkerConnection.clientSecret)
+                };
+                
+                const event = NostrTools.finalizeEvent(unsignedEvent, bunkerConnection.clientSecret);
+                
+                await Promise.all(relays.map(relay => pool.publish([relay], event)));
+                
+                const pongReceived = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => resolve(false), 10000);
                     
-                    const pingRequest = {
-                        id: crypto.randomUUID(),
-                        method: 'ping',
-                        params: []
-                    };
-                    
-                    // Encrypt ping
-                    let encrypted;
-                    if (NostrTools.nip44) {
-                        const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
-                        encrypted = NostrTools.nip44.encrypt(JSON.stringify(pingRequest), conversationKey);
-                    } else {
-                        const secretKeyHex = Array.from(clientSecret)
-                            .map(b => b.toString(16).padStart(2, '0'))
-                            .join('');
-                        encrypted = await NostrTools.nip04.encrypt(secretKeyHex, remotePubkey, JSON.stringify(pingRequest));
-                    }
-                    
-                    // Create unsigned event
-                    const unsignedEvent = {
-                        kind: 24133,
-                        created_at: Math.floor(Date.now() / 1000),
-                        tags: [['p', remotePubkey]],
-                        content: encrypted,
-                        pubkey: NostrTools.getPublicKey(clientSecret)
-                    };
-                    
-                    // Sign using finalizeEvent
-                    const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
-                    
-                    // Send ping
-                    await Promise.all(relays.map(relay => pool.publish([relay], event)));
-                    
-                    // Listen for pong response (5 second timeout)
-                    const pongReceived = await new Promise((resolve) => {
-                        const timeout = setTimeout(() => resolve(false), 5000);
-                        
-                        const sub = pool.subscribeMany(relays, [
-                            {
-                                kinds: [24133],
-                                '#p': [event.pubkey],
-                                since: Math.floor(Date.now() / 1000)
-                            }
-                        ], {
-                            async onevent(responseEvent) {
-                                try {
-                                    let decrypted;
-                                    if (NostrTools.nip44) {
-                                        const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, responseEvent.pubkey);
-                                        decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
-                                    } else {
-                                        const secretKeyHex = Array.from(clientSecret)
-                                            .map(b => b.toString(16).padStart(2, '0'))
-                                            .join('');
-                                        decrypted = await NostrTools.nip04.decrypt(secretKeyHex, responseEvent.pubkey, responseEvent.content);
-                                    }
-                                    
-                                    const response = JSON.parse(decrypted);
-                                    
-                                    if (response.id === pingRequest.id) {
-                                        clearTimeout(timeout);
-                                        sub.close();
-                                        resolve(true);
-                                    }
-                                } catch (err) {
-                                    // Ignore decryption errors
-                                }
-                            }
-                        });
-                    });
-                    
-                    if (pongReceived) {
-                        console.log('Heartbeat pong received');
-                        consecutiveFailures = 0;
-                    } else {
-                        console.warn('Heartbeat ping failed');
-                        consecutiveFailures++;
-                        
-                        if (consecutiveFailures >= maxFailures) {
-                            console.error('Remote signer not responding. Logging out...');
-                            clearInterval(heartbeatInterval);
-                            alert('Remote signer connection lost. Logging out...');
-                            logout();
+                    const sub = pool.subscribeMany(relays, [
+                        {
+                            kinds: [24133],
+                            '#p': [event.pubkey],
+                            since: Math.floor(Date.now() / 1000) - 5
                         }
-                    }
-                    
-                } catch (err) {
-                    console.error('Heartbeat error:', err);
+                    ], {
+                        async onevent(responseEvent) {
+                            try {
+                                let decrypted;
+                                if (NostrTools.nip44) {
+                                    const conversationKey = NostrTools.nip44.getConversationKey(
+                                        bunkerConnection.clientSecret, 
+                                        responseEvent.pubkey
+                                    );
+                                    decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
+                                } else {
+                                    const secretKeyHex = Array.from(bunkerConnection.clientSecret)
+                                        .map(b => b.toString(16).padStart(2, '0'))
+                                        .join('');
+                                    decrypted = await NostrTools.nip04.decrypt(
+                                        secretKeyHex, 
+                                        responseEvent.pubkey, 
+                                        responseEvent.content
+                                    );
+                                }
+                                
+                                const response = JSON.parse(decrypted);
+                                
+                                if (response.id === pingRequest.id) {
+                                    clearTimeout(timeout);
+                                    sub.close();
+                                    resolve(true);
+                                }
+                            } catch (err) {
+                                // Ignore
+                            }
+                        }
+                    });
+                });
+                
+                if (pongReceived) {
+                    console.log('Heartbeat pong received');
+                    consecutiveFailures = 0;
+                } else {
+                    console.warn('Heartbeat ping failed');
                     consecutiveFailures++;
                     
                     if (consecutiveFailures >= maxFailures) {
@@ -2132,28 +2187,44 @@ window.addEventListener('load', async function() {
                         logout();
                     }
                 }
-            }, 30000);
-
-            window._bunkerHeartbeat = heartbeatInterval;
-
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            const modal = document.getElementById('bunker-login-modal');
-            modal.classList.remove('visible');
-            
-            if (window._bunkerSub) {
-                window._bunkerSub.close();
-                window._bunkerSub = null;
+                
+            } catch (err) {
+                console.error('Heartbeat error:', err);
+                consecutiveFailures++;
+                
+                if (consecutiveFailures >= maxFailures) {
+                    console.error('Remote signer not responding. Logging out...');
+                    clearInterval(heartbeatInterval);
+                    alert('Remote signer connection lost. Logging out...');
+                    logout();
+                }
             }
+        }, 60000); // Every 60 seconds
 
-            console.log('Modal closed, login complete');
-        } catch (err) {
-            console.error('Complete login error:', err);
-            const statusEl = document.getElementById('bunker-status');
-            statusEl.className = 'bunker-status error';
-            statusEl.textContent = 'Login failed: ' + err.message;
+        window._bunkerHeartbeat = heartbeatInterval;
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const modal = document.getElementById('bunker-login-modal');
+        modal.classList.remove('visible');
+        
+        if (window._bunkerSub) {
+            window._bunkerSub.close();
+            window._bunkerSub = null;
         }
+
+        bunkerLoginInProgress = false;
+
+        console.log('Modal closed, login complete');
+    } catch (err) {
+        console.error('Complete login error:', err);
+        const statusEl = document.getElementById('bunker-status');
+        statusEl.className = 'bunker-status error';
+        statusEl.textContent = 'Login failed: ' + err.message;
+        
+        bunkerLoginInProgress = false;
     }
+}
 
     async function signEventWithBunker(event) {
     if (!bunkerConnection || !bunkerConnection.remotePubkey) {
@@ -2161,18 +2232,15 @@ window.addEventListener('load', async function() {
     }
     
     try {
-        console.log('=== SIGN EVENT WITH BUNKER START ===');
-        console.log('Current user pubkey:', currentUser.pubkey);
-        console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
+        console.log('=== SIGNING EVENT WITH BUNKER ===');
         console.log('Event to sign:', event);
+        console.log('User pubkey:', currentUser.pubkey);
+        console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
         
-        // Add user's pubkey to the event
         const eventToSign = {
             ...event,
             pubkey: currentUser.pubkey
         };
-        
-        console.log('Event with pubkey added:', eventToSign);
         
         const request = {
             id: crypto.randomUUID(),
@@ -2180,117 +2248,112 @@ window.addEventListener('load', async function() {
             params: [eventToSign]
         };
         
-        console.log('Sign request:', request);
+        console.log('Sign request ID:', request.id);
         
         const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
         const clientPubkey = NostrTools.getPublicKey(bunkerConnection.clientSecret);
         
-        console.log('Our client pubkey:', clientPubkey);
+        console.log('Client pubkey (listening on):', clientPubkey);
         console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
         
         return new Promise(async (resolve, reject) => {
             let resolved = false;
+            let sub = null;
             
             const timeout = setTimeout(() => {
                 if (!resolved) {
-                    console.error('=== TIMEOUT - No response received ===');
+                    console.error('=== TIMEOUT ===');
+                    console.error('Never received response for request ID:', request.id);
                     if (sub) sub.close();
                     reject(new Error('Signing timeout - please check if your remote signer app is open and approve the request'));
                 }
             }, 30000);
             
-            // CRITICAL: Subscribe to responses tagged to OUR pubkey (the client)
-            console.log('Subscribing for responses to our client pubkey:', clientPubkey);
-            
-            const sub = pool.subscribeMany(relays, [
-                {
-                    kinds: [24133],
-                    '#p': [clientPubkey], // Responses will be tagged to US
-                    since: Math.floor(Date.now() / 1000) - 10
-                }
-            ], {
-                async onevent(responseEvent) {
-                    console.log('=== RECEIVED EVENT ===');
-                    console.log('Event kind:', responseEvent.kind);
-                    console.log('Event from:', responseEvent.pubkey);
-                    console.log('Event p-tags:', responseEvent.tags.filter(t => t[0] === 'p'));
-                    console.log('Full event:', responseEvent);
-                    
-                    // Response should be FROM the remote signer
-                    if (responseEvent.pubkey !== bunkerConnection.remotePubkey) {
-                        console.log('Event not from our remote signer, ignoring');
-                        return;
-                    }
-                    
-                    try {
-                        console.log('Attempting to decrypt...');
-                        let decrypted;
-                        
-                        if (NostrTools.nip44) {
-                            console.log('Using nip44');
-                            const conversationKey = NostrTools.nip44.getConversationKey(
-                                bunkerConnection.clientSecret,
-                                responseEvent.pubkey
-                            );
-                            decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
-                        } else {
-                            console.log('Using nip04');
-                            const secretKeyHex = Array.from(bunkerConnection.clientSecret)
-                                .map(b => b.toString(16).padStart(2, '0'))
-                                .join('');
-                            decrypted = await NostrTools.nip04.decrypt(secretKeyHex, responseEvent.pubkey, responseEvent.content);
-                        }
-                        
-                        console.log('Decrypted:', decrypted);
-                        
-                        const response = JSON.parse(decrypted);
-                        console.log('Parsed response:', response);
-                        console.log('Response ID:', response.id);
-                        console.log('Our request ID:', request.id);
-                        
-                        if (response.id === request.id) {
-                            if (response.result) {
-                                console.log('=== SUCCESS ===');
-                                console.log('Signed event:', response.result);
-                                
-                                if (!resolved) {
-                                    resolved = true;
-                                    clearTimeout(timeout);
-                                    sub.close();
-                                    resolve(response.result);
-                                }
-                            } else if (response.error) {
-                                console.error('=== ERROR from signer ===', response.error);
-                                
-                                if (!resolved) {
-                                    resolved = true;
-                                    clearTimeout(timeout);
-                                    sub.close();
-                                    reject(new Error('Signing failed: ' + response.error));
-                                }
-                            }
-                        } else {
-                            console.log('Response ID mismatch, ignoring');
-                        }
-                    } catch (err) {
-                        console.error('Error processing response:', err);
-                    }
-                },
-                oneose() {
-                    console.log('EOSE received');
-                },
-                onclose() {
-                    console.log('Subscription closed');
-                }
-            });
-            
-            // Wait for subscription to be ready
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Now publish the request
             try {
-                console.log('Encrypting request...');
+                // CRITICAL: Set up subscription FIRST
+                console.log('Setting up subscription BEFORE publishing...');
+                sub = pool.subscribeMany(relays, [
+                    {
+                        kinds: [24133],
+                        '#p': [clientPubkey],
+                        since: Math.floor(Date.now() / 1000) - 10
+                    }
+                ], {
+                    async onevent(responseEvent) {
+                        console.log('=== RECEIVED RESPONSE EVENT ===');
+                        console.log('Response from:', responseEvent.pubkey);
+                        console.log('Expected from:', bunkerConnection.remotePubkey);
+                        console.log('Tags:', responseEvent.tags);
+                        
+                        if (responseEvent.pubkey !== bunkerConnection.remotePubkey) {
+                            console.log('Event not from our remote signer, ignoring');
+                            return;
+                        }
+                        
+                        try {
+                            console.log('Decrypting response...');
+                            let decrypted;
+                            if (NostrTools.nip44) {
+                                const conversationKey = NostrTools.nip44.getConversationKey(
+                                    bunkerConnection.clientSecret,
+                                    responseEvent.pubkey
+                                );
+                                decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
+                            } else {
+                                const secretKeyHex = Array.from(bunkerConnection.clientSecret)
+                                    .map(b => b.toString(16).padStart(2, '0'))
+                                    .join('');
+                                decrypted = await NostrTools.nip04.decrypt(secretKeyHex, responseEvent.pubkey, responseEvent.content);
+                            }
+                            
+                            console.log('Decrypted response:', decrypted);
+                            
+                            const response = JSON.parse(decrypted);
+                            console.log('Parsed response:', response);
+                            console.log('Response ID:', response.id);
+                            console.log('Expected ID:', request.id);
+                            
+                            if (response.id === request.id) {
+                                if (response.result) {
+                                    console.log('=== SUCCESS ===');
+                                    console.log('Signed event:', response.result);
+                                    
+                                    if (!resolved) {
+                                        resolved = true;
+                                        clearTimeout(timeout);
+                                        sub.close();
+                                        resolve(response.result);
+                                    }
+                                } else if (response.error) {
+                                    console.error('=== ERROR from signer ===');
+                                    console.error('Error:', response.error);
+                                    
+                                    if (!resolved) {
+                                        resolved = true;
+                                        clearTimeout(timeout);
+                                        sub.close();
+                                        reject(new Error('Signing failed: ' + response.error));
+                                    }
+                                }
+                            } else {
+                                console.log('Response ID does not match, ignoring');
+                            }
+                        } catch (err) {
+                            console.error('Error processing response:', err);
+                        }
+                    },
+                    oneose() {
+                        console.log('Sign subscription EOSE');
+                    }
+                });
                 
+                console.log('Subscription created, waiting 2 seconds for it to be ready...');
+                
+                // Wait for subscription to be established
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // NOW publish the request
+                console.log('Encrypting and publishing sign request...');
                 let encrypted;
                 if (NostrTools.nip44) {
                     const conversationKey = NostrTools.nip44.getConversationKey(
@@ -2305,66 +2368,48 @@ window.addEventListener('load', async function() {
                     encrypted = await NostrTools.nip04.encrypt(secretKeyHex, bunkerConnection.remotePubkey, JSON.stringify(request));
                 }
                 
-                console.log('Request encrypted');
-                
-                // Create the NIP-46 event
                 const unsignedNip46Event = {
                     kind: 24133,
                     created_at: Math.floor(Date.now() / 1000),
-                    tags: [['p', bunkerConnection.remotePubkey]], // Tagged to remote signer
+                    tags: [['p', bunkerConnection.remotePubkey]],
                     content: encrypted,
-                    pubkey: clientPubkey // From our client pubkey
+                    pubkey: clientPubkey
                 };
                 
                 const nip46Event = NostrTools.finalizeEvent(unsignedNip46Event, bunkerConnection.clientSecret);
                 
-                console.log('Publishing NIP-46 event:', nip46Event);
-                console.log('Event ID:', nip46Event.id);
-                console.log('From (our client):', nip46Event.pubkey);
-                console.log('To (remote signer):', bunkerConnection.remotePubkey);
+                console.log('Publishing sign request event ID:', nip46Event.id);
                 
-                // Publish to all relays
-                const publishPromises = relays.map(async relay => {
-                    try {
-                        console.log(`Publishing to ${relay}...`);
-                        await pool.publish([relay], nip46Event);
-                        console.log(`✓ Published to ${relay}`);
-                        return { relay, success: true };
-                    } catch (err) {
-                        console.error(`✗ Failed to publish to ${relay}:`, err);
-                        return { relay, success: false, error: err };
-                    }
-                });
+                const publishResults = await Promise.allSettled(
+                    relays.map(relay => pool.publish([relay], nip46Event))
+                );
                 
-                const results = await Promise.allSettled(publishPromises);
-                console.log('Publish results:', results);
-                
-                const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+                const successCount = publishResults.filter(r => r.status === 'fulfilled').length;
                 console.log(`Published to ${successCount}/${relays.length} relays`);
                 
                 if (successCount === 0) {
-                    throw new Error('Failed to publish request to any relay');
+                    throw new Error('Failed to publish to any relay');
                 }
                 
-                console.log('Request published, waiting for response...');
-                console.log('Listening on relays for kind 24133 events tagged to:', clientPubkey);
-                console.log('Expecting response from:', bunkerConnection.remotePubkey);
-                
+                console.log('Sign request published successfully, waiting for response...');
             } catch (err) {
-                console.error('Error publishing:', err);
+                console.error('Error in signing flow:', err);
                 if (!resolved) {
                     resolved = true;
                     clearTimeout(timeout);
-                    sub.close();
+                    if (sub) sub.close();
                     reject(err);
                 }
             }
         });
     } catch (err) {
-        console.error('=== SIGNING ERROR ===', err);
+        console.error('Signing error:', err);
         throw err;
     }
 }
+
+    // [REST OF THE CODE REMAINS THE SAME - fetchProfile, fetchRecentNotes, etc.]
+    // I'll continue in next message due to length...
 
     // Fetch functions
     async function fetchProfile(pubkeyHex) {
@@ -2387,17 +2432,17 @@ window.addEventListener('load', async function() {
         }
     }
 
-    async function fetchRecentNotes(pubkeyHex, limit = 50) {
-        if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
+    async function fetchRecentNotes(pubkeyHex, limit = 25) {
+    if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
 
-        try {
-            const events = await pool.querySync(RELAYS, { kinds: [1], authors: [pubkeyHex], limit });
-            noteCache.set(pubkeyHex, events);
-            return events;
-        } catch (err) {
-            return [];
-        }
+    try {
+        const events = await pool.querySync(RELAYS, { kinds: [1], authors: [pubkeyHex], limit });
+        noteCache.set(pubkeyHex, events);
+        return events;
+    } catch (err) {
+        return [];
     }
+}
 
     async function fetchFollows(pubkeyHex) {
         try {
@@ -2409,34 +2454,34 @@ window.addEventListener('load', async function() {
         }
     }
 
-    async function batchFetch(items, fetchFn, batchSize = 10, delayMs = 100) {
-        const results = [];
+    async function batchFetch(items, fetchFn, batchSize = 10, delayMs = 150) {
+    const results = [];
+    
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`);
         
-        for (let i = 0; i < items.length; i += batchSize) {
-            const batch = items.slice(i, i + batchSize);
-            console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`);
+        try {
+            const batchResults = await Promise.all(
+                batch.map(item => fetchFn(item).catch(err => {
+                    console.error('Batch item error:', err);
+                    return null;
+                }))
+            );
             
-            try {
-                const batchResults = await Promise.all(
-                    batch.map(item => fetchFn(item).catch(err => {
-                        console.error('Batch item error:', err);
-                        return null;
-                    }))
-                );
-                
-                results.push(...batchResults);
-            } catch (err) {
-                console.error('Batch error:', err);
-                results.push(...Array(batch.length).fill(null));
-            }
-            
-            if (i + batchSize < items.length) {
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-            }
+            results.push(...batchResults);
+        } catch (err) {
+            console.error('Batch error:', err);
+            results.push(...Array(batch.length).fill(null));
         }
         
-        return results;
+        if (i + batchSize < items.length) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
     }
+    
+    return results;
+}
 
     async function searchUsersByHashtags(hashtags, limit = 50) {
         console.log('Searching posts for hashtags:', hashtags);
@@ -2660,34 +2705,18 @@ window.addEventListener('load', async function() {
     }
 
     async function followUser(pubkey) {
-    if (!currentUser) {
-        alert('Please login first');
-        return false;
-    }
+        if (!currentUser) {
+            alert('Please login first');
+            return false;
+        }
 
-    console.log('=== FOLLOW USER START ===');
-    console.log('Target pubkey:', pubkey);
-    console.log('Current user:', currentUser);
-    console.log('Bunker connection exists:', !!bunkerConnection);
-    if (bunkerConnection) {
-        console.log('Bunker connection details:', {
-            hasRemotePubkey: !!bunkerConnection.remotePubkey,
-            hasClientSecret: !!bunkerConnection.clientSecret,
-            remotePubkey: bunkerConnection.remotePubkey?.substring(0, 8) + '...',
-            clientSecretLength: bunkerConnection.clientSecret?.length
-        });
-    }
+        const useBunker = currentUser.bunker && bunkerConnection;
+        const useExtension = !useBunker && await checkExtension();
 
-    const useBunker = currentUser.bunker && bunkerConnection;
-    const useExtension = !useBunker && await checkExtension();
-
-    console.log('Use bunker:', useBunker);
-    console.log('Use extension:', useExtension);
-
-    if (!useBunker && !useExtension) {
-        alert('No signing method available');
-        return false;
-    }
+        if (!useBunker && !useExtension) {
+            alert('No signing method available');
+            return false;
+        }
 
         try {
             const currentFollows = Array.from(userFollowing);
@@ -2729,84 +2758,91 @@ window.addEventListener('load', async function() {
     }
 
     function createProfileCard(fren) {
-        const card = document.createElement('div');
-        card.className = 'fren-card';
-        
-        if (fren.isFollowing) {
-            card.classList.add('already-following');
-        }
-        
-        const hashtags = (fren.about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
-        
-        let metricsHTML = '<div class="metrics-container">';
-        
-        if (fren.crossRefCategory) {
-            if (fren.crossRefCategory === 'mutual') {
-                metricsHTML += `<span class="metric-badge high">Both Follow</span>`;
-            } else if (fren.crossRefCategory === 'you-only') {
-                metricsHTML += `<span class="metric-badge medium">You Follow</span>`;
-            } else if (fren.crossRefCategory === 'them-only') {
-                metricsHTML += `<span class="metric-badge medium">They Follow</span>`;
-            }
-        }
-        
-        if (fren.scores.breakdown.social > 40) {
-            metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
-        }
-        if (fren.scores.breakdown.interests > 40) {
-            metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
-        }
-        if (fren.scores.breakdown.engagement > 40) {
-            metricsHTML += `<span class="metric-badge high">Active</span>`;
-        }
-        metricsHTML += '</div>';
-        
-        card.innerHTML = `
-            <div class="fren-header">
-                <img src="${fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`}" 
-                     class="fren-avatar" 
-                     onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
-                <div class="fren-info">
-                    <div class="fren-name">${fren.name}</div>
-                    <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
-                </div>
-                <div class="match-score">${fren.scores.total}%</div>
-            </div>
-            <p class="fren-bio">${fren.about.substring(0, 150)}${fren.about.length > 150 ? '...' : ''}</p>
-            ${metricsHTML}
-            ${hashtags.length > 0 ? `
-                <div class="tags-container">
-                    ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
-                </div>
-            ` : ''}
-            <div class="fren-actions">
-                <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
-                        data-pubkey="${fren.pubkey}"
-                        ${!currentUser ? 'disabled' : ''}>
-                    ${fren.isFollowing ? 'Following' : 'Follow'}
-                </button>
-                <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
-            </div>
-        `;
-
-        const followBtn = card.querySelector('.btn-follow');
-        followBtn.addEventListener('click', async () => {
-            if (fren.isFollowing) return;
-            followBtn.disabled = true;
-            followBtn.textContent = 'Following...';
-            const success = await followUser(fren.pubkey);
-            if (success) {
-                followBtn.textContent = 'Following';
-                followBtn.classList.add('following');
-                fren.isFollowing = true;
-            } else {
-                followBtn.disabled = false;
-                followBtn.textContent = 'Follow';
-            }
-        });
-
-        return card;
+    const card = document.createElement('div');
+    card.className = 'fren-card';
+    
+    if (fren.isFollowing) {
+        card.classList.add('already-following');
     }
+    
+    // SAFETY: Check if about exists
+    const about = fren.about || '';
+    const hashtags = (about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
+    
+    let metricsHTML = '<div class="metrics-container">';
+    
+    if (fren.crossRefCategory) {
+        if (fren.crossRefCategory === 'mutual') {
+            metricsHTML += `<span class="metric-badge high">Both Follow</span>`;
+        } else if (fren.crossRefCategory === 'you-only') {
+            metricsHTML += `<span class="metric-badge medium">You Follow</span>`;
+        } else if (fren.crossRefCategory === 'them-only') {
+            metricsHTML += `<span class="metric-badge medium">They Follow</span>`;
+        }
+    }
+    
+    if (fren.scores.breakdown.social > 40) {
+        metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
+    }
+    if (fren.scores.breakdown.interests > 40) {
+        metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
+    }
+    if (fren.scores.breakdown.engagement > 40) {
+        metricsHTML += `<span class="metric-badge high">Active</span>`;
+    }
+    metricsHTML += '</div>';
+    
+    // SAFETY: Use || for all optional fields
+    const name = fren.name || 'Anonymous';
+    const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
+    const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
+    
+    card.innerHTML = `
+        <div class="fren-header">
+            <img src="${picture}" 
+                 class="fren-avatar" 
+                 onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
+            <div class="fren-info">
+                <div class="fren-name">${name}</div>
+                <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
+            </div>
+            <div class="match-score">${fren.scores.total}%</div>
+        </div>
+        <p class="fren-bio">${bioText}</p>
+        ${metricsHTML}
+        ${hashtags.length > 0 ? `
+            <div class="tags-container">
+                ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
+            </div>
+        ` : ''}
+        <div class="fren-actions">
+            <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
+                    data-pubkey="${fren.pubkey}"
+                    ${!currentUser ? 'disabled' : ''}>
+                ${fren.isFollowing ? 'Following' : 'Follow'}
+            </button>
+            <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
+        </div>
+    `;
+
+    const followBtn = card.querySelector('.btn-follow');
+    followBtn.addEventListener('click', async () => {
+        if (fren.isFollowing) return;
+        followBtn.disabled = true;
+        followBtn.textContent = 'Following...';
+        const success = await followUser(fren.pubkey);
+        if (success) {
+            followBtn.textContent = 'Following';
+            followBtn.classList.add('following');
+            fren.isFollowing = true;
+        } else {
+            followBtn.disabled = false;
+            followBtn.textContent = 'Follow';
+        }
+    });
+
+    return card;
+}
 
     function renderResults(profiles) {
         const resultsGrid = document.getElementById('results-grid');
@@ -2817,34 +2853,6 @@ window.addEventListener('load', async function() {
             resultsGrid.appendChild(card);
         });
     }
-
-    // Add this function to test relay connectivity
-async function testRelayConnection() {
-    const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-    
-    console.log('=== TESTING RELAY CONNECTIVITY ===');
-    
-    for (const relay of relays) {
-        try {
-            console.log(`Testing ${relay}...`);
-            
-            // Try to query something simple
-            const events = await pool.querySync([relay], {
-                kinds: [1],
-                limit: 1
-            });
-            
-            console.log(`✓ ${relay} - OK (got ${events.length} events)`);
-        } catch (err) {
-            console.error(`✗ ${relay} - FAILED:`, err);
-        }
-    }
-}
-
-// Call this right before trying to sign
-// Add to followUser function before signing:
-console.log('Testing relay connectivity...');
-await testRelayConnection();
 
     // Main search
     document.getElementById('find-btn').addEventListener('click', async () => {
@@ -2924,10 +2932,10 @@ await testRelayConnection();
             console.log('Fetching', candidatePubkeys.length, 'profiles, follows, and notes...');
 
             const [allProfiles, allFollows, allNotes] = await Promise.all([
-                batchFetch(candidatePubkeys, fetchProfile, 5, 300),
-                batchFetch(candidatePubkeys, fetchFollows, 5, 300),
-                batchFetch(candidatePubkeys, (pk) => fetchRecentNotes(pk, 50), 5, 300)
-            ]);
+    batchFetch(candidatePubkeys, fetchProfile, 10, 150),
+    batchFetch(candidatePubkeys, fetchFollows, 10, 150),
+    batchFetch(candidatePubkeys, (pk) => fetchRecentNotes(pk, 25), 10, 150)
+]);
 
             const topicPopularity = new Map();
             allNotes.forEach((notes, idx) => {
@@ -3109,14 +3117,24 @@ await testRelayConnection();
     });
 
     document.getElementById('close-bunker').addEventListener('click', function() {
-        document.getElementById('bunker-login-modal').classList.remove('visible');
-    });
+    document.getElementById('bunker-login-modal').classList.remove('visible');
+    bunkerLoginInProgress = false;
+    if (window._bunkerSub) {
+        window._bunkerSub.close();
+        window._bunkerSub = null;
+    }
+});
 
-    document.getElementById('bunker-login-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.remove('visible');
+document.getElementById('bunker-login-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.remove('visible');
+        bunkerLoginInProgress = false;
+        if (window._bunkerSub) {
+            window._bunkerSub.close();
+            window._bunkerSub = null;
         }
-    });
+    }
+});
 
     updateUserUI();
 });
