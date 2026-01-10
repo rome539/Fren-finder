@@ -1933,13 +1933,16 @@ async function showBunkerLogin() {
                 
                 console.log('Decrypted message:', decrypted);
                 
-                const message = JSON.parse(decrypted);
-                console.log('Message:', message);
+                // Inside listenForBunkerConnection's onevent handler:
+const message = JSON.parse(decrypted);
+console.log('Message:', message);
 
-                if (message.result && Array.isArray(message.result)) {
+// Handle capabilities response
+if (message.result && Array.isArray(message.result)) {
+    console.log('=== RECEIVED CAPABILITIES ===');
+    console.log('Capabilities:', message.result);
     bunkerCapabilities = new Set(message.result);
-    console.log('Signer capabilities:', [...bunkerCapabilities]);
-    return; // important: stop processing this message further
+    return; // Don't process further
 }
                 
                 // Handle connection acknowledgment
@@ -2063,10 +2066,25 @@ async function showBunkerLogin() {
         userFollowing = new Set(follows);
         bunkerConnection = { remotePubkey, clientSecret };
 
-        await requestSignerCapabilities(
-    bunkerConnection.remotePubkey,
-    bunkerConnection.clientSecret
-);
+        // ===== ADD THIS SECTION HERE =====
+        // Close the login subscription since we're done with it
+        if (window._bunkerSub) {
+            console.log('Closing login subscription...');
+            window._bunkerSub.close();
+            window._bunkerSub = null;
+        }
+
+        // Request capabilities but don't wait - we'll assume signing works
+        requestSignerCapabilities(
+            bunkerConnection.remotePubkey,
+            bunkerConnection.clientSecret
+        ).catch(err => console.warn('Could not request capabilities:', err));
+
+        // Set default capabilities immediately (assume all available)
+        if (!bunkerCapabilities) {
+            bunkerCapabilities = new Set(['sign_event', 'ping', 'get_public_key', 'get_capabilities']);
+        }
+        // ===== END NEW SECTION =====
 
         console.log('currentUser set to:', currentUser);
         updateUserUI();
@@ -2135,6 +2153,7 @@ async function showBunkerLogin() {
                             since: Math.floor(Date.now() / 1000) - 5
                         }
                     ], {
+
                         async onevent(responseEvent) {
                             try {
                                 let decrypted;
@@ -2203,11 +2222,6 @@ async function showBunkerLogin() {
         
         const modal = document.getElementById('bunker-login-modal');
         modal.classList.remove('visible');
-        
-        if (window._bunkerSub) {
-            window._bunkerSub.close();
-            window._bunkerSub = null;
-        }
 
         bunkerLoginInProgress = false;
 
@@ -2227,28 +2241,38 @@ async function showBunkerLogin() {
         throw new Error('Bunker not connected');
     }
 
-    if (!bunkerCapabilities?.has('sign_event')) {
-        throw new Error('Remote signer does not allow signing');
+    if (bunkerCapabilities === null) {
+        console.warn('Capabilities not yet received, assuming signing is available');
+        bunkerCapabilities = new Set(['sign_event', 'ping', 'get_public_key']);
     }
-    
+
+    if (!bunkerCapabilities.has('sign_event')) {
+        throw new Error('Remote signer does not support signing. Your signer app may be in read-only mode.');
+    }
+
     try {
         console.log('=== SIGNING EVENT WITH BUNKER ===');
         console.log('Event to sign:', event);
         console.log('User pubkey:', currentUser.pubkey);
         console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
         
-        const eventToSign = {
-            ...event,
-            pubkey: currentUser.pubkey
-        };
+        // Create a completely clean event object with only the required fields
+const eventToSign = {
+    kind: event.kind,
+    created_at: event.created_at,
+    tags: event.tags,
+    content: event.content,
+    pubkey: currentUser.pubkey
+};
         
+        const requestId = crypto.randomUUID();
         const request = {
-            id: crypto.randomUUID(),
+            id: requestId,
             method: 'sign_event',
             params: [eventToSign]
         };
         
-        console.log('Sign request ID:', request.id);
+        console.log('Sign request ID:', requestId);
         
         const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
         const clientPubkey = NostrTools.getPublicKey(bunkerConnection.clientSecret);
@@ -2259,31 +2283,33 @@ async function showBunkerLogin() {
         return new Promise(async (resolve, reject) => {
             let resolved = false;
             let sub = null;
+            let authPopup = null;
             
             const timeout = setTimeout(() => {
                 if (!resolved) {
                     console.error('=== TIMEOUT ===');
-                    console.error('Never received response for request ID:', request.id);
+                    console.error('Never received response for request ID:', requestId);
                     if (sub) sub.close();
+                    if (authPopup) authPopup.close();
                     reject(new Error('Signing timeout - please check if your remote signer app is open and approve the request'));
                 }
-            }, 30000);
+            }, 120000); // 2 minutes for web-based approval
             
             try {
-                // CRITICAL: Set up subscription FIRST
                 console.log('Setting up subscription BEFORE publishing...');
                 sub = pool.subscribeMany(relays, [
                     {
                         kinds: [24133],
                         '#p': [clientPubkey],
-                        since: Math.floor(Date.now() / 1000) - 10
+                        since: Math.floor(Date.now() / 1000) - 30
                     }
                 ], {
                     async onevent(responseEvent) {
                         console.log('=== RECEIVED RESPONSE EVENT ===');
                         console.log('Response from:', responseEvent.pubkey);
                         console.log('Expected from:', bunkerConnection.remotePubkey);
-                        console.log('Tags:', responseEvent.tags);
+                        console.log('Event kind:', responseEvent.kind);
+                        console.log('Event created_at:', responseEvent.created_at);
                         
                         if (responseEvent.pubkey !== bunkerConnection.remotePubkey) {
                             console.log('Event not from our remote signer, ignoring');
@@ -2292,6 +2318,8 @@ async function showBunkerLogin() {
                         
                         try {
                             console.log('Decrypting response...');
+                            console.log('Raw encrypted content length:', responseEvent.content.length);
+                            
                             let decrypted;
                             if (NostrTools.nip44) {
                                 const conversationKey = NostrTools.nip44.getConversationKey(
@@ -2311,10 +2339,27 @@ async function showBunkerLogin() {
                             const response = JSON.parse(decrypted);
                             console.log('Parsed response:', response);
                             console.log('Response ID:', response.id);
-                            console.log('Expected ID:', request.id);
+                            console.log('Expected ID:', requestId);
                             
-                            if (response.id === request.id) {
-                                if (response.result) {
+                            if (response.id === requestId) {
+                                // Handle auth_url response (nsec.app web approval)
+                                if (response.result === 'auth_url' && response.error) {
+                                    console.log('=== AUTH URL RECEIVED ===');
+                                    console.log('Opening approval URL:', response.error);
+                                    
+                                    // Open the auth URL in a popup
+                                    authPopup = window.open(
+                                        response.error,
+                                        'nsec-approval',
+                                        'width=500,height=600,popup=yes'
+                                    );
+                                    
+                                    console.log('Waiting for user to approve in popup...');
+                                    return;
+                                }
+                                
+                                // Handle actual signed event response
+                                if (response.result && typeof response.result === 'object' && response.result.sig) {
                                     console.log('=== SUCCESS ===');
                                     console.log('Signed event:', response.result);
                                     
@@ -2322,24 +2367,29 @@ async function showBunkerLogin() {
                                         resolved = true;
                                         clearTimeout(timeout);
                                         sub.close();
+                                        if (authPopup) authPopup.close();
                                         resolve(response.result);
                                     }
-                                } else if (response.error) {
+                                } else if (response.result === 'error' || response.error) {
                                     console.error('=== ERROR from signer ===');
-                                    console.error('Error:', response.error);
+                                    console.error('Error:', response.error || response.result);
                                     
                                     if (!resolved) {
                                         resolved = true;
                                         clearTimeout(timeout);
                                         sub.close();
-                                        reject(new Error('Signing failed: ' + response.error));
+                                        if (authPopup) authPopup.close();
+                                        reject(new Error('Signing failed: ' + (response.error || 'Unknown error')));
                                     }
                                 }
                             } else {
-                                console.log('Response ID does not match, ignoring');
+                                console.log('Response ID does not match');
+                                console.log('  Got:', response.id);
+                                console.log('  Expected:', requestId);
                             }
                         } catch (err) {
                             console.error('Error processing response:', err);
+                            console.error('Stack:', err.stack);
                         }
                     },
                     oneose() {
@@ -2348,11 +2398,8 @@ async function showBunkerLogin() {
                 });
                 
                 console.log('Subscription created, waiting 2 seconds for it to be ready...');
-                
-                // Wait for subscription to be established
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                // NOW publish the request
                 console.log('Encrypting and publishing sign request...');
                 let encrypted;
                 if (NostrTools.nip44) {
@@ -2379,6 +2426,7 @@ async function showBunkerLogin() {
                 const nip46Event = NostrTools.finalizeEvent(unsignedNip46Event, bunkerConnection.clientSecret);
                 
                 console.log('Publishing sign request event ID:', nip46Event.id);
+                console.log('Request payload:', JSON.stringify(request));
                 
                 const publishResults = await Promise.allSettled(
                     relays.map(relay => pool.publish([relay], nip46Event))
@@ -2392,12 +2440,14 @@ async function showBunkerLogin() {
                 }
                 
                 console.log('Sign request published successfully, waiting for response...');
+                console.log('Monitoring for responses to request ID:', requestId);
             } catch (err) {
                 console.error('Error in signing flow:', err);
                 if (!resolved) {
                     resolved = true;
                     clearTimeout(timeout);
                     if (sub) sub.close();
+                    if (authPopup) authPopup.close();
                     reject(err);
                 }
             }
@@ -2409,20 +2459,23 @@ async function showBunkerLogin() {
 }
 
 async function requestSignerCapabilities(remotePubkey, clientSecret) {
+    console.log('=== REQUESTING SIGNER CAPABILITIES ===');
+    
+    const requestId = crypto.randomUUID();
     const request = {
-        id: crypto.randomUUID(),
+        id: requestId,
         method: 'get_capabilities',
         params: []
     };
 
+    const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
+    const clientPubkey = NostrTools.getPublicKey(clientSecret);
+
+    // Encrypt and send request
     let encrypted;
     if (NostrTools.nip44) {
-        const conversationKey =
-            NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
-        encrypted = NostrTools.nip44.encrypt(
-            JSON.stringify(request),
-            conversationKey
-        );
+        const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
+        encrypted = NostrTools.nip44.encrypt(JSON.stringify(request), conversationKey);
     } else {
         const secretKeyHex = Array.from(clientSecret)
             .map(b => b.toString(16).padStart(2, '0'))
@@ -2439,21 +2492,12 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
         created_at: Math.floor(Date.now() / 1000),
         tags: [['p', remotePubkey]],
         content: encrypted,
-        pubkey: NostrTools.getPublicKey(clientSecret)
+        pubkey: clientPubkey
     };
 
     const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
-
-    const NIP46_RELAYS = [
-  'wss://relay.nsec.app'
-];
-
-const PUBLIC_RELAYS = [
-  'wss://relay.primal.net',
-  'wss://relay.damus.io',
-  'wss://nos.lol'
-];
-
+    
+    console.log('Publishing capabilities request...');
     await Promise.all(relays.map(r => pool.publish([r], event)));
 }
 
@@ -2754,57 +2798,84 @@ const PUBLIC_RELAYS = [
     }
 
     async function followUser(pubkey) {
-        if (!currentUser) {
-            alert('Please login first');
-            return false;
-        }
-
-        const useBunker = currentUser.bunker && bunkerConnection;
-        const useExtension = !useBunker && await checkExtension();
-
-        if (!useBunker && !useExtension) {
-            alert('No signing method available');
-            return false;
-        }
-
-        try {
-            const currentFollows = Array.from(userFollowing);
-            if (!currentFollows.includes(pubkey)) {
-                currentFollows.push(pubkey);
-            }
-
-            const event = {
-                kind: 3,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: currentFollows.map(pk => ['p', pk]),
-                content: ''
-            };
-
-            let signedEvent;
-            
-            if (useBunker) {
-                try {
-                    signedEvent = await signEventWithBunker(event);
-                    if (!signedEvent) {
-                        throw new Error('Bunker signing returned null');
-                    }
-                } catch (err) {
-                    console.error('Bunker signing failed:', err);
-                    alert('Signing failed: ' + err.message + '\n\nMake sure your remote signer app is open and approve the request.');
-                    throw err;
-                }
-            } else {
-                signedEvent = await window.nostr.signEvent(event);
-            }
-
-            await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
-            userFollowing.add(pubkey);
-            return true;
-        } catch (err) {
-            console.error('Follow error:', err);
-            return false;
-        }
+    if (!currentUser) {
+        alert('Please login first');
+        return false;
     }
+
+    const useBunker = currentUser.bunker && bunkerConnection;
+    const useExtension = !useBunker && await checkExtension();
+
+    if (!useBunker && !useExtension) {
+        alert('No signing method available');
+        return false;
+    }
+
+    try {
+        // Get current follows and deduplicate
+        const currentFollows = Array.from(userFollowing);
+        
+        // Don't include ourselves in the follow list!
+        const cleanFollows = currentFollows.filter(pk => pk !== currentUser.pubkey);
+        
+        // Add the new follow if not already following
+        if (!cleanFollows.includes(pubkey) && pubkey !== currentUser.pubkey) {
+            cleanFollows.push(pubkey);
+        }
+
+        console.log('=== CREATING FOLLOW EVENT ===');
+        console.log('Current user pubkey:', currentUser.pubkey);
+        console.log('Adding follow for:', pubkey);
+        console.log('Total follows after:', cleanFollows.length);
+        console.log('Includes self?', cleanFollows.includes(currentUser.pubkey));
+
+        // Create a clean event object - ensure everything is serializable
+        const event = {
+            kind: 3,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: cleanFollows.map(pk => ['p', pk]),
+            content: ''
+        };
+
+        // Validate the event structure
+        console.log('Event structure:', JSON.stringify(event, null, 2));
+        console.log('Event to sign has', event.tags.length, 'follow tags');
+
+        let signedEvent;
+        
+        if (useBunker) {
+            try {
+                console.log('Requesting signature from remote signer...');
+                
+                // Make absolutely sure we're passing a clean object
+                const cleanEvent = JSON.parse(JSON.stringify(event));
+                signedEvent = await signEventWithBunker(cleanEvent);
+                
+                if (!signedEvent) {
+                    throw new Error('Bunker signing returned null');
+                }
+                
+                console.log('Successfully signed event:', signedEvent.id);
+            } catch (err) {
+                console.error('Bunker signing failed:', err);
+                alert('Signing failed: ' + err.message + '\n\nMake sure your remote signer app is open and approve the request.');
+                throw err;
+            }
+        } else {
+            signedEvent = await window.nostr.signEvent(event);
+        }
+
+        console.log('Publishing signed event to relays...');
+        await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
+        
+        console.log('Successfully published follow event');
+        userFollowing.add(pubkey);
+        return true;
+    } catch (err) {
+        console.error('Follow error:', err);
+        return false;
+    }
+}
 
     function createProfileCard(fren) {
     const card = document.createElement('div');
