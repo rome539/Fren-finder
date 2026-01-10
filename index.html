@@ -2765,7 +2765,6 @@ async function showBunkerLogin() {
         card.classList.add('already-following');
     }
     
-    // SAFETY: Check if about exists
     const about = fren.about || '';
     const hashtags = (about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
     
@@ -2787,12 +2786,16 @@ async function showBunkerLogin() {
     if (fren.scores.breakdown.interests > 40) {
         metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
     }
-    if (fren.scores.breakdown.engagement > 40) {
+    
+    // NEW: Check if posted within the last hour
+    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+    const postedRecently = fren.notes?.some(note => note.created_at > oneHourAgo);
+    if (postedRecently) {
         metricsHTML += `<span class="metric-badge high">Active</span>`;
     }
+    
     metricsHTML += '</div>';
     
-    // SAFETY: Use || for all optional fields
     const name = fren.name || 'Anonymous';
     const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
     const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
