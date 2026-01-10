@@ -1469,6 +1469,7 @@ let userFollowing = new Set();
 let discoveryMode = 'social';
 let bunkerConnection = null;
 let bunkerLoginInProgress = false;
+let bunkerCapabilities = null;
 
 window.addEventListener('load', async function() {
     if (typeof NostrTools === 'undefined') {
@@ -1710,6 +1711,7 @@ window.addEventListener('load', async function() {
     currentUser = null;
     userFollowing.clear();
     bunkerConnection = null;
+    bunkerCapabilities = null;
 
     if (window._bunkerSub) {
         window._bunkerSub.close();
@@ -1784,20 +1786,6 @@ window.addEventListener('load', async function() {
         }
     }
 
-    // Debug: Listen for ALL NIP-46 events to see what the signer is doing
-const debugSub = window._nostrPool.subscribeMany(
-    ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'],
-    [{ kinds: [24133], since: Math.floor(Date.now() / 1000) }],
-    {
-        onevent(event) {
-            console.log('=== DEBUG: ANY NIP-46 EVENT ===');
-            console.log('From:', event.pubkey);
-            console.log('Tags:', event.tags);
-            console.log('To (p-tag):', event.tags.find(t => t[0] === 'p')?.[1]);
-        }
-    }
-);
-
     function getClientSecretKeyBytes() {
     // Generate a fresh secret every time for security
     const sk = NostrTools.generateSecretKey();
@@ -1809,9 +1797,6 @@ const debugSub = window._nostrPool.subscribeMany(
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
-
-    // Add this at the top with other global variables
-let bunkerLoginInProgress = false;
 
 async function showBunkerLogin() {
     // Prevent multiple simultaneous login attempts
@@ -1950,6 +1935,12 @@ async function showBunkerLogin() {
                 
                 const message = JSON.parse(decrypted);
                 console.log('Message:', message);
+
+                if (message.result && Array.isArray(message.result)) {
+    bunkerCapabilities = new Set(message.result);
+    console.log('Signer capabilities:', [...bunkerCapabilities]);
+    return; // important: stop processing this message further
+}
                 
                 // Handle connection acknowledgment
                 if ((message.result === 'ack' || message.method === 'connect') && !publicKeyRequested) {
@@ -2071,6 +2062,11 @@ async function showBunkerLogin() {
         currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
         userFollowing = new Set(follows);
         bunkerConnection = { remotePubkey, clientSecret };
+
+        await requestSignerCapabilities(
+    bunkerConnection.remotePubkey,
+    bunkerConnection.clientSecret
+);
 
         console.log('currentUser set to:', currentUser);
         updateUserUI();
@@ -2229,6 +2225,10 @@ async function showBunkerLogin() {
     async function signEventWithBunker(event) {
     if (!bunkerConnection || !bunkerConnection.remotePubkey) {
         throw new Error('Bunker not connected');
+    }
+
+    if (!bunkerCapabilities?.has('sign_event')) {
+        throw new Error('Remote signer does not allow signing');
     }
     
     try {
@@ -2406,6 +2406,51 @@ async function showBunkerLogin() {
         console.error('Signing error:', err);
         throw err;
     }
+}
+
+async function requestSignerCapabilities(remotePubkey, clientSecret) {
+    const request = {
+        id: crypto.randomUUID(),
+        method: 'get_capabilities',
+        params: []
+    };
+
+    let encrypted;
+    if (NostrTools.nip44) {
+        const conversationKey =
+            NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
+        encrypted = NostrTools.nip44.encrypt(
+            JSON.stringify(request),
+            conversationKey
+        );
+    } else {
+        const secretKeyHex = Array.from(clientSecret)
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        encrypted = await NostrTools.nip04.encrypt(
+            secretKeyHex,
+            remotePubkey,
+            JSON.stringify(request)
+        );
+    }
+
+    const unsignedEvent = {
+        kind: 24133,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', remotePubkey]],
+        content: encrypted,
+        pubkey: NostrTools.getPublicKey(clientSecret)
+    };
+
+    const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
+
+    const relays = [
+        'wss://relay.primal.net',
+        'wss://relay.damus.io',
+        'wss://relay.nsec.app'
+    ];
+
+    await Promise.all(relays.map(r => pool.publish([r], event)));
 }
 
     // [REST OF THE CODE REMAINS THE SAME - fetchProfile, fetchRecentNotes, etc.]
