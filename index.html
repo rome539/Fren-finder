@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>Fren Finder - Advanced Nostr Discovery</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1014,146 +1016,6 @@
             color: var(--text-secondary);
         }
 
-        .bunker-login-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        .bunker-login-modal.visible {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .bunker-login-content {
-            background: var(--bg-primary);
-            border: 2px solid var(--accent-info);
-            border-radius: 0.75rem;
-            padding: 2rem;
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .bunker-login-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .bunker-login-header h3 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--accent-info);
-        }
-
-        .bunker-close {
-            font-size: 2rem;
-            cursor: pointer;
-            line-height: 1;
-            color: var(--text-secondary);
-            transition: var(--transition);
-        }
-
-        .bunker-close:hover {
-            color: var(--accent-primary);
-            transform: scale(1.2);
-        }
-
-        .bunker-instructions {
-            margin-bottom: 1.5rem;
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-
-        .bunker-instructions ol {
-            text-align: left;
-            padding-left: 1.5rem;
-            margin-top: 1rem;
-        }
-
-        .bunker-instructions li {
-            margin-bottom: 0.5rem;
-        }
-
-        .qr-code-container {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            margin: 1.5rem auto;
-            max-width: 300px;
-        }
-
-        .bunker-connection-string {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-top: 1rem;
-            word-break: break-all;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            max-height: 100px;
-            overflow-y: auto;
-        }
-
-        .bunker-status {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            background: var(--bg-secondary);
-            border-radius: 0.5rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-        }
-
-        .bunker-status.waiting {
-            color: var(--accent-info);
-        }
-
-        .bunker-status.connected {
-            color: var(--accent-success);
-        }
-
-        .bunker-status.error {
-            color: var(--accent-primary);
-        }
-
-        .btn-bunker {
-            background: var(--accent-info);
-            color: var(--bg-primary);
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 2rem;
-            cursor: pointer;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(58, 110, 165, 0.2);
-            transition: var(--transition);
-        }
-
-        .btn-bunker:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(58, 110, 165, 0.3);
-        }
-
         .login-dropdown {
             position: relative;
         }
@@ -1196,6 +1058,200 @@
             background: var(--bg-secondary);
         }
 
+        .nsec-warning-banner {
+            display: none;
+            background: rgba(200, 78, 58, 0.05);
+            border: 1px solid rgba(200, 78, 58, 0.3);
+            border-left: 3px solid var(--accent-primary);
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .nsec-warning-banner.visible {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nsec-warning-banner-icon {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nsec-warning-banner-content {
+            flex: 1;
+        }
+
+        .nsec-warning-banner-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nsec-warning-banner-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .nsec-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .nsec-modal.visible {
+            display: flex;
+        }
+
+        .nsec-modal-content {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 32px var(--shadow-color);
+        }
+
+        .nsec-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .nsec-modal-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nsec-close {
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .nsec-close:hover {
+            color: var(--accent-primary);
+            transform: scale(1.2);
+        }
+
+        .nsec-warning {
+            background: rgba(200, 78, 58, 0.1);
+            border: 2px solid var(--accent-primary);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .nsec-warning strong {
+            color: var(--accent-primary);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .nsec-input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .nsec-input-group label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .nsec-input {
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        .nsec-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .nsec-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nsec-btn {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            border: none;
+        }
+
+        .nsec-btn-primary {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        .nsec-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(200, 78, 58, 0.3);
+        }
+
+        .nsec-btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .nsec-btn-secondary:hover {
+            background: var(--bg-secondary);
+        }
+
         @media (max-width: 768px) {
             .logo-section h1 { font-size: 2.5rem; }
             .header-content { flex-direction: column; }
@@ -1203,6 +1259,14 @@
             .results-grid { grid-template-columns: 1fr; }
             .discovery-mode { grid-template-columns: 1fr; }
             .toggle-group { flex-direction: column; gap: 1rem; }
+            
+            /* Fix login menu on mobile */
+            .login-menu {
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                min-width: 250px;
+            }
         }
     </style>
 </head>
@@ -1222,7 +1286,19 @@
         </header>
 
         <main>
-            <section class="search-section">
+            <div class="container">
+                <!-- Nsec Warning Banner -->
+                <div class="nsec-warning-banner" id="nsec-warning-banner">
+                    <div class="nsec-warning-banner-icon">Notice</div>
+                    <div class="nsec-warning-banner-content">
+                        <div class="nsec-warning-banner-title">Private Key Login Active</div>
+                        <div class="nsec-warning-banner-text">
+                            Logged in with nsec. Auto-logout after 15 min inactivity.
+                        </div>
+                    </div>
+                </div>
+
+                <section class="search-section">
                 <div class="input-group">
                     <label for="npub-input">Your Nostr Public Key</label>
                     <input type="text" id="npub-input" placeholder="npub1... (or click Login)">
@@ -1372,44 +1448,6 @@
                 <button class="btn-primary" id="find-btn">Discover Frens</button>
             </section>
 
-            <div class="bunker-login-modal" id="bunker-login-modal">
-                <div class="bunker-login-content">
-                    <div class="bunker-login-header">
-                        <h3>Remote Signer Login</h3>
-                        <span class="bunker-close" id="close-bunker">×</span>
-                    </div>
-                    <div class="bunker-instructions">
-                        <p><strong>Instructions for Remote Signing:</strong></p>
-                        
-                        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                            <strong>For Amber (Android):</strong><br>
-                            1. Open Amber app<br>
-                            2. Tap "Connect Application"<br>
-                            3. Scan QR code or paste connection string<br>
-                            4. Approve the connection
-                        </p>
-                        
-                        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                            <strong>For Nsec.app:</strong><br>
-                            1. Go to nsec.app on mobile<br>
-                            2. Tap "Connect"<br>
-                            3. Scan QR code<br>
-                            4. Approve permissions
-                        </p>
-                        
-                        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                            <strong>Manual Setup:</strong><br>
-                            Copy the connection string below and paste into your signing app
-                        </p>
-                    </div>
-                    <div class="qr-code-container" id="qr-code-container"></div>
-                    <div class="bunker-connection-string" id="bunker-connection-string"></div>
-                    <button class="btn-primary" id="copy-connection-btn" style="margin-top: 1rem; display: none;">
-                        Copy Connection String
-                    </button>
-                    <div class="bunker-status waiting" id="bunker-status">Waiting for connection...</div>
-                </div>
-            </div>
 
             <section class="results-section" id="results-section">
                 <div class="results-header">
@@ -1438,7 +1476,44 @@
                 <h3>Discover Your Frens</h3>
                 <p>Choose a discovery mode and find people based on multiple matching signals</p>
             </section>
+            </div>
         </main>
+
+        <!-- Nsec Login Modal -->
+        <div class="nsec-modal" id="nsec-modal">
+            <div class="nsec-modal-content">
+                <div class="nsec-modal-header">
+                    <h3>Login with Private Key</h3>
+                    <button class="nsec-close" id="nsec-close">×</button>
+                </div>
+                
+                <div class="nsec-warning">
+                    <strong>CRITICAL SECURITY NOTICE:</strong>
+                    Your private key is NEVER saved, stored, or transmitted<br>
+                    It only exists in browser memory during this session<br>
+                    Auto-logout after 15 minutes of inactivity<br>
+                    Immediately cleared when you logout or close this page<br>
+                    For maximum security, use a browser extension instead<br>
+                    Only use this on trusted devices you control<br>
+                    Never enter your nsec on public/shared computers
+                </div>
+
+                <div class="nsec-input-group">
+                    <label for="nsec-input-field">Enter your nsec private key</label>
+                    <input type="password" 
+                           class="nsec-input" 
+                           id="nsec-input-field" 
+                           placeholder="nsec1..."
+                           autocomplete="off"
+                           spellcheck="false">
+                </div>
+
+                <div class="nsec-actions">
+                    <button class="nsec-btn nsec-btn-secondary" id="nsec-cancel">Cancel</button>
+                    <button class="nsec-btn nsec-btn-primary" id="nsec-login">Login</button>
+                </div>
+            </div>
+        </div>
 
         <footer>
             <p>Fren Finder - Advanced Discovery for Nostr</p>
@@ -1447,19 +1522,9 @@
 
    <script type="module">
   import * as NostrTools from "https://esm.sh/nostr-tools@2.7.2";
-  import * as nip46 from "https://esm.sh/nostr-tools@2.7.2/nip46";
 
-  window.NostrTools = { ...NostrTools, nip46 };
+  window.NostrTools = NostrTools;
 </script>
-<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
-
-<script type="module">
-  import * as NostrTools from "https://esm.sh/nostr-tools@2.7.2";
-  import * as nip46 from "https://esm.sh/nostr-tools@2.7.2/nip46";
-
-  window.NostrTools = { ...NostrTools, nip46 };
-</script>
-<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
 
 <script>
 const profileCache = new Map();  
@@ -1467,9 +1532,36 @@ const noteCache = new Map();
 let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
-let bunkerConnection = null;
-let bunkerLoginInProgress = false;
-let bunkerCapabilities = null;
+let nsecSecretKey = null;
+let nsecInactivityTimer = null;
+
+// SECURITY: Clear nsec from memory when page unloads
+window.addEventListener('beforeunload', function() {
+    if (nsecSecretKey) {
+        nsecSecretKey.fill(0);
+        nsecSecretKey = null;
+    }
+});
+
+// SECURITY: Clear nsec when page becomes hidden (user switches tabs)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden && currentUser && currentUser.loginMethod === 'nsec') {
+        console.log('Tab hidden - consider re-authentication for security');
+        if (nsecInactivityTimer) clearTimeout(nsecInactivityTimer);
+        nsecInactivityTimer = setTimeout(() => {
+            if (document.hidden && currentUser && currentUser.loginMethod === 'nsec') {
+                console.log('Auto-logout due to inactivity');
+                logout();
+                alert('Logged out for security after extended inactivity');
+            }
+        }, 15 * 60 * 1000);
+    } else {
+        if (nsecInactivityTimer) {
+            clearTimeout(nsecInactivityTimer);
+            nsecInactivityTimer = null;
+        }
+    }
+});
 
 window.addEventListener('load', async function() {
     if (typeof NostrTools === 'undefined') {
@@ -1522,18 +1614,82 @@ window.addEventListener('load', async function() {
         return spamScore;
     }
 
-    // NSFW detection
-    function detectNSFW(profile) {
-        const about = (profile.about || '').toLowerCase();
-        const name = (profile.name || '').toLowerCase();
-        const nsfwTags = ['#nsfw', '#xxx', '#adult', '#18+', '#porn', '#onlyfans', 'nsfw', '18+'];
-        
-        for (const tag of nsfwTags) {
-            if (about.includes(tag) || name.includes(tag)) return true;
-        }
-        return false;
+    function detectNSFW(profile, notes) {
+    const about = (profile.about || '').toLowerCase();
+    const name = (profile.name || '').toLowerCase();
+
+    // Expanded NSFW triggers
+    const nsfwKeywords = [
+        'nsfw', 'xxx', '18+', 'porn', 'onlyfans', 'nude', 
+        'nudes', 'erotic', 'adult content', '🔞', 'hentai', 'camgirl', 'explicit'
+    ];
+
+    // Helper to check text for NSFW indicators
+    function containsNSFW(text) {
+        if (!text) return false;
+        const lower = text.toLowerCase();
+        return nsfwKeywords.some(keyword => lower.includes(keyword));
     }
 
+    // Check bio + name
+    if (containsNSFW(about) || containsNSFW(name)) {
+        return true;
+    }
+
+    // Check content warnings in tags
+    if (notes && notes.length > 0) {
+        for (const note of notes) {
+            const content = (note.content || '').toLowerCase();
+
+            // Check text content including emoji
+            if (containsNSFW(content)) return true;
+
+            // Check t-tags for NSFW words
+            const tagList = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+            for (const tag of tagList) {
+                if (containsNSFW(tag)) return true;
+            }
+
+            // Check for explicit content-warning tag
+            const contentWarnings = note.tags?.filter(t => t[0] === 'content-warning') || [];
+            if (contentWarnings.length > 0) return true;
+        }
+    }
+
+    return false;
+}
+
+function detectDeletedAccount(profile, notes, follows) {
+    // 1. No metadata returned
+    if (!profile || profile.name === undefined) return true;
+
+    const name = (profile.name || '').toLowerCase();
+    const about = (profile.about || '').toLowerCase();
+    const picture = profile.picture || '';
+
+    // 2. Explicit deletion markers
+    const deletionMarkers = ['deleted', 'deactivated', 'removed'];
+
+    if (deletionMarkers.includes(name) || deletionMarkers.includes(about)) {
+        return true;
+    }
+
+    // 3. Completely empty profile
+    const emptyProfile =
+        (!name || name === 'anonymous' || name === 'anon') &&
+        (!about || about.length === 0) &&
+        (!picture || picture.includes('robohash'));
+
+    const noActivity = (!notes || notes.length === 0);
+    const noFollows = (!follows || follows.length === 0);
+
+    // 4. Classic deleted signature: empty + no notes + no follows
+    if (emptyProfile && noActivity && noFollows) {
+        return true;
+    }
+
+    return false;
+}
     // Discovery mode selection
     document.querySelectorAll('.mode-card').forEach(card => {
         card.addEventListener('click', function() {
@@ -1679,10 +1835,6 @@ window.addEventListener('load', async function() {
     });
 
     // Login functions
-    async function checkExtension() {
-        return typeof window.nostr !== 'undefined';
-    }
-
     async function loginWithExtension() {
         if (typeof window.nostr === 'undefined') {
             alert('Please install a Nostr browser extension (Alby, nos2x)');
@@ -1693,7 +1845,7 @@ window.addEventListener('load', async function() {
             const pubkey = await window.nostr.getPublicKey();
             const npub = nip19.npubEncode(pubkey);
             const profile = await fetchProfile(pubkey);
-            currentUser = { pubkey, npub, profile };
+            currentUser = { pubkey, npub, profile, loginMethod: 'extension' };
             const follows = await fetchFollows(pubkey);
             userFollowing = new Set(follows);
             updateUserUI();
@@ -1707,25 +1859,95 @@ window.addEventListener('load', async function() {
         }
     }
 
-    function logout() {
-    currentUser = null;
-    userFollowing.clear();
-    bunkerConnection = null;
-    bunkerCapabilities = null;
+    function showNsecModal() {
+        const modal = document.getElementById('nsec-modal');
+        const input = document.getElementById('nsec-input-field');
+        input.value = '';
+        modal.classList.add('visible');
+        input.focus();
+    }
 
-    if (window._bunkerSub) {
-        window._bunkerSub.close();
-        window._bunkerSub = null;
+    function hideNsecModal() {
+        const modal = document.getElementById('nsec-modal');
+        const input = document.getElementById('nsec-input-field');
+        input.value = '';
+        modal.classList.remove('visible');
     }
-    if (window._bunkerHeartbeat) {
-        clearInterval(window._bunkerHeartbeat);
-        window._bunkerHeartbeat = null;
+
+    async function loginWithNsec() {
+        const input = document.getElementById('nsec-input-field');
+        const nsecString = input.value.trim();
+
+        if (!nsecString) {
+            alert('Please enter your nsec');
+            return null;
+        }
+
+        if (!nsecString.startsWith('nsec1')) {
+            alert('Invalid nsec format. Must start with nsec1');
+            input.value = '';
+            return null;
+        }
+
+        try {
+            const { data: secretKey } = nip19.decode(nsecString);
+            
+            if (secretKey.length !== 32) {
+                throw new Error('Invalid secret key length');
+            }
+            
+            input.value = '';
+            
+            const pubkey = NostrTools.getPublicKey(secretKey);
+            const npub = nip19.npubEncode(pubkey);
+            
+            nsecSecretKey = secretKey;
+            
+            const profile = await fetchProfile(pubkey);
+            currentUser = { pubkey, npub, profile, loginMethod: 'nsec' };
+            const follows = await fetchFollows(pubkey);
+            userFollowing = new Set(follows);
+            
+            updateUserUI();
+            document.getElementById('npub-input').value = npub;
+            document.getElementById('npub-input').disabled = true;
+            
+            document.getElementById('nsec-warning-banner').classList.add('visible');
+            
+            hideNsecModal();
+            
+            console.log('Nsec login successful - key stored in memory only');
+            return npub;
+        } catch (err) {
+            console.error('Nsec login error:', err);
+            input.value = '';
+            alert('Failed to login with nsec. Please check your private key format.');
+            return null;
+        }
     }
-    
-    document.getElementById('npub-input').value = '';
-    document.getElementById('npub-input').disabled = false;
-    updateUserUI();
-}
+
+    function logout() {
+        currentUser = null;
+        userFollowing.clear();
+        
+        if (nsecInactivityTimer) {
+            clearTimeout(nsecInactivityTimer);
+            nsecInactivityTimer = null;
+        }
+        
+        if (nsecSecretKey) {
+            for (let i = 0; i < nsecSecretKey.length; i++) {
+                nsecSecretKey[i] = 0;
+            }
+            nsecSecretKey = null;
+        }
+        
+        document.getElementById('nsec-warning-banner').classList.remove('visible');
+        
+        document.getElementById('npub-input').value = '';
+        document.getElementById('npub-input').disabled = false;
+        updateUserUI();
+    }
 
     function updateUserUI() {
         const userSection = document.getElementById('user-section');
@@ -1757,7 +1979,7 @@ window.addEventListener('load', async function() {
                     <button class="btn btn-login" id="login-btn">Login</button>
                     <div class="login-menu" id="login-menu">
                         <div class="login-option" id="extension-login">Extension Login</div>
-                        <div class="login-option" id="bunker-login-option">Remote Signer</div>
+                        <div class="login-option" id="nsec-login-option">Private Key (nsec)</div>
                     </div>
                 </div>
             `;
@@ -1775,9 +1997,9 @@ window.addEventListener('load', async function() {
                 loginWithExtension();
             });
             
-            document.getElementById('bunker-login-option').addEventListener('click', function() {
+            document.getElementById('nsec-login-option').addEventListener('click', function() {
                 loginMenu.classList.remove('visible');
-                showBunkerLogin();
+                showNsecModal();
             });
             
             document.addEventListener('click', function() {
@@ -1786,795 +2008,180 @@ window.addEventListener('load', async function() {
         }
     }
 
-    function getClientSecretKeyBytes() {
-    // Generate a fresh secret every time for security
-    const sk = NostrTools.generateSecretKey();
-    const hex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
-    return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
-}
+    // OPTIMIZED BATCH FETCHING FUNCTIONS
+    async function fetchProfilesBatch(pubkeys) {
+    const uncachedPubkeys = pubkeys.filter(pk => !profileCache.has(pk));
 
-    function makeNostrConnectSecret() {
-        const bytes = crypto.getRandomValues(new Uint8Array(32));
-        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    // If everything is already cached, just return cached profiles
+    if (uncachedPubkeys.length === 0) {
+        return pubkeys.map(pk => profileCache.get(pk));
     }
 
-async function showBunkerLogin() {
-    // Prevent multiple simultaneous login attempts
-    if (bunkerLoginInProgress) {
-        console.log('Bunker login already in progress');
-        return;
-    }
-    
-    bunkerLoginInProgress = true;
-    
-    const modal = document.getElementById('bunker-login-modal');
-    const statusEl = document.getElementById('bunker-status');
-    const qrContainer = document.getElementById('qr-code-container');
-    const connectionStringEl = document.getElementById('bunker-connection-string');
+    console.log(`Fetching ${uncachedPubkeys.length} profiles from relays...`);
 
-    console.log('=== SHOW BUNKER LOGIN CALLED ===');
-
-    qrContainer.innerHTML = '';
-    connectionStringEl.textContent = '';
-
-    const bunkerClientSecret = getClientSecretKeyBytes();
-    const clientPubkey = NostrTools.getPublicKey(bunkerClientSecret);
-
-    console.log('=== NEW BUNKER CONNECTION ===');
-    console.log('Client pubkey:', clientPubkey);
-    console.log('Client secret length:', bunkerClientSecret.length);
-
-    const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-    const secret = makeNostrConnectSecret();
-
-    const params = new URLSearchParams();
-    relays.forEach(r => params.append('relay', r));
-    params.append('secret', secret);
-    params.append('name', 'Fren Finder');
-
-    const connectionString = `nostrconnect://${clientPubkey}?${params.toString()}`;
-    connectionStringEl.textContent = connectionString;
-
-    console.log('Connection string:', connectionString);
-
-    // Render QR
     try {
-        if (typeof qrcode !== 'undefined') {
-            const qr = qrcode(0, 'L');
-            qr.addData(connectionString);
-            qr.make();
+        const events = await pool.querySync(RELAYS, {
+            kinds: [0],     // Metadata events
+            authors: uncachedPubkeys
+        });
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 200;
-            canvas.height = 200;
-            const ctx = canvas.getContext('2d');
-            const cellSize = 200 / qr.getModuleCount();
+        // New: sort by newest metadata first
+        events.sort((a, b) => b.created_at - a.created_at);
 
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, 200, 200);
+        const seen = new Set();
+        const profileMap = new Map();
 
-            ctx.fillStyle = '#000000';
-            for (let row = 0; row < qr.getModuleCount(); row++) {
-                for (let col = 0; col < qr.getModuleCount(); col++) {
-                    if (qr.isDark(row, col)) {
-                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                    }
-                }
+        for (const event of events) {
+            if (seen.has(event.pubkey)) continue;
+            seen.add(event.pubkey);
+
+            let raw = {};
+
+            // Safe JSON parse
+            try {
+                raw = JSON.parse(event.content || "{}");
+            } catch (err) {
+                console.warn("Invalid profile JSON for", event.pubkey);
+                raw = {};
             }
 
-            qrContainer.appendChild(canvas);
-            console.log('QR code rendered');
-        } else {
-            console.error('qrcode library not loaded');
+            // Build complete profile object
+            const profile = {
+                pubkey: event.pubkey,
+                name: raw.name || "Anonymous",
+                about: raw.about || "",
+                picture: raw.picture || `https://robohash.org/${event.pubkey}?set=set5`
+            };
+
+            // Save to maps
+            profileMap.set(event.pubkey, profile);
+            profileCache.set(event.pubkey, profile);
         }
-    } catch (err) {
-        console.error('QR error:', err);
-    }
 
-    modal.classList.add('visible');
-    statusEl.className = 'bunker-status waiting';
-    statusEl.textContent = 'Scan with your signer app...';
+        // Handle pubkeys that returned no events (no metadata)
+        uncachedPubkeys.forEach(pk => {
+            if (!profileMap.has(pk)) {
+                const fallback = {
+                    pubkey: pk,
+                    name: "Anonymous",
+                    about: "",
+                    picture: `https://robohash.org/${pk}?set=set5`
+                };
 
-    const copyBtn = document.getElementById('copy-connection-btn');
-    copyBtn.style.display = 'block';
-    copyBtn.textContent = 'Copy Connection String';
-    copyBtn.onclick = () => {
-        navigator.clipboard.writeText(connectionString).then(() => {
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => (copyBtn.textContent = 'Copy Connection String'), 2000);
+                profileMap.set(pk, fallback);
+                profileCache.set(pk, fallback);
+            }
         });
-    };
 
-    console.log('About to call listenForBunkerConnection...');
-    listenForBunkerConnection(relays, clientPubkey, bunkerClientSecret, statusEl);
-    console.log('listenForBunkerConnection called');
+        // Return profiles in same order as input
+        return pubkeys.map(pk => profileCache.get(pk));
+
+    } catch (err) {
+        console.error("Batch profile fetch error:", err);
+
+        // Return safe fallback profiles
+        return pubkeys.map(pk => ({
+            pubkey: pk,
+            name: "Anonymous",
+            about: "",
+            picture: `https://robohash.org/${pk}?set=set5`
+        }));
+    }
 }
 
-    function listenForBunkerConnection(relays, clientPubkey, clientSecret, statusEl) {
-    console.log('=== listenForBunkerConnection CALLED ===');
-    console.log('Client pubkey:', clientPubkey);
-    
-    // Track if we've requested the public key
-    let publicKeyRequested = false;
-    
-    const sub = pool.subscribeMany(relays, [
-        {
-            kinds: [24133],
-            '#p': [clientPubkey],
-            since: Math.floor(Date.now() / 1000) - 60
-        }
-    ], {
-        async onevent(event) {
-            console.log('=== RECEIVED NIP-46 EVENT ===');
-            console.log('Event from:', event.pubkey);
+    // FIXED: Fetch notes individually per user in small batches
+    async function fetchNotesBatch(pubkeys, limit = 25) {
+    // Always fetch fresh notes, ignore cache for better results
+    const uncachedPubkeys = pubkeys;
+
+
+        console.log(`Fetching notes for ${uncachedPubkeys.length} users (${limit} per user)...`);
+
+        const BATCH_SIZE = 20; // Process 10 users at a time
+        const allResults = [];
+
+        for (let i = 0; i < uncachedPubkeys.length; i += BATCH_SIZE) {
+            const batch = uncachedPubkeys.slice(i, i + BATCH_SIZE);
             
-            try {
-                const remotePubkey = String(event.pubkey);
-                const content = String(event.content);
-                
-                let decrypted;
-                
+            // Fetch notes for each user individually within the batch
+            const batchPromises = batch.map(async (pubkey) => {
                 try {
-                    if (NostrTools.nip44) {
-                        const conversationKey = NostrTools.nip44.getConversationKey(
-                            clientSecret, 
-                            remotePubkey
-                        );
-                        decrypted = NostrTools.nip44.decrypt(content, conversationKey);
-                    } else {
-                        throw new Error('nip44 not available');
-                    }
-                } catch (e1) {
-                    const secretKeyHex = Array.from(clientSecret)
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join('');
-                    decrypted = await NostrTools.nip04.decrypt(secretKeyHex, remotePubkey, content);
+                    const events = await pool.querySync(RELAYS, {
+    kinds: [1],
+    authors: [pubkey],
+    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60, // ← 30 days
+    limit: limit
+});
+                    
+                    const sorted = events.sort((a, b) => b.created_at - a.created_at);
+                    noteCache.set(pubkey, sorted);
+                    return { pubkey, notes: sorted };
+                } catch (err) {
+                    console.error(`Error fetching notes for ${pubkey}:`, err);
+                    noteCache.set(pubkey, []);
+                    return { pubkey, notes: [] };
                 }
-                
-                console.log('Decrypted message:', decrypted);
-                
-                // Inside listenForBunkerConnection's onevent handler:
-const message = JSON.parse(decrypted);
-console.log('Message:', message);
+            });
 
-// Handle capabilities response
-if (message.result && Array.isArray(message.result)) {
-    console.log('=== RECEIVED CAPABILITIES ===');
-    console.log('Capabilities:', message.result);
-    bunkerCapabilities = new Set(message.result);
-    return; // Don't process further
-}
-                
-                // Handle connection acknowledgment
-                if ((message.result === 'ack' || message.method === 'connect') && !publicKeyRequested) {
-                    console.log('=== GOT CONNECTION ACK - REQUESTING PUBKEY ===');
-                    
-                    statusEl.className = 'bunker-status connected';
-                    statusEl.textContent = 'Connected! Getting your public key...';
-                    
-                    publicKeyRequested = true;
-                    await requestPublicKey(remotePubkey, clientSecret);
-                    return;
-                }
-                
-                // Handle responses with 64-char string results
-                if (message.result && typeof message.result === 'string' && message.result.length === 64) {
-                    console.log('Got 64-char string:', message.result);
-                    
-                    // If we've requested the public key, this should be it
-                    // Otherwise it's probably the connection secret being echoed back
-                    if (publicKeyRequested) {
-                        console.log('=== THIS IS THE PUBLIC KEY ===');
-                        await completeBunkerLogin(message.result, remotePubkey, clientSecret);
-                    } else {
-                        console.log('=== IGNORING - CONNECTION SECRET, NOT PUBKEY ===');
-                        // This is the first response with the connection secret
-                        // Now request the actual public key
-                        console.log('First contact - requesting public key...');
-                        
-                        statusEl.className = 'bunker-status connected';
-                        statusEl.textContent = 'Connected! Getting your public key...';
-                        
-                        publicKeyRequested = true;
-                        await requestPublicKey(remotePubkey, clientSecret);
-                    }
-                }
-                
-            } catch (err) {
-                console.error('=== ERROR ===');
-                console.error(err);
-                statusEl.className = 'bunker-status error';
-                statusEl.textContent = 'Error: ' + err.message;
+            const batchResults = await Promise.all(batchPromises);
+            allResults.push(...batchResults);
+
+            // Small delay between batches to avoid rate limiting
+            if (i + BATCH_SIZE < uncachedPubkeys.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
-        },
-        oneose() {
-            console.log('=== SUBSCRIPTION EOSE ===');
         }
-    });
-    
-    window._bunkerSub = sub;
-}
 
-    async function requestPublicKey(remotePubkey, clientSecret) {
-        console.log('Requesting public key from:', remotePubkey);
-        
-        const requestId = crypto.randomUUID();
-        const request = {
-            id: requestId,
-            method: 'get_public_key',
-            params: []
-        };
-        
-        console.log('Request:', request);
-        
-        // Use nip44 for encryption
-        let encrypted;
+        console.log(`Fetched notes for ${allResults.length} users`);
+        const withNotes = allResults.filter(r => r.notes.length > 0).length;
+        const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
+        console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+
+        return pubkeys.map(pk => noteCache.get(pk) || []);
+    }
+
+    async function fetchFollowsBatch(pubkeys) {
+        console.log(`Fetching follows for ${pubkeys.length} users...`);
+
         try {
-            if (NostrTools.nip44) {
-                const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
-                encrypted = NostrTools.nip44.encrypt(JSON.stringify(request), conversationKey);
-            } else {
-                const secretKeyHex = Array.from(clientSecret)
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-                encrypted = await NostrTools.nip04.encrypt(secretKeyHex, remotePubkey, JSON.stringify(request));
-            }
+            const events = await pool.querySync(RELAYS, {
+                kinds: [3],
+                authors: pubkeys
+            });
+
+            const followMap = new Map();
+            pubkeys.forEach(pk => followMap.set(pk, []));
+
+            events.forEach(event => {
+                const follows = event.tags
+                    .filter(tag => tag[0] === 'p' && tag[1])
+                    .map(tag => tag[1]);
+                followMap.set(event.pubkey, follows);
+            });
+
+            return pubkeys.map(pk => followMap.get(pk) || []);
         } catch (err) {
-            console.error('Encryption error:', err);
-            throw err;
+            console.error('Batch follows fetch error:', err);
+            return pubkeys.map(() => []);
         }
-        
-        const unsignedEvent = {
-            kind: 24133,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [['p', remotePubkey]],
-            content: encrypted,
-            pubkey: NostrTools.getPublicKey(clientSecret)
-        };
-        
-        const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
-        
-        console.log('Sending get_public_key request, ID:', requestId);
-        
-        const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-        await Promise.all(relays.map(relay => pool.publish([relay], event)));
-        
-        return requestId;
     }
 
-   async function completeBunkerLogin(userPubkey, remotePubkey, clientSecret) {
-    try {
-        const statusEl = document.getElementById('bunker-status');
-
-        console.log('=== COMPLETING BUNKER LOGIN ===');
-        console.log('User pubkey:', userPubkey);
-
-        statusEl.className = 'bunker-status connected';
-        statusEl.textContent = 'Loading your profile...';
-
-        const npub = nip19.npubEncode(userPubkey);
-        console.log('Encoded npub:', npub);
-        
-        const profile = await fetchProfile(userPubkey);
-        console.log('Fetched profile:', profile);
-
-        statusEl.textContent = 'Loading your follows...';
-        const follows = await fetchFollows(userPubkey);
-        console.log('Follows count:', follows.length);
-
-        currentUser = { pubkey: userPubkey, npub, profile, bunker: true };
-        userFollowing = new Set(follows);
-        bunkerConnection = { remotePubkey, clientSecret };
-
-        // ===== ADD THIS SECTION HERE =====
-        // Close the login subscription since we're done with it
-        if (window._bunkerSub) {
-            console.log('Closing login subscription...');
-            window._bunkerSub.close();
-            window._bunkerSub = null;
-        }
-
-        // Request capabilities but don't wait - we'll assume signing works
-        requestSignerCapabilities(
-            bunkerConnection.remotePubkey,
-            bunkerConnection.clientSecret
-        ).catch(err => console.warn('Could not request capabilities:', err));
-
-        // Set default capabilities immediately (assume all available)
-        if (!bunkerCapabilities) {
-            bunkerCapabilities = new Set(['sign_event', 'ping', 'get_public_key', 'get_capabilities']);
-        }
-        // ===== END NEW SECTION =====
-
-        console.log('currentUser set to:', currentUser);
-        updateUserUI();
-
-        statusEl.textContent = 'Login successful!';
-
-        // Start heartbeat monitoring
-        const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-
-        let consecutiveFailures = 0;
-        const maxFailures = 3;
-
-        const heartbeatInterval = setInterval(async () => {
-            if (!bunkerConnection || !bunkerConnection.remotePubkey) {
-                console.warn('Bunker connection lost, stopping heartbeat');
-                clearInterval(heartbeatInterval);
-                return;
-            }
-
-            try {
-                console.log('Sending heartbeat ping...');
-                
-                const pingRequest = {
-                    id: crypto.randomUUID(),
-                    method: 'ping',
-                    params: []
-                };
-                
-                let encrypted;
-                if (NostrTools.nip44) {
-                    const conversationKey = NostrTools.nip44.getConversationKey(
-                        bunkerConnection.clientSecret, 
-                        bunkerConnection.remotePubkey
-                    );
-                    encrypted = NostrTools.nip44.encrypt(JSON.stringify(pingRequest), conversationKey);
-                } else {
-                    const secretKeyHex = Array.from(bunkerConnection.clientSecret)
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join('');
-                    encrypted = await NostrTools.nip04.encrypt(
-                        secretKeyHex, 
-                        bunkerConnection.remotePubkey, 
-                        JSON.stringify(pingRequest)
-                    );
-                }
-                
-                const unsignedEvent = {
-                    kind: 24133,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [['p', bunkerConnection.remotePubkey]],
-                    content: encrypted,
-                    pubkey: NostrTools.getPublicKey(bunkerConnection.clientSecret)
-                };
-                
-                const event = NostrTools.finalizeEvent(unsignedEvent, bunkerConnection.clientSecret);
-                
-                await Promise.all(relays.map(relay => pool.publish([relay], event)));
-                
-                const pongReceived = await new Promise((resolve) => {
-                    const timeout = setTimeout(() => resolve(false), 10000);
-                    
-                    const sub = pool.subscribeMany(relays, [
-                        {
-                            kinds: [24133],
-                            '#p': [event.pubkey],
-                            since: Math.floor(Date.now() / 1000) - 5
-                        }
-                    ], {
-
-                        async onevent(responseEvent) {
-                            try {
-                                let decrypted;
-                                if (NostrTools.nip44) {
-                                    const conversationKey = NostrTools.nip44.getConversationKey(
-                                        bunkerConnection.clientSecret, 
-                                        responseEvent.pubkey
-                                    );
-                                    decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
-                                } else {
-                                    const secretKeyHex = Array.from(bunkerConnection.clientSecret)
-                                        .map(b => b.toString(16).padStart(2, '0'))
-                                        .join('');
-                                    decrypted = await NostrTools.nip04.decrypt(
-                                        secretKeyHex, 
-                                        responseEvent.pubkey, 
-                                        responseEvent.content
-                                    );
-                                }
-                                
-                                const response = JSON.parse(decrypted);
-                                
-                                if (response.id === pingRequest.id) {
-                                    clearTimeout(timeout);
-                                    sub.close();
-                                    resolve(true);
-                                }
-                            } catch (err) {
-                                // Ignore
-                            }
-                        }
-                    });
-                });
-                
-                if (pongReceived) {
-                    console.log('Heartbeat pong received');
-                    consecutiveFailures = 0;
-                } else {
-                    console.warn('Heartbeat ping failed');
-                    consecutiveFailures++;
-                    
-                    if (consecutiveFailures >= maxFailures) {
-                        console.error('Remote signer not responding. Logging out...');
-                        clearInterval(heartbeatInterval);
-                        alert('Remote signer connection lost. Logging out...');
-                        logout();
-                    }
-                }
-                
-            } catch (err) {
-                console.error('Heartbeat error:', err);
-                consecutiveFailures++;
-                
-                if (consecutiveFailures >= maxFailures) {
-                    console.error('Remote signer not responding. Logging out...');
-                    clearInterval(heartbeatInterval);
-                    alert('Remote signer connection lost. Logging out...');
-                    logout();
-                }
-            }
-        }, 60000); // Every 60 seconds
-
-        window._bunkerHeartbeat = heartbeatInterval;
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const modal = document.getElementById('bunker-login-modal');
-        modal.classList.remove('visible');
-
-        bunkerLoginInProgress = false;
-
-        console.log('Modal closed, login complete');
-    } catch (err) {
-        console.error('Complete login error:', err);
-        const statusEl = document.getElementById('bunker-status');
-        statusEl.className = 'bunker-status error';
-        statusEl.textContent = 'Login failed: ' + err.message;
-        
-        bunkerLoginInProgress = false;
-    }
-}
-
-    async function signEventWithBunker(event) {
-    if (!bunkerConnection || !bunkerConnection.remotePubkey) {
-        throw new Error('Bunker not connected');
-    }
-
-    if (bunkerCapabilities === null) {
-        console.warn('Capabilities not yet received, assuming signing is available');
-        bunkerCapabilities = new Set(['sign_event', 'ping', 'get_public_key']);
-    }
-
-    if (!bunkerCapabilities.has('sign_event')) {
-        throw new Error('Remote signer does not support signing. Your signer app may be in read-only mode.');
-    }
-
-    try {
-        console.log('=== SIGNING EVENT WITH BUNKER ===');
-        console.log('Event to sign:', event);
-        console.log('User pubkey:', currentUser.pubkey);
-        console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
-        
-        // Create a completely clean event object with only the required fields
-const eventToSign = {
-    kind: event.kind,
-    created_at: event.created_at,
-    tags: event.tags,
-    content: event.content,
-    pubkey: currentUser.pubkey
-};
-        
-        const requestId = crypto.randomUUID();
-        const request = {
-            id: requestId,
-            method: 'sign_event',
-            params: [eventToSign]
-        };
-        
-        console.log('Sign request ID:', requestId);
-        
-        const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-        const clientPubkey = NostrTools.getPublicKey(bunkerConnection.clientSecret);
-        
-        console.log('Client pubkey (listening on):', clientPubkey);
-        console.log('Remote signer pubkey:', bunkerConnection.remotePubkey);
-        
-        return new Promise(async (resolve, reject) => {
-            let resolved = false;
-            let sub = null;
-            let authPopup = null;
-            
-            const timeout = setTimeout(() => {
-                if (!resolved) {
-                    console.error('=== TIMEOUT ===');
-                    console.error('Never received response for request ID:', requestId);
-                    if (sub) sub.close();
-                    if (authPopup) authPopup.close();
-                    reject(new Error('Signing timeout - please check if your remote signer app is open and approve the request'));
-                }
-            }, 120000); // 2 minutes for web-based approval
-            
-            try {
-                console.log('Setting up subscription BEFORE publishing...');
-                sub = pool.subscribeMany(relays, [
-                    {
-                        kinds: [24133],
-                        '#p': [clientPubkey],
-                        since: Math.floor(Date.now() / 1000) - 30
-                    }
-                ], {
-                    async onevent(responseEvent) {
-                        console.log('=== RECEIVED RESPONSE EVENT ===');
-                        console.log('Response from:', responseEvent.pubkey);
-                        console.log('Expected from:', bunkerConnection.remotePubkey);
-                        console.log('Event kind:', responseEvent.kind);
-                        console.log('Event created_at:', responseEvent.created_at);
-                        
-                        if (responseEvent.pubkey !== bunkerConnection.remotePubkey) {
-                            console.log('Event not from our remote signer, ignoring');
-                            return;
-                        }
-                        
-                        try {
-                            console.log('Decrypting response...');
-                            console.log('Raw encrypted content length:', responseEvent.content.length);
-                            
-                            let decrypted;
-                            if (NostrTools.nip44) {
-                                const conversationKey = NostrTools.nip44.getConversationKey(
-                                    bunkerConnection.clientSecret,
-                                    responseEvent.pubkey
-                                );
-                                decrypted = NostrTools.nip44.decrypt(responseEvent.content, conversationKey);
-                            } else {
-                                const secretKeyHex = Array.from(bunkerConnection.clientSecret)
-                                    .map(b => b.toString(16).padStart(2, '0'))
-                                    .join('');
-                                decrypted = await NostrTools.nip04.decrypt(secretKeyHex, responseEvent.pubkey, responseEvent.content);
-                            }
-                            
-                            console.log('Decrypted response:', decrypted);
-                            
-                            const response = JSON.parse(decrypted);
-                            console.log('Parsed response:', response);
-                            console.log('Response ID:', response.id);
-                            console.log('Expected ID:', requestId);
-                            
-                            if (response.id === requestId) {
-                                // Handle auth_url response (nsec.app web approval)
-                                if (response.result === 'auth_url' && response.error) {
-                                    console.log('=== AUTH URL RECEIVED ===');
-                                    console.log('Opening approval URL:', response.error);
-                                    
-                                    // Open the auth URL in a popup
-                                    authPopup = window.open(
-                                        response.error,
-                                        'nsec-approval',
-                                        'width=500,height=600,popup=yes'
-                                    );
-                                    
-                                    console.log('Waiting for user to approve in popup...');
-                                    return;
-                                }
-                                
-                                // Handle actual signed event response
-                                if (response.result && typeof response.result === 'object' && response.result.sig) {
-                                    console.log('=== SUCCESS ===');
-                                    console.log('Signed event:', response.result);
-                                    
-                                    if (!resolved) {
-                                        resolved = true;
-                                        clearTimeout(timeout);
-                                        sub.close();
-                                        if (authPopup) authPopup.close();
-                                        resolve(response.result);
-                                    }
-                                } else if (response.result === 'error' || response.error) {
-                                    console.error('=== ERROR from signer ===');
-                                    console.error('Error:', response.error || response.result);
-                                    
-                                    if (!resolved) {
-                                        resolved = true;
-                                        clearTimeout(timeout);
-                                        sub.close();
-                                        if (authPopup) authPopup.close();
-                                        reject(new Error('Signing failed: ' + (response.error || 'Unknown error')));
-                                    }
-                                }
-                            } else {
-                                console.log('Response ID does not match');
-                                console.log('  Got:', response.id);
-                                console.log('  Expected:', requestId);
-                            }
-                        } catch (err) {
-                            console.error('Error processing response:', err);
-                            console.error('Stack:', err.stack);
-                        }
-                    },
-                    oneose() {
-                        console.log('Sign subscription EOSE');
-                    }
-                });
-                
-                console.log('Subscription created, waiting 2 seconds for it to be ready...');
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                console.log('Encrypting and publishing sign request...');
-                let encrypted;
-                if (NostrTools.nip44) {
-                    const conversationKey = NostrTools.nip44.getConversationKey(
-                        bunkerConnection.clientSecret, 
-                        bunkerConnection.remotePubkey
-                    );
-                    encrypted = NostrTools.nip44.encrypt(JSON.stringify(request), conversationKey);
-                } else {
-                    const secretKeyHex = Array.from(bunkerConnection.clientSecret)
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join('');
-                    encrypted = await NostrTools.nip04.encrypt(secretKeyHex, bunkerConnection.remotePubkey, JSON.stringify(request));
-                }
-                
-                const unsignedNip46Event = {
-                    kind: 24133,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [['p', bunkerConnection.remotePubkey]],
-                    content: encrypted,
-                    pubkey: clientPubkey
-                };
-                
-                const nip46Event = NostrTools.finalizeEvent(unsignedNip46Event, bunkerConnection.clientSecret);
-                
-                console.log('Publishing sign request event ID:', nip46Event.id);
-                console.log('Request payload:', JSON.stringify(request));
-                
-                const publishResults = await Promise.allSettled(
-                    relays.map(relay => pool.publish([relay], nip46Event))
-                );
-                
-                const successCount = publishResults.filter(r => r.status === 'fulfilled').length;
-                console.log(`Published to ${successCount}/${relays.length} relays`);
-                
-                if (successCount === 0) {
-                    throw new Error('Failed to publish to any relay');
-                }
-                
-                console.log('Sign request published successfully, waiting for response...');
-                console.log('Monitoring for responses to request ID:', requestId);
-            } catch (err) {
-                console.error('Error in signing flow:', err);
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeout);
-                    if (sub) sub.close();
-                    if (authPopup) authPopup.close();
-                    reject(err);
-                }
-            }
-        });
-    } catch (err) {
-        console.error('Signing error:', err);
-        throw err;
-    }
-}
-
-async function requestSignerCapabilities(remotePubkey, clientSecret) {
-    console.log('=== REQUESTING SIGNER CAPABILITIES ===');
-    
-    const requestId = crypto.randomUUID();
-    const request = {
-        id: requestId,
-        method: 'get_capabilities',
-        params: []
-    };
-
-    const relays = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://relay.nsec.app'];
-    const clientPubkey = NostrTools.getPublicKey(clientSecret);
-
-    // Encrypt and send request
-    let encrypted;
-    if (NostrTools.nip44) {
-        const conversationKey = NostrTools.nip44.getConversationKey(clientSecret, remotePubkey);
-        encrypted = NostrTools.nip44.encrypt(JSON.stringify(request), conversationKey);
-    } else {
-        const secretKeyHex = Array.from(clientSecret)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-        encrypted = await NostrTools.nip04.encrypt(
-            secretKeyHex,
-            remotePubkey,
-            JSON.stringify(request)
-        );
-    }
-
-    const unsignedEvent = {
-        kind: 24133,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['p', remotePubkey]],
-        content: encrypted,
-        pubkey: clientPubkey
-    };
-
-    const event = NostrTools.finalizeEvent(unsignedEvent, clientSecret);
-    
-    console.log('Publishing capabilities request...');
-    await Promise.all(relays.map(r => pool.publish([r], event)));
-}
-
-    // [REST OF THE CODE REMAINS THE SAME - fetchProfile, fetchRecentNotes, etc.]
-    // I'll continue in next message due to length...
-
-    // Fetch functions
     async function fetchProfile(pubkeyHex) {
         if (profileCache.has(pubkeyHex)) return profileCache.get(pubkeyHex);
-
-        try {
-            const events = await pool.querySync(RELAYS, { kinds: [0], authors: [pubkeyHex], limit: 1 });
-
-            if (events.length === 0) {
-                return { pubkey: pubkeyHex, name: 'Anonymous', about: '', picture: null };
-            }
-
-            const profile = JSON.parse(events[0].content);
-            profile.pubkey = pubkeyHex;
-            profileCache.set(pubkeyHex, profile);
-            return profile;
-        } catch (err) {
-            console.error('Profile fetch error:', err);
-            return { pubkey: pubkeyHex, name: 'Anonymous', about: '', picture: null };
-        }
+        const [profile] = await fetchProfilesBatch([pubkeyHex]);
+        return profile;
     }
 
     async function fetchRecentNotes(pubkeyHex, limit = 25) {
-    if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
-
-    try {
-        const events = await pool.querySync(RELAYS, { kinds: [1], authors: [pubkeyHex], limit });
-        noteCache.set(pubkeyHex, events);
-        return events;
-    } catch (err) {
-        return [];
+        if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
+        const [notes] = await fetchNotesBatch([pubkeyHex], limit);
+        return notes;
     }
-}
 
     async function fetchFollows(pubkeyHex) {
-        try {
-            const events = await pool.querySync(RELAYS, { kinds: [3], authors: [pubkeyHex], limit: 1 });
-            if (events.length === 0) return [];
-            return events[0].tags.filter(tag => tag[0] === 'p').map(tag => tag[1]);
-        } catch (err) {
-            return [];
-        }
+        const [follows] = await fetchFollowsBatch([pubkeyHex]);
+        return follows;
     }
-
-    async function batchFetch(items, fetchFn, batchSize = 10, delayMs = 150) {
-    const results = [];
-    
-    for (let i = 0; i < items.length; i += batchSize) {
-        const batch = items.slice(i, i + batchSize);
-        console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`);
-        
-        try {
-            const batchResults = await Promise.all(
-                batch.map(item => fetchFn(item).catch(err => {
-                    console.error('Batch item error:', err);
-                    return null;
-                }))
-            );
-            
-            results.push(...batchResults);
-        } catch (err) {
-            console.error('Batch error:', err);
-            results.push(...Array(batch.length).fill(null));
-        }
-        
-        if (i + batchSize < items.length) {
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
-    }
-    
-    return results;
-}
 
     async function searchUsersByHashtags(hashtags, limit = 50) {
         console.log('Searching posts for hashtags:', hashtags);
@@ -2587,10 +2194,11 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                 console.log('Searching for #' + tag);
                 
                 const events = await pool.querySync(RELAYS, {
-                    kinds: [1],
-                    '#t': [tag.toLowerCase()],
-                    limit: 100
-                });
+    kinds: [1],
+    '#t': [tag.toLowerCase()],
+    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
+    limit: 500
+});
                 
                 console.log(`Found ${events.length} posts for #${tag}`);
                 
@@ -2615,7 +2223,6 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
         }
     }
 
-    // Scoring function
     function calculateMatchScore(userProfile, candidateProfile, userFollows, candidateFollows, candidateNotes, searchTags = null) {
         let scores = {
             social: 0,
@@ -2744,7 +2351,13 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
             console.log('No follows found, searching popular users...');
             
             try {
-                const recentEvents = await pool.querySync(RELAYS, { kinds: [1], limit: 200 });
+                const THIRTY_DAYS = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+
+const recentEvents = await pool.querySync(RELAYS, {
+    kinds: [1],
+    since: THIRTY_DAYS,
+    limit: 2000 // increase for better scanning
+});
                 
                 const userCounts = new Map();
                 recentEvents.forEach(event => {
@@ -2770,20 +2383,17 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
         }
 
         const candidates = new Set();
-        const sampleSize = Math.min(20, userFollows.length);
+        const sampleSize = Math.min(30, userFollows.length);
         
         console.log('Sampling', sampleSize, 'of your', userFollows.length, 'follows');
         
-        const shuffledFollows = [...userFollows].sort(() => Math.random() - 0.5);
+        const shuffledFollows = [...userFollows]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, sampleSize);
         
-        const followPromises = [];
-        for (let i = 0; i < sampleSize; i++) {
-            followPromises.push(fetchFollows(shuffledFollows[i]));
-        }
-
-        const results = await Promise.all(followPromises);
+        const followsOfFollows = await fetchFollowsBatch(shuffledFollows);
         
-        results.forEach(theirFollows => {
+        followsOfFollows.forEach(theirFollows => {
             theirFollows.forEach(pubkey => {
                 if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
                     candidates.add(pubkey);
@@ -2798,174 +2408,140 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
     }
 
     async function followUser(pubkey) {
-    if (!currentUser) {
-        alert('Please login first');
-        return false;
-    }
-
-    const useBunker = currentUser.bunker && bunkerConnection;
-    const useExtension = !useBunker && await checkExtension();
-
-    if (!useBunker && !useExtension) {
-        alert('No signing method available');
-        return false;
-    }
-
-    try {
-        // Get current follows and deduplicate
-        const currentFollows = Array.from(userFollowing);
-        
-        // Don't include ourselves in the follow list!
-        const cleanFollows = currentFollows.filter(pk => pk !== currentUser.pubkey);
-        
-        // Add the new follow if not already following
-        if (!cleanFollows.includes(pubkey) && pubkey !== currentUser.pubkey) {
-            cleanFollows.push(pubkey);
+        if (!currentUser) {
+            alert('Please login first');
+            return false;
         }
 
-        console.log('=== CREATING FOLLOW EVENT ===');
-        console.log('Current user pubkey:', currentUser.pubkey);
-        console.log('Adding follow for:', pubkey);
-        console.log('Total follows after:', cleanFollows.length);
-        console.log('Includes self?', cleanFollows.includes(currentUser.pubkey));
+        const hasExtension = typeof window.nostr !== 'undefined';
+        const hasNsec = nsecSecretKey !== null;
 
-        // Create a clean event object - ensure everything is serializable
-        const event = {
-            kind: 3,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: cleanFollows.map(pk => ['p', pk]),
-            content: ''
-        };
+        if (!hasExtension && !hasNsec) {
+            alert('No signing method available');
+            return false;
+        }
 
-        // Validate the event structure
-        console.log('Event structure:', JSON.stringify(event, null, 2));
-        console.log('Event to sign has', event.tags.length, 'follow tags');
-
-        let signedEvent;
-        
-        if (useBunker) {
-            try {
-                console.log('Requesting signature from remote signer...');
-                
-                // Make absolutely sure we're passing a clean object
-                const cleanEvent = JSON.parse(JSON.stringify(event));
-                signedEvent = await signEventWithBunker(cleanEvent);
-                
-                if (!signedEvent) {
-                    throw new Error('Bunker signing returned null');
-                }
-                
-                console.log('Successfully signed event:', signedEvent.id);
-            } catch (err) {
-                console.error('Bunker signing failed:', err);
-                alert('Signing failed: ' + err.message + '\n\nMake sure your remote signer app is open and approve the request.');
-                throw err;
+        try {
+            const currentFollows = Array.from(userFollowing);
+            const cleanFollows = currentFollows.filter(pk => pk !== currentUser.pubkey);
+            
+            if (!cleanFollows.includes(pubkey) && pubkey !== currentUser.pubkey) {
+                cleanFollows.push(pubkey);
             }
-        } else {
-            signedEvent = await window.nostr.signEvent(event);
-        }
 
-        console.log('Publishing signed event to relays...');
-        await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
-        
-        console.log('Successfully published follow event');
-        userFollowing.add(pubkey);
-        return true;
-    } catch (err) {
-        console.error('Follow error:', err);
-        return false;
+            const event = {
+                kind: 3,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: cleanFollows.map(pk => ['p', pk]),
+                content: ''
+            };
+
+            let signedEvent;
+
+            if (currentUser.loginMethod === 'nsec' && nsecSecretKey) {
+                signedEvent = NostrTools.finalizeEvent(event, nsecSecretKey);
+            } else {
+                signedEvent = await window.nostr.signEvent(event);
+            }
+
+            await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
+            
+            userFollowing.add(pubkey);
+            return true;
+        } catch (err) {
+            console.error('Follow error:', err);
+            return false;
+        }
     }
-}
 
     function createProfileCard(fren) {
-    const card = document.createElement('div');
-    card.className = 'fren-card';
-    
-    if (fren.isFollowing) {
-        card.classList.add('already-following');
-    }
-    
-    const about = fren.about || '';
-    const hashtags = (about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
-    
-    let metricsHTML = '<div class="metrics-container">';
-    
-    if (fren.crossRefCategory) {
-        if (fren.crossRefCategory === 'mutual') {
-            metricsHTML += `<span class="metric-badge high">Both Follow</span>`;
-        } else if (fren.crossRefCategory === 'you-only') {
-            metricsHTML += `<span class="metric-badge medium">You Follow</span>`;
-        } else if (fren.crossRefCategory === 'them-only') {
-            metricsHTML += `<span class="metric-badge medium">They Follow</span>`;
+        const card = document.createElement('div');
+        card.className = 'fren-card';
+        
+        if (fren.isFollowing) {
+            card.classList.add('already-following');
         }
-    }
-    
-    if (fren.scores.breakdown.social > 40) {
-        metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
-    }
-    if (fren.scores.breakdown.interests > 40) {
-        metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
-    }
-    
-    // NEW: Check if posted within the last hour
-    const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-    const postedRecently = fren.notes?.some(note => note.created_at > oneHourAgo);
-    if (postedRecently) {
-        metricsHTML += `<span class="metric-badge high">Active</span>`;
-    }
-    
-    metricsHTML += '</div>';
-    
-    const name = fren.name || 'Anonymous';
-    const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
-    const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
-    
-    card.innerHTML = `
-        <div class="fren-header">
-            <img src="${picture}" 
-                 class="fren-avatar" 
-                 onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
-            <div class="fren-info">
-                <div class="fren-name">${name}</div>
-                <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
-            </div>
-            <div class="match-score">${fren.scores.total}%</div>
-        </div>
-        <p class="fren-bio">${bioText}</p>
-        ${metricsHTML}
-        ${hashtags.length > 0 ? `
-            <div class="tags-container">
-                ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
-            </div>
-        ` : ''}
-        <div class="fren-actions">
-            <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
-                    data-pubkey="${fren.pubkey}"
-                    ${!currentUser ? 'disabled' : ''}>
-                ${fren.isFollowing ? 'Following' : 'Follow'}
-            </button>
-            <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
-        </div>
-    `;
-
-    const followBtn = card.querySelector('.btn-follow');
-    followBtn.addEventListener('click', async () => {
-        if (fren.isFollowing) return;
-        followBtn.disabled = true;
-        followBtn.textContent = 'Following...';
-        const success = await followUser(fren.pubkey);
-        if (success) {
-            followBtn.textContent = 'Following';
-            followBtn.classList.add('following');
-            fren.isFollowing = true;
-        } else {
-            followBtn.disabled = false;
-            followBtn.textContent = 'Follow';
+        
+        const about = fren.about || '';
+        const hashtags = (about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
+        
+        let metricsHTML = '<div class="metrics-container">';
+        
+        if (fren.crossRefCategory) {
+            if (fren.crossRefCategory === 'mutual') {
+                metricsHTML += `<span class="metric-badge high">Both Follow</span>`;
+            } else if (fren.crossRefCategory === 'you-only') {
+                metricsHTML += `<span class="metric-badge medium">You Follow</span>`;
+            } else if (fren.crossRefCategory === 'them-only') {
+                metricsHTML += `<span class="metric-badge medium">They Follow</span>`;
+            }
         }
-    });
+        
+        if (fren.scores.breakdown.social > 40) {
+            metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
+        }
+        if (fren.scores.breakdown.interests > 40) {
+            metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
+        }
+        
+        const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+        const postedRecently = fren.notes?.some(note => note.created_at > oneHourAgo);
+        if (postedRecently) {
+            metricsHTML += `<span class="metric-badge high">Active</span>`;
+        }
+        
+        metricsHTML += '</div>';
+        
+        const name = fren.name || 'Anonymous';
+        const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
+        const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
+        
+        card.innerHTML = `
+            <div class="fren-header">
+                <img src="${picture}" 
+                     class="fren-avatar" 
+                     onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
+                <div class="fren-info">
+                    <div class="fren-name">${name}</div>
+                    <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
+                </div>
+                <div class="match-score">${fren.scores.total}%</div>
+            </div>
+            <p class="fren-bio">${bioText}</p>
+            ${metricsHTML}
+            ${hashtags.length > 0 ? `
+                <div class="tags-container">
+                    ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
+                </div>
+            ` : ''}
+            <div class="fren-actions">
+                <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
+                        data-pubkey="${fren.pubkey}"
+                        ${!currentUser ? 'disabled' : ''}>
+                    ${fren.isFollowing ? 'Following' : 'Follow'}
+                </button>
+                <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
+            </div>
+        `;
 
-    return card;
-}
+        const followBtn = card.querySelector('.btn-follow');
+        followBtn.addEventListener('click', async () => {
+            if (fren.isFollowing) return;
+            followBtn.disabled = true;
+            followBtn.textContent = 'Following...';
+            const success = await followUser(fren.pubkey);
+            if (success) {
+                followBtn.textContent = 'Following';
+                followBtn.classList.add('following');
+                fren.isFollowing = true;
+            } else {
+                followBtn.disabled = false;
+                followBtn.textContent = 'Follow';
+            }
+        });
+
+        return card;
+    }
 
     function renderResults(profiles) {
         const resultsGrid = document.getElementById('results-grid');
@@ -2989,7 +2565,6 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                 alert('Please select at least one hashtag to search');
                 return;
             }
-            console.log('Hashtag discovery mode:', Array.from(selectedHashtags), 'Match mode:', matchMode);
         }
 
         let userPubkey;
@@ -3020,13 +2595,18 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
         resultsSection.style.display = 'block';
         resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
 
+        // FIX: Clear “People You Already Follow” immediately
+const followingSection = document.getElementById('following-section');
+const followingGrid = document.getElementById('following-grid');
+followingSection.style.display = 'none';
+followingGrid.innerHTML = '';
+
         try {
             const userProfile = await fetchProfile(userPubkey);
             const userFollows = await fetchFollows(userPubkey);
 
             if (!currentUser) {
                 userFollowing = new Set(userFollows);
-                console.log('Loaded follows for manual npub:', userFollowing.size);
             }
 
             let candidatePubkeys;
@@ -3050,15 +2630,23 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                 resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
             }
 
-            resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
+            resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Fetching profiles and activity...</p>';
 
-            console.log('Fetching', candidatePubkeys.length, 'profiles, follows, and notes...');
+            console.log('Fetching data for', candidatePubkeys.length, 'candidates...');
 
             const [allProfiles, allFollows, allNotes] = await Promise.all([
-    batchFetch(candidatePubkeys, fetchProfile, 10, 150),
-    batchFetch(candidatePubkeys, fetchFollows, 10, 150),
-    batchFetch(candidatePubkeys, (pk) => fetchRecentNotes(pk, 25), 10, 150)
-]);
+                fetchProfilesBatch(candidatePubkeys),
+                fetchFollowsBatch(candidatePubkeys),
+                fetchNotesBatch(candidatePubkeys, 25)
+            ]);
+
+            const validProfiles = allProfiles.filter(p => p && p.pubkey).length;
+            const withNotes = allNotes.filter(n => n && n.length > 0).length;
+            const with3Plus = allNotes.filter(n => n && n.length >= 3).length;
+            console.log(`Valid profiles: ${validProfiles}/${candidatePubkeys.length}`);
+            console.log(`Profiles with notes: ${withNotes}, with 3+: ${with3Plus}`);
+
+            resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
             const topicPopularity = new Map();
             allNotes.forEach((notes, idx) => {
@@ -3080,15 +2668,14 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                 });
             });
 
-            console.log('Topic popularity map built:', topicPopularity.size, 'unique topics');
             window.topicPopularity = topicPopularity;
 
-            const profiles = allProfiles
+            const scoredProfiles = allProfiles
                 .map((profile, idx) => {
-                    if (!profile.pubkey) return null;
+                    if (!profile || !profile.pubkey) return null;
                     
                     const spamScore = detectSpam(profile, allNotes[idx]);
-                    const isNSFW = detectNSFW(profile);
+                    const isNSFW = detectNSFW(profile, allNotes[idx]);
                     
                     const scores = calculateMatchScore(
                         userProfile,
@@ -3099,7 +2686,7 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                         discoveryMode === 'hashtags' ? selectedHashtags : null
                     );
 
-                    const mutual = allFollows[idx].filter(f => userFollows.includes(f)).length;
+                    const mutual = allFollows[idx] ? allFollows[idx].filter(f => userFollows.includes(f)).length : 0;
 
                     let crossRefCategory = null;
                     if (crossRefEnabled && crossRefData) {
@@ -3125,45 +2712,68 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                         follows: allFollows[idx]
                     };
                 })
-                .filter(p => {
-                    if (!p) return false;
-                    
-                    if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) return false;
-                    
-                    const hideSpam = document.getElementById('hide-spam').checked;
-                    if (hideSpam && p.spamScore > 60) return false;
-                    
-                    const hideNSFW = document.getElementById('hide-nsfw').checked;
-                    if (hideNSFW && p.isNSFW) return false;
-                    
-                    const recentActivityOnly = document.getElementById('recent-activity-only').checked;
-                    if (recentActivityOnly) {
-                        const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
-                        const hasRecentNote = p.notes?.some(note => note.created_at > thirtyDaysAgo);
-                        if (!hasRecentNote) return false;
-                    }
-                    
-                    const minFollowers = parseInt(document.getElementById('min-followers').value);
-                    if (minFollowers > 0) {
-                        const followCount = p.follows?.length || 0;
-                        if (followCount < minFollowers) return false;
-                    }
-                    
-                    const activityLevel = document.getElementById('activity-level').value;
-                    if (activityLevel !== 'any' && p.notes) {
-                        const tenDaysAgo = Math.floor(Date.now() / 1000) - (10 * 24 * 60 * 60);
-                        const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
-                        
-                        const recentPosts = p.notes.filter(note => note.created_at > tenDaysAgo).length;
-                        const monthPosts = p.notes.filter(note => note.created_at > thirtyDaysAgo).length;
-                        
-                        if (activityLevel === 'high' && recentPosts < 5) return false;
-                        if (activityLevel === 'medium' && recentPosts < 2) return false;
-                        if (activityLevel === 'low' && monthPosts < 1) return false;
-                    }
-                    
-                    return true;
-                })
+                    .map(p => {
+        if (!p) return null;
+
+        let penalty = 0;
+
+        // ---- DELETED ACCOUNT DETECTION ----
+const isDeleted = detectDeletedAccount(p, p.notes, p.follows);
+if (isDeleted) {
+    p.scores.total = 0; // force removal
+    return null;        // hide completely
+}
+
+        // ---- NOTES REQUIREMENT ----
+        const noteCount = p.notes?.length || 0;
+        if (noteCount < 3) penalty += 20;
+
+        // ---- HASHTAG MODE ----
+        if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
+            penalty += 40;
+        }
+
+        // ---- SPAM ----
+        const hideSpam = document.getElementById('hide-spam').checked;
+        if (hideSpam && p.spamScore > 60) penalty += 30;
+
+        // ---- NSFW ----
+        const hideNSFW = document.getElementById('hide-nsfw').checked;
+        if (hideNSFW && p.isNSFW) penalty += 20;
+
+        // ---- RECENT ACTIVITY ----
+        const recentActivityOnly = document.getElementById('recent-activity-only').checked;
+        if (recentActivityOnly) {
+            const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30*24*60*60;
+            const hasRecentNote = p.notes?.some(n => n.created_at > thirtyDaysAgo);
+            if (!hasRecentNote) penalty += 40;
+        }
+
+        // ---- FOLLOWER MINIMUM ----
+        const minFollowers = parseInt(document.getElementById('min-followers').value);
+        const followCount = p.follows?.length || 0;
+        if (minFollowers > 0 && followCount < minFollowers) {
+            penalty += 30;
+        }
+
+        // ---- ACTIVITY LEVEL ----
+        const activityLevel = document.getElementById('activity-level').value;
+        const tenDaysAgo = Math.floor(Date.now() / 1000) - 10*24*60*60;
+        const recentPosts = p.notes?.filter(n => n.created_at > tenDaysAgo).length || 0;
+
+        if (activityLevel === 'high' && recentPosts < 5) penalty += 30;
+        if (activityLevel === 'medium' && recentPosts < 2) penalty += 15;
+        if (activityLevel === 'low' && recentPosts < 1) penalty += 10;
+
+        // ---- APPLY PENALTY ----
+        p.scores.total = Math.max(60, p.scores.total - penalty);
+
+        // If score drops too low, hide completely
+        if (p.scores.total < 60) return null;
+
+        return p;
+    })
+    .filter(Boolean)
                 .sort((a, b) => b.scores.total - a.scores.total)
                 .slice(0, parseInt(document.getElementById('result-count').value));
 
@@ -3172,10 +2782,10 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
             let newProfiles, followingProfiles;
             
             if (hideFollowing) {
-                newProfiles = profiles.filter(p => !p.isFollowing);
-                followingProfiles = profiles.filter(p => p.isFollowing);
+                newProfiles = scoredProfiles.filter(p => !p.isFollowing);
+                followingProfiles = scoredProfiles.filter(p => p.isFollowing);
             } else {
-                newProfiles = profiles;
+                newProfiles = scoredProfiles;
                 followingProfiles = [];
             }
 
@@ -3187,6 +2797,13 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
                         <h3 style="margin-bottom:1rem;">No New Discoveries</h3>
                         <p style="color:var(--text-secondary);">All ${followingProfiles.length} matches are people you already follow.</p>
                         <p style="color:var(--text-secondary);margin-top:0.5rem;">Try unchecking "Hide Already Following" or searching with different criteria.</p>
+                    </div>
+                `;
+            } else if (newProfiles.length === 0) {
+                resultsGrid.innerHTML = `
+                    <div style="text-align:center;padding:3rem;">
+                        <h3 style="margin-bottom:1rem;">No Matches Found</h3>
+                        <p style="color:var(--text-secondary);">Try unchecking "Posted Within a Month" or adjusting other filters.</p>
                     </div>
                 `;
             } else {
@@ -3239,25 +2856,22 @@ async function requestSignerCapabilities(remotePubkey, clientSecret) {
         }
     });
 
-    document.getElementById('close-bunker').addEventListener('click', function() {
-    document.getElementById('bunker-login-modal').classList.remove('visible');
-    bunkerLoginInProgress = false;
-    if (window._bunkerSub) {
-        window._bunkerSub.close();
-        window._bunkerSub = null;
-    }
-});
-
-document.getElementById('bunker-login-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        this.classList.remove('visible');
-        bunkerLoginInProgress = false;
-        if (window._bunkerSub) {
-            window._bunkerSub.close();
-            window._bunkerSub = null;
+    // Nsec modal event listeners
+    document.getElementById('nsec-close').addEventListener('click', hideNsecModal);
+    document.getElementById('nsec-cancel').addEventListener('click', hideNsecModal);
+    document.getElementById('nsec-login').addEventListener('click', loginWithNsec);
+    
+    document.getElementById('nsec-input-field').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            loginWithNsec();
         }
-    }
-});
+    });
+    
+    document.getElementById('nsec-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideNsecModal();
+        }
+    });
 
     updateUserUI();
 });
