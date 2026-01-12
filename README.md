@@ -47,7 +47,7 @@ Fren Finder helps you discover interesting people on the Nostr network through i
 - **Direct Actions**: Follow users directly from the app (requires login)
 - **Profile Links**: View full profiles on njump.me
 - **Separate Sections**: Already-following users shown separately
-- **Configurable Results**: Choose how many results to display (10-100)
+- **Configurable Results**: Choose how many results to display (10-50)
 
 ## Getting Started
 
