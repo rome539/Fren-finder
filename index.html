@@ -217,7 +217,7 @@
 
         .discovery-mode {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 1rem;
             margin-bottom: 2rem;
         }
@@ -1259,12 +1259,6 @@
             .results-grid { grid-template-columns: 1fr; }
             .discovery-mode { grid-template-columns: 1fr; }
             .toggle-group { flex-direction: column; gap: 1rem; }
-            
-            /* Simple fix: align dropdown to left of button instead of right */
-            .login-menu {
-                right: auto;
-                left: 0;
-            }
         }
     </style>
 </head>
