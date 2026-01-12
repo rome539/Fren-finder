@@ -1,110 +1,152 @@
 # Fren Finder
+**Advanced Nostr Discovery Tool**
 
-**Discover interesting people on Nostr**
-
-Fren Finder helps you find new people to follow on the Nostr network. Choose from different discovery methods and filter results to find accounts that match your interests.
-
+Fren Finder helps you discover interesting people on the Nostr network through intelligent matching algorithms and multiple discovery strategies.
 
 ## Features
 
 ### Discovery Modes
-- **Social Graph**: Find friends of friends through your network
-- **Shared Interests**: Match people based on similar hashtags
-- **High Engagement**: Discover the most active posters
-- **Niche Communities**: Find users focused on specific topics
-- **Hashtag Discovery**: Search for users posting about specific tags
+- **Social Graph**: Find friends of friends through your network connections
+- **Shared Interests**: Match people based on hashtags in your bio
+- **Niche Communities**: Discover users focused on rare and specific topics
+- **Hashtag Discovery**: Search for users posting about specific tags you choose
 
-### Secure Login
-- **Browser Extension**: Works with Alby, nos2x, and other Nostr extensions
-- **Remote Signer**: Connect via Amber (Android), nsec.app, or other signers
-- **Privacy First**: Your private keys never leave your device
+### Secure Login Options
+- **Browser Extension**: Works with Alby, nos2x, Flamingo, and other NIP-07 extensions
+- **Private Key (nsec)**: Direct login with automatic 15-minute timeout for security
+  - Never stored or transmitted
+  - Cleared immediately on logout
+  - For trusted devices only
 
-### Filters
-- Hide spam and low-quality accounts
-- Filter out NSFW content
-- Show only recently active users
-- Filter by network size
-- Compare your network with another user
+### Smart Filters
+- **Activity Level**: Filter by posting frequency (very active, moderate, occasional)
+- **Network Size**: Filter by follower count (50+, 200+, 500+, 1000+)
+- **Content Filters**: 
+  - Hide NSFW content automatically
+  - Filter out spam and bot accounts
+  - Remove deleted/abandoned accounts
+- **Recent Activity**: Option to show only users active in the last month
+- **Note Requirements**: Filter by minimum number of posts
 
-### Smart Matching
-Each profile gets a match score based on:
-- Mutual connections
-- Shared hashtags and interests
-- Posting activity
-- Topic focus
+### Advanced Features
+- **Cross-Reference Mode**: Compare your network with another user to find mutual connections
+- **Match Scoring**: Each profile gets a score based on:
+  - Social connections (mutual follows)
+  - Shared interests (hashtags)
+  - Posting engagement
+  - Topic rarity for niche discovery
+  - Mode-specific weighting
+- **Spam Detection**: Automatically filters low-quality accounts based on:
+  - Profile completeness
+  - Posting patterns
+  - Account activity
+  - Username patterns
 
 ### User Experience
-- Dark and light theme options
-- Follow users directly from the app
-- View full profiles on njump.me
+- **Dark and Light Themes**: Toggle between themes
+- **Direct Actions**: Follow users directly from the app (requires login)
+- **Profile Links**: View full profiles on njump.me
+- **Separate Sections**: Already-following users shown separately
+- **Configurable Results**: Choose how many results to display (10-100)
 
 ## Getting Started
 
 ### What You Need
-- A Nostr public key (npub)
-- Optionally: A Nostr browser extension or remote signer app
+- A Nostr public key (npub) or private key (nsec)
+- Optionally: A Nostr browser extension like Alby or nos2x
 
 ### How to Use
+1. **Login**: 
+   - Click "Login" and choose Extension Login or Private Key
+   - Or paste your npub to browse anonymously
+2. **Select Discovery Mode**: Choose which matching strategy to use
+3. **Adjust Filters**: Set activity level, network size, and content filters
+4. **Search**: Click "Discover Frens" to find matches
+5. **Browse Results**: View profiles, match scores, and follow directly
 
-1. Enter your Nostr public key or login with an extension
-2. Choose a discovery mode
-3. Adjust filters as needed
-4. Click "Discover Frens" and browse your matches
+## Discovery Mode Details
 
-## How It Works
+### Social Graph
+Analyzes your follow list and finds friends of friends. Scoring prioritizes mutual connections (70%) over shared interests (20%) and engagement (10%).
 
-### Social Graph Mode
-Looks at who your follows are following and suggests second-degree connections. The more mutual friends you have, the higher the match score.
+### Shared Interests
+Compares hashtags in your bio with others across the network. Scoring emphasizes interest matching (70%) with secondary factors from social connections (20%) and niche topics (10%).
 
-### Hashtag Discovery Mode
-Searches for posts with specific hashtags and finds the most active users posting about those topics.
+### Niche Communities
+Finds users focused on rare and specific topics. Uses topic rarity scoring (70%) to surface specialized communities rather than popular topics.
 
-### Interest Matching Mode
-Compares hashtags in your profile with others to find people with similar interests.
-
-### Spam Filtering
-Automatically filters out accounts that show signs of being spam or bots:
-- Empty or generic profiles
-- Suspicious usernames
-- No activity or repetitive posts
+### Hashtag Discovery
+Search for specific hashtags you choose. Match or any mode available. Scoring weights hashtag matches (80%) with posting engagement (15%) and social factors (5%).
 
 ## Privacy and Security
 
+### What We Do
+- Run entirely in your browser
+- Connect directly to Nostr relays
+- Auto-logout private keys after 15 minutes
+- Clear keys immediately on logout or page close
+
+### What We Don't Do
 - No private key storage
-- Everything runs in your browser
-- No backend server
 - No tracking or analytics
-- Direct connection to Nostr relays
+- No data collection
 
-## Contributing
+## Technical Details
 
-Want to help improve Fren Finder?
+### Relay Configuration
+Uses multiple public Nostr relays:
+- wss://relay.damus.io
+- wss://relay.primal.net
+- wss://nos.lol
+- wss://relay.snort.social
+- wss://nostr.wine
 
-1. Report bugs by opening an issue
-2. Suggest new features
-3. Submit pull requests
-4. Help improve documentation
+### Spam Detection
+Automatically filters accounts showing:
+- Generic/suspicious usernames (test, bot, spam patterns)
+- Deleted account markers ("nobody", "account deleted")
+- Empty profiles with minimal activity
+- No recent posting history
+- Abandoned accounts (no metadata + low activity)
 
+### Performance
+- Batch fetching for efficient data loading
+- Result caching for faster searches
+- Configurable result limits (10-100 profiles)
+- Progress indicators during searches
 
 ## Known Limitations
 
-- Not all relays support hashtag search
+- Relay rate limiting may affect search speed
+- Not all relays support all query types
+- Hashtag search depends on relay capabilities
+- Large networks may take longer to analyze
 
-## License
+## Contributing
 
-MIT License - see LICENSE file for details
+Want to improve Fren Finder?
+- Report bugs via GitHub issues
+- Suggest features and improvements
+- Submit pull requests
+- Help improve documentation
+- Share feedback on Nostr
 
 ## Credits
 
-- Nostr Protocol - Decentralized social protocol
-- nostr-tools - Nostr utilities library
-- The Nostr community
+Built using:
+- [Nostr Protocol](https://github.com/nostr-protocol/nostr) - Decentralized social protocol
+- [nostr-tools](https://github.com/nbd-wtf/nostr-tools) - Nostr utilities library
+- Thanks to the Nostr community for feedback and support
 
 ## Support
 
-- Report issues on GitHub or on Nostr
-- Find me on Nostr: npub12p5753xcjal8034w5czap3fcdvj9qj36h5873g73ea05emw2gznszr0ann
+- **GitHub**: Report issues or contribute
+- **Nostr**: Find me at npub12p5753xcjal8034w5czap3fcdvj9qj36h5873g73ea05emw2gznszr0ann
+
+## License
+
+MIT License - See LICENSE file for details
 
 ---
 
-Built for the Nostr community
+**Built for the Nostr community with ❤️**
