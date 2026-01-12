@@ -915,6 +915,7 @@
             position: relative;
             width: 40px;
             height: 22px;
+            flex-shrink: 0;
         }
 
         .cross-ref-toggle-switch input {
@@ -1269,6 +1270,20 @@
             .toggle-item {
                 width: 100%;
                 justify-content: flex-start;
+            }
+            
+            /* Fix cross-reference container on mobile */
+            .cross-reference-container {
+                padding: 1rem;
+            }
+            
+            .cross-ref-toggle {
+                flex-wrap: nowrap;
+            }
+            
+            .cross-ref-label {
+                flex: 1;
+                min-width: 0;
             }
         }
     </style>
