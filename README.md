@@ -112,7 +112,7 @@ Automatically filters accounts showing:
 ### Performance
 - Batch fetching for efficient data loading
 - Result caching for faster searches
-- Configurable result limits (10-100 profiles)
+- Configurable result limits (10-50 profiles)
 - Progress indicators during searches
 
 ## Known Limitations
