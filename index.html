@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    form-action 'none';
+    script-src 'self' 'unsafe-inline' https://unpkg.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com data:;
+    img-src 'self' https: data:;
+    connect-src 'self' https: wss:;
+    upgrade-insecure-requests;
+    ">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -539,11 +551,12 @@
 }
 
         .metrics-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1.25rem;
-        }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;       /* ← THIS is the key */
+    margin-bottom: 1.25rem;
+}
 
         .metric-badge {
             background: var(--bg-tertiary);
@@ -2650,7 +2663,7 @@ function detectDeletedAccount(profile, notes, follows) {
         };
     }
 
-    // ========== IMPROVED: GLOBAL DISCOVERY FUNCTION ==========
+    // ========== SOCIAL GRAPH DISCOVERY FUNCTION ==========
     async function getRecommendations(userPubkey, limit) {
         const userFollows = await fetchFollows(userPubkey);
         
@@ -3216,20 +3229,12 @@ if (isDeleted) {
             console.error('Error:', err);
             resultsGrid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent-primary)">Error: ${err.message}</p>`;
         } finally {
-            // CRITICAL: Close relay connections after global mode to prevent connection reuse issues
-            if (discoveryMode === 'global') {
-                console.log('🔄 Global mode complete - closing all relay connections...');
-                
-                // Close all relay connections in the pool
-                if (pool && pool.close) {
-                    pool.close(RELAYS);
-                    console.log('✅ All relay connections closed');
-                }
-                
-                // Wait for connections to fully close
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                console.log('✅ Ready for next search with fresh connections');
-            }
+            // ALWAYS close relay connections after each search
+if (pool && pool.close) {
+    console.log('🔄 Search complete — closing relay connections');
+    pool.close(RELAYS);
+    await new Promise(resolve => setTimeout(resolve, 500));
+}
             
             findBtn.disabled = false;
             findBtn.textContent = 'Discover Frens';
