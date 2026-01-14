@@ -1733,7 +1733,7 @@ window.addEventListener('load', async function() {
     const pool = new SimplePool();
     window._nostrPool = pool;
    let currentAbortController = null; 
-    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nostr.wine'];
+    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
 
     // Theme toggle
     document.getElementById('theme-btn').addEventListener('click', () => {
@@ -2875,10 +2875,20 @@ async function discoverByNiche(limit) {
                 break;
         }
 
-        return {
-            total: Math.min(99, Math.max(60, Math.round(finalScore))),
-            breakdown: scores
-        };
+        // Stretch score range
+finalScore = finalScore * 1.25;
+
+// Convert to integer
+let normalized = Math.round(finalScore);
+
+// Apply realistic min/max values
+if (normalized < 1) normalized = 1;
+if (normalized > 100) normalized = 100;
+
+return {
+    total: normalized,
+    breakdown: scores
+};
     }
 
     // ========== SOCIAL GRAPH DISCOVERY FUNCTION ==========
@@ -2960,7 +2970,7 @@ async function discoverByNiche(limit) {
         const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
         console.log('Generated', candidateArray.length, 'total candidates');
         
-        return candidateArray.slice(0, limit * 5);
+        return candidateArray.slice(0, limit * 4);
     }
 
     async function followUser(pubkey) {
@@ -3363,10 +3373,10 @@ if (noteCount === 2) penalty += 10; // Even less for 2 notes
         if (activityLevel === 'low' && recentPosts < 1) penalty += 10;
 
         // ---- APPLY PENALTY ----
-        p.scores.total = Math.max(60, p.scores.total - penalty);
+        p.scores.total = p.scores.total - penalty;
 
-        // If score drops too low, hide completely
-        if (p.scores.total < 60) return null;
+// HARD remove only if score is extremely bad
+if (p.scores.total < 1) return null; // or keep if you want to show 1%
 
         return p;
     })
