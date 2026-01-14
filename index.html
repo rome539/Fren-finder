@@ -1818,68 +1818,70 @@ window.addEventListener('load', async function() {
 }
 
 function detectDeletedAccount(profile, notes, follows) {
-    // 1. No metadata returned
-    if (!profile || profile.name === undefined) return true;
+    // 1. If no profile data at all
+    if (!profile || profile.name === undefined) {
+        return false; // Just treat as anonymous, not deleted
+    }
 
     const name = (profile.name || '').toLowerCase();
     const about = (profile.about || '').toLowerCase();
-    const picture = profile.picture || '';
 
-    // 2. Explicit deletion markers
-    const deletionMarkers = ['deleted', 'deactivated', 'removed'];
-
-    if (deletionMarkers.includes(name) || deletionMarkers.includes(about)) {
+    // 2. Only mark as deleted if VERY explicit
+    if (name === 'deleted' || name === '[deleted]' || name === 'deactivated') {
+        return true;
+    }
+    
+    if (about === 'deleted' || about === '[deleted]' || about === 'account deactivated') {
         return true;
     }
 
-    // 3. Completely empty profile
-    const emptyProfile =
-        (!name || name === 'anonymous' || name === 'anon') &&
-        (!about || about.length === 0) &&
-        (!picture || picture.includes('robohash'));
-
-    const noActivity = (!notes || notes.length === 0);
-    const noFollows = (!follows || follows.length === 0);
-
-    // 4. Classic deleted signature: empty + no notes + no follows
-    if (emptyProfile && noActivity && noFollows) {
-        return true;
-    }
-
+    // 3. Don't mark as deleted for inactivity or minimal profiles
+    // Many active users have minimal profiles
+    
     return false;
 }
+
     // Discovery mode selection
     document.querySelectorAll('.mode-card').forEach(card => {
-        card.addEventListener('click', function() {
-            // Abort any ongoing search when switching modes
-            if (currentAbortController) {
-                console.log('🛑 Aborting previous search due to mode switch');
-                currentAbortController.abort();
-                currentAbortController = null;
-                
-                // Close existing pool connections
-                if (pool && pool.close) {
-                    pool.close(RELAYS);
-                }
-                
-                // Reset UI
-                const findBtn = document.getElementById('find-btn');
-                findBtn.disabled = false;
-                findBtn.textContent = 'Discover Frens';
-            }
-            
-            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            discoveryMode = this.dataset.mode;
-            
-            const hashtagSearch = document.getElementById('hashtag-search');
-            if (discoveryMode === 'hashtags') {
-                hashtagSearch.classList.add('visible');
-            } else {
-                hashtagSearch.classList.remove('visible');
-            }
-        });
+    card.addEventListener('click', function() {
+
+        // Abort any ongoing search
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+
+            const findBtn = document.getElementById('find-btn');
+            findBtn.disabled = false;
+            findBtn.textContent = 'Discover Frens';
+        }
+
+        // UI highlight
+        document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        discoveryMode = this.dataset.mode;
+
+        // 🔥 FULL RESET
+        selectedHashtags.clear();
+        crossRefEnabled = false;
+        crossRefData = null;
+        window.topicPopularity = new Map();
+        noteCache.clear();
+
+        // Reset hashtag UI
+        document.getElementById('selected-tags').innerHTML =
+            '<div style="color: var(--text-tertiary); font-style: italic;">No tags selected</div>';
+        document.getElementById('cross-ref-input').classList.remove('visible');
+        document.getElementById('comparison-results').classList.remove('visible');
+
+        // Show hashtag input only when needed
+        const hashtagSearch = document.getElementById('hashtag-search');
+        if (discoveryMode === 'hashtags') {
+            hashtagSearch.classList.add('visible');
+        } else {
+            hashtagSearch.classList.remove('visible');
+        }
     });
+});
 
     // Hashtag setup
     const selectedHashtags = new Set();
@@ -2184,6 +2186,17 @@ function detectDeletedAccount(profile, notes, follows) {
         }
     }
 
+    // Helper function for relay queries
+async function queryRelays(relays, filter, timeout = 10000) {
+    try {
+        const events = await pool.querySync(relays, filter);
+        return events || [];
+    } catch (err) {
+        console.warn('Query error:', err.message);
+        return [];
+    }
+}
+
     // OPTIMIZED BATCH FETCHING FUNCTIONS
     async function fetchProfilesBatch(pubkeys) {
     const uncachedPubkeys = pubkeys.filter(pk => !profileCache.has(pk));
@@ -2266,7 +2279,7 @@ function detectDeletedAccount(profile, notes, follows) {
 }
 
     // FIXED: Fetch notes individually per user in small batches
-    async function fetchNotesBatch(pubkeys, limit = 25) {
+    async function fetchNotesBatch(pubkeys, limit = 100) {
     // Always fetch fresh notes, ignore cache for better results
     const uncachedPubkeys = pubkeys;
 
@@ -2348,7 +2361,7 @@ function detectDeletedAccount(profile, notes, follows) {
         return profile;
     }
 
-    async function fetchRecentNotes(pubkeyHex, limit = 25) {
+    async function fetchRecentNotes(pubkeyHex, limit = 100) {
         if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
         const [notes] = await fetchNotesBatch([pubkeyHex], limit);
         return notes;
@@ -2360,48 +2373,230 @@ function detectDeletedAccount(profile, notes, follows) {
     }
 
     async function searchUsersByHashtags(hashtags, limit = 50) {
-        console.log('🔍 HASHTAG DISCOVERY: Searching all posts for hashtags:', Array.from(hashtags));
-        
-        const userCandidates = new Map();
-        const hashtagArray = Array.from(hashtags);
-        
-        try {
-            for (const tag of hashtagArray) {
-                console.log('Searching for #' + tag);
-                
+    console.log('🔍 HASHTAG DISCOVERY: Searching all posts for hashtags:', Array.from(hashtags));
+    
+    const userCandidates = new Map();
+    const hashtagArray = Array.from(hashtags);
+    
+    if (hashtagArray.length === 0) return [];
+    
+    try {
+        // Try each hashtag
+        for (const tag of hashtagArray) {
+            console.log('Searching for #' + tag);
+            
+            try {
+                // Use a more generous time limit for niche/hashtag searches
                 const events = await pool.querySync(RELAYS, {
-    kinds: [1],
-    '#t': [tag.toLowerCase()],
-    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
-    limit: 500
-});
+                    kinds: [1],
+                    '#t': [tag.toLowerCase()],
+                    limit: 100 // Reduced from 500 to avoid relay limits
+                });
                 
                 console.log(`Found ${events.length} posts for #${tag}`);
                 
+                // Count users by how many matching posts they have
                 events.forEach(event => {
                     const count = userCandidates.get(event.pubkey) || 0;
                     userCandidates.set(event.pubkey, count + 1);
                 });
-
-                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (err) {
+                console.warn(`Error searching for #${tag}:`, err.message);
             }
-            
-            const sortedUsers = Array.from(userCandidates.entries())
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, limit * 3); // Get 3x limit for better filtering later
-            
-            sortedUsers.forEach(([pubkey, count]) => {
-                console.log(`  User ${pubkey.substring(0, 8)}... has ${count} posts with these tags`);
-            });
-            
-            console.log(`✅ Returning top ${sortedUsers.length} users for further analysis\n`);
-            
-            return sortedUsers.map(([pubkey]) => pubkey);
-        } catch (err) {
-            console.error('Hashtag search error:', err);
-            return [];
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Sort and filter
+        const sortedUsers = Array.from(userCandidates.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit * 2); // Reduced from 3x to 2x
+        
+        console.log(`✅ Returning top ${sortedUsers.length} users for analysis`);
+        
+        return sortedUsers.map(([pubkey]) => pubkey);
+    } catch (err) {
+        console.error('Hashtag search error:', err);
+        return [];
+    }
+}
+
+    // DEDICATED: Fetch notes for interests/niche modes (ALL TIME, no time limit)
+async function fetchNotesForHashtagModes(pubkeys, limit = 100) {
+    console.log(`🔄 DEDICATED: Fetching ALL-TIME notes for ${pubkeys.length} users...`);
+
+    const BATCH_SIZE = 10; // Smaller batch for better relay handling
+    const allResults = [];
+
+    for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
+        const batch = pubkeys.slice(i, i + BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (pubkey) => {
+            try {
+                // NO time filter - get ALL notes
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    authors: [pubkey],
+                    limit: limit
+                });
+                
+                const sorted = events.sort((a, b) => b.created_at - a.created_at);
+                noteCache.set(pubkey, sorted);
+                return { pubkey, notes: sorted };
+            } catch (err) {
+                console.error(`Error fetching notes for ${pubkey}:`, err);
+                noteCache.set(pubkey, []);
+                return { pubkey, notes: [] };
+            }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults);
+
+        // Longer delay to avoid relay rate limiting
+        if (i + BATCH_SIZE < pubkeys.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
     }
+
+    console.log(`✅ DEDICATED: Fetched ALL-TIME notes for ${allResults.length} users`);
+    const withNotes = allResults.filter(r => r.notes.length > 0).length;
+    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
+    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+
+    return pubkeys.map(pk => noteCache.get(pk) || []);
+}
+
+
+
+// DEDICATED: Fetch notes for social mode (RECENT only)
+async function fetchNotesForSocialMode(pubkeys, limit = 100) {
+    console.log(`🔄 DEDICATED: Fetching RECENT notes for ${pubkeys.length} users...`);
+
+    const BATCH_SIZE = 10;
+    const allResults = [];
+
+    for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
+        const batch = pubkeys.slice(i, i + BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (pubkey) => {
+            try {
+                // 30-day time filter for social mode
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    authors: [pubkey],
+                    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
+                    limit: limit
+                });
+                
+                const sorted = events.sort((a, b) => b.created_at - a.created_at);
+                noteCache.set(pubkey, sorted);
+                return { pubkey, notes: sorted };
+            } catch (err) {
+                console.error(`Error fetching notes for ${pubkey}:`, err);
+                noteCache.set(pubkey, []);
+                return { pubkey, notes: [] };
+            }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults);
+
+        if (i + BATCH_SIZE < pubkeys.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+    }
+
+    console.log(`✅ DEDICATED: Fetched RECENT notes for ${allResults.length} users`);
+    const withNotes = allResults.filter(r => r.notes.length > 0).length;
+    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
+    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+
+    return pubkeys.map(pk => noteCache.get(pk) || []);
+}
+    // DEDICATED: Interests mode discovery
+async function discoverByInterests(userPubkey, limit) {
+    console.log('🎯 INTERESTS MODE: Finding users with similar interests...');
+    
+    const userProfile = await fetchProfile(userPubkey);
+    const userNotes = await fetchRecentNotes(userPubkey, 50);
+    
+    // Extract user's hashtags
+    const userHashtags = new Set();
+    
+    // From bio
+    const bioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
+    bioHashtags.forEach(tag => {
+        userHashtags.add(tag.toLowerCase().replace('#', ''));
+    });
+    
+    // From notes
+    if (userNotes && userNotes.length > 0) {
+        userNotes.forEach(note => {
+            const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+            tags.forEach(tag => userHashtags.add(tag));
+        });
+    }
+    
+    if (userHashtags.size === 0) {
+        console.log('⚠️ No hashtags found for user, using social mode fallback');
+        return await getRecommendations(userPubkey, limit);
+    }
+    
+    console.log(`📊 User has ${userHashtags.size} hashtags`);
+    
+    // Search for users with these hashtags
+    const candidatePubkeys = await searchUsersByHashtags(userHashtags, limit * 2);
+    
+    if (candidatePubkeys.length === 0) {
+        console.log('⚠️ No users found with these hashtags, using social mode fallback');
+        return await getRecommendations(userPubkey, limit);
+    }
+    
+    return candidatePubkeys;
+}
+
+// DEDICATED: Niche mode discovery
+async function discoverByNiche(limit) {
+    console.log('🎯 NICHE MODE: Finding users with rare/unique content...');
+    
+    try {
+        // Get a sample of recent posts to find rare hashtags
+        const recentEvents = await pool.querySync(RELAYS, {
+            kinds: [1],
+            limit: 300 // Smaller sample
+        });
+        
+        // Count hashtag frequency
+        const hashtagCounts = new Map();
+        recentEvents.forEach(event => {
+            const tags = event.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
+            tags.forEach(tag => {
+                hashtagCounts.set(tag, (hashtagCounts.get(tag) || 0) + 1);
+            });
+        });
+        
+        // Find rare hashtags (used 1-5 times)
+        const rareHashtags = Array.from(hashtagCounts.entries())
+            .filter(([tag, count]) => count >= 1 && count <= 5)
+            .slice(0, 3) // Only use 3 rare hashtags
+            .map(([tag]) => tag);
+        
+        if (rareHashtags.length === 0) {
+            console.log('⚠️ No rare hashtags found');
+            return [];
+        }
+        
+        console.log(`🎯 Found ${rareHashtags.length} rare hashtags`);
+        
+        // Search for users with these rare hashtags
+        return await searchUsersByHashtags(new Set(rareHashtags), limit * 2);
+    } catch (err) {
+        console.error('Niche discovery error:', err);
+        return [];
+    }
+}
+
 
     // NEW: Search for users with similar hashtags to yours (interests mode)
     async function searchUsersBySimilarHashtags(userProfile, userNotes, limit = 50) {
@@ -2502,7 +2697,7 @@ function detectDeletedAccount(profile, notes, follows) {
     }
 
     // NEW: Search for users with rare/niche hashtags (niche mode)
-    async function searchUsersByRareHashtags(limit = 50) {
+    async function searchUsersByRareHashtags(limit = 100) {
         console.log('🔍 NICHE MODE: Finding users with rare and unique hashtags...');
         
         try {
@@ -2686,44 +2881,60 @@ function detectDeletedAccount(profile, notes, follows) {
 
     // ========== SOCIAL GRAPH DISCOVERY FUNCTION ==========
     async function getRecommendations(userPubkey, limit) {
-        const userFollows = await fetchFollows(userPubkey);
+    const userFollows = await fetchFollows(userPubkey);
+    
+    console.log('User follows:', userFollows.length);
+    
+    if (userFollows.length === 0) {
+        console.log('No follows found, searching popular users...');
         
-        console.log('User follows:', userFollows.length);
-        
-        if (userFollows.length === 0) {
-            console.log('No follows found, searching popular users...');
-            
-            try {
-                const THIRTY_DAYS = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+        try {
+            // Get popular users from the last 90 days (more inclusive)
+            const NINETY_DAYS = Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60;
 
-const recentEvents = await pool.querySync(RELAYS, {
-    kinds: [1],
-    since: THIRTY_DAYS,
-    limit: 2000 // increase for better scanning
-});
-                
-                const userCounts = new Map();
-                recentEvents.forEach(event => {
-                    const count = userCounts.get(event.pubkey) || 0;
-                    userCounts.set(event.pubkey, count + 1);
-                });
-                
-                const topUsers = Array.from(userCounts.entries())
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, limit * 3)
-                    .map(([pubkey]) => pubkey);
-                
-                console.log('Found', topUsers.length, 'popular users');
-                return topUsers;
-            } catch (err) {
-                console.error('Error finding popular users:', err);
+            const recentEvents = await pool.querySync(RELAYS, {
+                kinds: [1],
+                since: NINETY_DAYS,
+                limit: 1000
+            });
+            
+            const userCounts = new Map();
+            recentEvents.forEach(event => {
+                const count = userCounts.get(event.pubkey) || 0;
+                userCounts.set(event.pubkey, count + 1);
+            });
+            
+            const topUsers = Array.from(userCounts.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit * 5) // Get more candidates
+                .map(([pubkey]) => pubkey);
+            
+            console.log('Found', topUsers.length, 'popular users from last 90 days');
+            
+            // If still no users, return fallback users
+            if (topUsers.length === 0) {
+                console.log('No popular users found, using fallback users');
                 return [
                     '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
                     '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
-                    '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'
+                    '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+                    '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
+                    'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
                 ];
             }
+            
+            return topUsers;
+        } catch (err) {
+            console.error('Error finding popular users:', err);
+            return [
+                '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+                '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
+                '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+                '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
+                'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
+            ];
         }
+    }
 
         const candidates = new Set();
         const sampleSize = Math.min(30, userFollows.length);
@@ -2897,11 +3108,22 @@ const recentEvents = await pool.querySync(RELAYS, {
     }
 
     // Main search
-    document.getElementById('find-btn').addEventListener('click', async () => {
-        const findBtn = document.getElementById('find-btn');
-        const resultsSection = document.getElementById('results-section');
-        const emptyState = document.getElementById('empty-state');
-        const resultsGrid = document.getElementById('results-grid');
+document.getElementById('find-btn').addEventListener('click', async () => {
+    // LOCK MODE BUTTONS
+    document.querySelectorAll('.mode-card').forEach(card => card.style.pointerEvents = 'none');
+    
+    const findBtn = document.getElementById('find-btn');
+    const resultsSection = document.getElementById('results-section');
+    const emptyState = document.getElementById('empty-state');
+    const resultsGrid = document.getElementById('results-grid');
+
+    // SAFEGUARD: If we have a currentUser but their pubkey seems invalid
+    if (currentUser && !currentUser.pubkey) {
+        console.log('⚠️ Current user pubkey missing, forcing re-login');
+        logout(); // Clear the broken state
+        alert('Your login session was lost. Please login again.');
+        return;
+    }
 
         if (discoveryMode === 'hashtags') {
             if (selectedHashtags.size === 0) {
@@ -2953,48 +3175,63 @@ followingGrid.innerHTML = '';
             }
 
             let candidatePubkeys;
+const resultCount = parseInt(document.getElementById('result-count').value);
 
-            if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
-                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
-                candidatePubkeys = await searchUsersByHashtags(selectedHashtags, parseInt(document.getElementById('result-count').value) * 3);
-            } else if (crossRefEnabled && crossRefData) {
-                const allCandidates = [
-                    ...crossRefData.youOnly,
-                    ...crossRefData.themOnly,
-                    ...crossRefData.mutual
-                ];
-                
-                candidatePubkeys = Array.from(new Set(allCandidates))
-                    .slice(0, parseInt(document.getElementById('result-count').value) * 2);
-                
-                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
-            } else {
-                // Social mode (default)
-                candidatePubkeys = await getRecommendations(userPubkey, parseInt(document.getElementById('result-count').value));
-                resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
-            }
+if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
+    candidatePubkeys = await searchUsersByHashtags(selectedHashtags, resultCount * 2);
+} else if (discoveryMode === 'interests') {
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding users with similar interests...</p>';
+    candidatePubkeys = await discoverByInterests(userPubkey, resultCount);
+} else if (discoveryMode === 'niche') {
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding niche content creators...</p>';
+    candidatePubkeys = await discoverByNiche(resultCount);
+} else if (crossRefEnabled && crossRefData) {
+    const allCandidates = [
+        ...crossRefData.youOnly,
+        ...crossRefData.themOnly,
+        ...crossRefData.mutual
+    ];
+    
+    candidatePubkeys = Array.from(new Set(allCandidates))
+        .slice(0, resultCount * 2);
+    
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
+} else {
+    // Social mode (default)
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+    candidatePubkeys = await getRecommendations(userPubkey, resultCount);
+}
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Fetching profiles and activity...</p>';
 
             console.log('Fetching data for', candidatePubkeys.length, 'candidates...');
 
-            // FIX: Use no time limit for hashtag modes since users may have posted months/years ago
-            // Social graph mode uses 7 days since we want recent activity from friends-of-friends
-            let timeWindow;
-            if (discoveryMode === 'hashtags' || discoveryMode === 'interests' || discoveryMode === 'niche') {
-                timeWindow = null; // No time limit - get all notes
-                console.log(`Using ALL-TIME note fetching for ${discoveryMode} mode`);
-            } else {
-                timeWindow = 7; // Social mode uses recent activity
-                console.log(`Using 7-day time window for ${discoveryMode} mode`);
-            }
+// Fetch profiles and follows first
+const [allProfiles, allFollows] = await Promise.all([
+    fetchProfilesBatch(candidatePubkeys),
+    fetchFollowsBatch(candidatePubkeys)
+]);
 
-            // Fetch all data for social modes - store in isolated searchData
-            const [allProfiles, allFollows, allNotes] = await Promise.all([
-                fetchProfilesBatch(candidatePubkeys),
-                fetchFollowsBatch(candidatePubkeys),
-                fetchNotesBatch(candidatePubkeys, 25)
-            ]);
+// DEBUG: Log what we found
+console.log('🔍 DEBUG: Fetched', allProfiles.length, 'profiles');
+allProfiles.forEach((profile, idx) => {
+    if (profile && profile.pubkey) {
+        console.log(`  ${idx+1}. ${profile.name || 'Anonymous'} (${profile.pubkey.substring(0, 8)}...)`);
+    }
+});
+
+// Use DEDICATED notes fetching based on mode
+let allNotes;
+if (discoveryMode === 'hashtags' || discoveryMode === 'niche') {
+    // For hashtag-based modes: ALL-TIME notes (niche users might not post frequently)
+    console.log(`Using ALL-TIME notes for ${discoveryMode} mode`);
+    allNotes = await fetchNotesForHashtagModes(candidatePubkeys, 25);
+} else {
+    // For social-based modes: RECENT notes (30 days)
+    console.log(`Using RECENT notes for ${discoveryMode} mode`);
+    allNotes = await fetchNotesForSocialMode(candidatePubkeys, 25);
+}
 
             const validProfiles = allProfiles.filter(p => p && p.pubkey).length;
             const withNotes = allNotes.filter(n => n && n.length > 0).length;
@@ -3081,8 +3318,10 @@ if (isDeleted) {
 }
 
         // ---- NOTES REQUIREMENT ----
-        const noteCount = p.notes?.length || 0;
-        if (noteCount < 3) penalty += 20;
+const noteCount = p.notes?.length || 0;
+if (noteCount === 0) penalty += 40; // Heavily penalize no notes
+if (noteCount === 1) penalty += 20; // Less penalty for 1 note
+if (noteCount === 2) penalty += 10; // Even less for 2 notes
 
         // ---- HASHTAG MODE ----
         if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
@@ -3188,6 +3427,9 @@ if (isDeleted) {
         } finally {
             findBtn.disabled = false;
             findBtn.textContent = 'Discover Frens';
+            
+            // UNLOCK MODE BUTTONS (ADD THIS)
+            document.querySelectorAll('.mode-card').forEach(card => card.style.pointerEvents = 'auto');
         }
     });
 
