@@ -3442,17 +3442,17 @@ if (noteCount === 2) penalty += 10; // Even less for 2 notes
     };
 
     document.getElementById('following-header').addEventListener('click', function() {
-        const content = document.getElementById('following-content');
-        const icon = document.getElementById('following-icon');
-        
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            icon.textContent = '▼';
-        } else {
-            content.style.display = 'none';
-            icon.textContent = '▶';
-        }
-    });
+    const content = document.getElementById('following-content');
+    const icon = document.getElementById('following-icon');
+
+    if (getComputedStyle(content).display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '▶';
+    }
+});
 
     // Nsec modal event listeners
     document.getElementById('nsec-close').addEventListener('click', hideNsecModal);
