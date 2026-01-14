@@ -704,11 +704,14 @@
             flex-shrink: 0;
         }
 
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .toggle-switch input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-switch input[type="checkbox"],
+.xref-toggle input[type="checkbox"] {
+    display: none;
+}
 
         .toggle-slider {
             position: absolute;
@@ -1012,10 +1015,8 @@
         }
 
         .cross-ref-toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+    display: none;
+}
 
         .cross-ref-toggle-slider {
             position: absolute;
@@ -1497,7 +1498,7 @@
                     <div class="popular-tags">
                         <div class="popular-tags-label" style="display: flex; justify-content: space-between; align-items: center;">
                             <span>Popular Tags</span>
-                            <button onclick="renderPopularTags()" style="font-size: 0.7rem; padding: 0.25rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 1rem; cursor: pointer; font-family: 'JetBrains Mono', monospace;">🔀 Shuffle</button>
+                            <button onclick="renderPopularTags()" style="font-size: 0.7rem; padding: 0.25rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 1rem; cursor: pointer; font-family: 'JetBrains Mono', monospace;"> Shuffle</button>
                         </div>
                         <div class="popular-tags-grid" id="popular-tags"></div>
                     </div>
@@ -1656,6 +1657,9 @@ let discoveryMode = 'social';
 let nsecSecretKey = null;
 let nsecInactivityTimer = null;
 let lastActivityTime = Date.now();
+let currentAbortController = null;
+
+let modeSessionId = 0;   // NEW — used to isolate async work between modes
 
 // SECURITY: Track user activity for auto-logout
 function resetInactivityTimer() {
@@ -1730,10 +1734,26 @@ window.addEventListener('load', async function() {
     }
 
     const { nip19, SimplePool } = NostrTools;
-    const pool = new SimplePool();
+    let pool = new SimplePool();
+window._nostrPool = pool;
+    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol','wss://relay.nostr.band'];
+
+    function resetRelayPool() {
+  console.log("🔄 Resetting relay pool and aborting pending queries...");
+
+  if (currentAbortController) {
+    currentAbortController.abort();
+    currentAbortController = null;
+  }
+
+  try {
+    pool = new NostrTools.SimplePool();   // ✅ THIS is what your functions use
     window._nostrPool = pool;
-   let currentAbortController = null; 
-    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
+    console.log("✅ New SimplePool created safely.");
+  } catch (err) {
+    console.warn("Pool reset error:", err);
+  }
+}
 
     // Theme toggle
     document.getElementById('theme-btn').addEventListener('click', () => {
@@ -1844,9 +1864,8 @@ function detectDeletedAccount(profile, notes, follows) {
 }
 
     // Discovery mode selection
-    document.querySelectorAll('.mode-card').forEach(card => {
+document.querySelectorAll('.mode-card').forEach(card => {
     card.addEventListener('click', function() {
-
         // Abort any ongoing search
         if (currentAbortController) {
             currentAbortController.abort();
@@ -1862,25 +1881,22 @@ function detectDeletedAccount(profile, notes, follows) {
         this.classList.add('active');
         discoveryMode = this.dataset.mode;
 
-        // 🔥 FULL RESET
-        selectedHashtags.clear();
-        crossRefEnabled = false;
-        crossRefData = null;
-        window.topicPopularity = new Map();
-        noteCache.clear();
-
-        // Reset hashtag UI
-        document.getElementById('selected-tags').innerHTML =
-            '<div style="color: var(--text-tertiary); font-style: italic;">No tags selected</div>';
-        document.getElementById('cross-ref-input').classList.remove('visible');
-        document.getElementById('comparison-results').classList.remove('visible');
-
         // Show hashtag input only when needed
         const hashtagSearch = document.getElementById('hashtag-search');
         if (discoveryMode === 'hashtags') {
             hashtagSearch.classList.add('visible');
         } else {
             hashtagSearch.classList.remove('visible');
+            
+            // Clear selected hashtags when leaving hashtag mode
+            selectedHashtags.clear();
+            renderSelectedTags();
+        }
+        
+        // Reset cross-reference UI if not enabled
+        if (!crossRefEnabled) {
+            document.getElementById('cross-ref-input').classList.remove('visible');
+            document.getElementById('comparison-results').classList.remove('visible');
         }
     });
 });
@@ -2127,6 +2143,54 @@ function detectDeletedAccount(profile, notes, follows) {
         updateUserUI();
     }
 
+    async function followUser(targetPubkey) {
+    if (!currentUser || !currentUser.pubkey) {
+        alert('You must be logged in to follow users.');
+        return false;
+    }
+
+    try {
+        const existingFollows = await fetchFollows(currentUser.pubkey);
+
+        if (existingFollows.includes(targetPubkey)) {
+            console.log('Already following:', targetPubkey);
+            return true;
+        }
+
+        const newFollows = [...existingFollows, targetPubkey];
+
+        const event = {
+            kind: 3,
+            pubkey: currentUser.pubkey,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: newFollows.map(pk => ['p', pk]),
+            content: ''
+        };
+
+        let signedEvent;
+        if (currentUser.loginMethod === 'extension') {
+            signedEvent = await window.nostr.signEvent(event);
+        } else if (currentUser.loginMethod === 'nsec' && nsecSecretKey) {
+            signedEvent = NostrTools.finalizeEvent(event, nsecSecretKey);
+        } else {
+            throw new Error('No signing method available');
+        }
+
+        await pool.publish(RELAYS, signedEvent);
+
+        userFollowing.add(targetPubkey);
+        followsCache.set(currentUser.pubkey, newFollows);
+
+        console.log('✅ Followed user:', targetPubkey);
+        return true;
+
+    } catch (err) {
+        console.error('Follow failed:', err);
+        alert('Failed to follow user.');
+        return false;
+    }
+}
+
     function updateUserUI() {
         const userSection = document.getElementById('user-section');
         const npubInput = document.getElementById('npub-input');
@@ -2189,9 +2253,17 @@ function detectDeletedAccount(profile, notes, follows) {
     }
 
     // Helper function for relay queries
-async function queryRelays(relays, filter, timeout = 10000) {
+async function queryRelays(relays, filter, timeout = 10000, session = null) {
+    if (session !== modeSessionId) return []; // 🚫 ignore stale queries
+
     try {
-        const events = await pool.querySync(relays, filter);
+        currentAbortController = new AbortController();
+        const signal = currentAbortController.signal;
+
+        const events = await pool.querySync(relays, filter, { signal });
+
+        if (session !== modeSessionId) return []; // 🚫 still stale after await
+
         return events || [];
     } catch (err) {
         console.warn('Query error:', err.message);
@@ -2199,202 +2271,340 @@ async function queryRelays(relays, filter, timeout = 10000) {
     }
 }
 
-    // OPTIMIZED BATCH FETCHING FUNCTIONS
-    async function fetchProfilesBatch(pubkeys) {
-    const uncachedPubkeys = pubkeys.filter(pk => !profileCache.has(pk));
+   async function fetchProfilesBatch(pubkeys, session) {
+  const results = new Map();
 
-    // If everything is already cached, just return cached profiles
-    if (uncachedPubkeys.length === 0) {
-        return pubkeys.map(pk => profileCache.get(pk));
+  // Seed from cache
+  pubkeys.forEach(pk => {
+    if (profileCache.has(pk)) {
+      results.set(pk, profileCache.get(pk));
     }
+  });
 
-    console.log(`Fetching ${uncachedPubkeys.length} profiles from relays...`);
+  const toFetch = pubkeys.filter(pk => !results.has(pk));
+  if (toFetch.length === 0) {
+    return pubkeys.map(pk => results.get(pk));
+  }
 
+  const BATCH_SIZE = 10; // 🔑 critical
+  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+    if (session !== modeSessionId) break;
+
+    const batch = toFetch.slice(i, i + BATCH_SIZE);
+
+    let events = [];
     try {
-        const events = await pool.querySync(RELAYS, {
-            kinds: [0],     // Metadata events
-            authors: uncachedPubkeys
-        });
-
-        // New: sort by newest metadata first
-        events.sort((a, b) => b.created_at - a.created_at);
-
-        const seen = new Set();
-        const profileMap = new Map();
-
-        for (const event of events) {
-            if (seen.has(event.pubkey)) continue;
-            seen.add(event.pubkey);
-
-            let raw = {};
-
-            // Safe JSON parse
-            try {
-                raw = JSON.parse(event.content || "{}");
-            } catch (err) {
-                console.warn("Invalid profile JSON for", event.pubkey);
-                raw = {};
-            }
-
-            // Build complete profile object
-            const profile = {
-                pubkey: event.pubkey,
-                name: raw.name || "Anonymous",
-                about: raw.about || "",
-                picture: raw.picture || `https://robohash.org/${event.pubkey}?set=set5`
-            };
-
-            // Save to maps
-            profileMap.set(event.pubkey, profile);
-            profileCache.set(event.pubkey, profile);
-        }
-
-        // Handle pubkeys that returned no events (no metadata)
-        uncachedPubkeys.forEach(pk => {
-            if (!profileMap.has(pk)) {
-                const fallback = {
-                    pubkey: pk,
-                    name: "Anonymous",
-                    about: "",
-                    picture: `https://robohash.org/${pk}?set=set5`
-                };
-
-                profileMap.set(pk, fallback);
-                profileCache.set(pk, fallback);
-            }
-        });
-
-        // Return profiles in same order as input
-        return pubkeys.map(pk => profileCache.get(pk));
-
-    } catch (err) {
-        console.error("Batch profile fetch error:", err);
-
-        // Return safe fallback profiles
-        return pubkeys.map(pk => ({
-            pubkey: pk,
-            name: "Anonymous",
-            about: "",
-            picture: `https://robohash.org/${pk}?set=set5`
-        }));
+      events = await pool.querySync(
+        ['wss://purplepag.es', ...RELAYS], // force purplepages first
+        { kinds: [0], authors: batch }
+      );
+    } catch (e) {
+      console.warn('Profile batch failed:', e.message);
     }
+
+    // newest profile per pubkey
+    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    const seen = new Set();
+
+    for (const e of events) {
+      if (seen.has(e.pubkey)) continue;
+      seen.add(e.pubkey);
+
+      let raw = {};
+      try { raw = JSON.parse(e.content || '{}'); } catch {}
+
+      const profile = {
+        pubkey: e.pubkey,
+        name: raw.name || 'Anonymous',
+        about: raw.about || '',
+        picture: raw.picture || `https://robohash.org/${e.pubkey}?set=set5`,
+        hasMetadata: true
+      };
+
+      profileCache.set(e.pubkey, profile);
+      results.set(e.pubkey, profile);
+    }
+
+    // fallback for missing metadata
+    batch.forEach(pk => {
+      if (!results.has(pk)) {
+        results.set(pk, {
+          pubkey: pk,
+          name: 'Anonymous',
+          about: '',
+          picture: `https://robohash.org/${pk}?set=set5`,
+          hasMetadata: false
+        });
+      }
+    });
+
+    // small delay to avoid relay throttling
+    await new Promise(r => setTimeout(r, 80));
+  }
+
+  return pubkeys.map(pk => results.get(pk));
 }
 
-    // FIXED: Fetch notes individually per user in small batches
-    async function fetchNotesBatch(pubkeys, limit = 100) {
-    // Always fetch fresh notes, ignore cache for better results
+  // FIXED: Fetch notes individually per user in small batches
+async function fetchNotesBatch(pubkeys, limit = 100, session) {
+
     const uncachedPubkeys = pubkeys;
+    console.log(`Fetching notes for ${uncachedPubkeys.length} users (${limit} per user)...`);
 
+    const BATCH_SIZE = 20;
+    const allResults = [];
 
-        console.log(`Fetching notes for ${uncachedPubkeys.length} users (${limit} per user)...`);
+    for (let i = 0; i < uncachedPubkeys.length; i += BATCH_SIZE) {
 
-        const BATCH_SIZE = 20; // Process 10 users at a time
-        const allResults = [];
+        const batch = uncachedPubkeys.slice(i, i + BATCH_SIZE);
 
-        for (let i = 0; i < uncachedPubkeys.length; i += BATCH_SIZE) {
-            const batch = uncachedPubkeys.slice(i, i + BATCH_SIZE);
-            
-            // Fetch notes for each user individually within the batch
-            const batchPromises = batch.map(async (pubkey) => {
-                try {
-                    const events = await pool.querySync(RELAYS, {
-    kinds: [1],
-    authors: [pubkey],
-    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60, // ← 30 days
-    limit: limit
-});
-                    
-                    const sorted = events.sort((a, b) => b.created_at - a.created_at);
-                    noteCache.set(pubkey, sorted);
-                    return { pubkey, notes: sorted };
-                } catch (err) {
-                    console.error(`Error fetching notes for ${pubkey}:`, err);
-                    noteCache.set(pubkey, []);
-                    return { pubkey, notes: [] };
-                }
-            });
+        const batchPromises = batch.map(async (pubkey) => {
+            try {
 
-            const batchResults = await Promise.all(batchPromises);
-            allResults.push(...batchResults);
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    authors: [pubkey],
+                    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
+                    limit: limit
+                });
 
-            // Small delay between batches to avoid rate limiting
-            if (i + BATCH_SIZE < uncachedPubkeys.length) {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // NEW — session guard right after await
+                if (session !== modeSessionId) return [];
+
+                const sorted = events.sort((a, b) => b.created_at - a.created_at);
+                noteCache.set(pubkey, sorted);
+                return { pubkey, notes: sorted };
+
+            } catch (err) {
+                console.error(`Error fetching notes for ${pubkey}:`, err);
+                noteCache.set(pubkey, []);
+                return { pubkey, notes: [] };
             }
-        }
+        });
 
-        console.log(`Fetched notes for ${allResults.length} users`);
-        const withNotes = allResults.filter(r => r.notes.length > 0).length;
-        const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
-        console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+        const batchResults = await Promise.all(batchPromises);
 
-        return pubkeys.map(pk => noteCache.get(pk) || []);
-    }
+        // NEW — must stop if session changed while promises resolved
+        if (session !== modeSessionId) return [];
 
-    async function fetchFollowsBatch(pubkeys) {
-        console.log(`Fetching follows for ${pubkeys.length} users...`);
+        allResults.push(...batchResults);
 
-        try {
-            const events = await pool.querySync(RELAYS, {
-                kinds: [3],
-                authors: pubkeys
-            });
-
-            const followMap = new Map();
-            pubkeys.forEach(pk => followMap.set(pk, []));
-
-            events.forEach(event => {
-                const follows = event.tags
-                    .filter(tag => tag[0] === 'p' && tag[1])
-                    .map(tag => tag[1]);
-                followMap.set(event.pubkey, follows);
-            });
-
-            return pubkeys.map(pk => followMap.get(pk) || []);
-        } catch (err) {
-            console.error('Batch follows fetch error:', err);
-            return pubkeys.map(() => []);
+        if (i + BATCH_SIZE < uncachedPubkeys.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            // Optional: add guard here too
+            if (session !== modeSessionId) return [];
         }
     }
 
-    async function fetchProfile(pubkeyHex) {
-        if (profileCache.has(pubkeyHex)) return profileCache.get(pubkeyHex);
-        const [profile] = await fetchProfilesBatch([pubkeyHex]);
-        return profile;
+    console.log(`Fetched notes for ${allResults.length} users`);
+    const withNotes = allResults.filter(r => r.notes.length > 0).length;
+    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
+    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+
+    return pubkeys.map(pk => noteCache.get(pk) || []);
+}
+
+    const followsCache = new Map(); // pubkey -> array
+
+async function fetchFollowsBatch(pubkeys) {
+  console.log(`Fetching follows for ${pubkeys.length} users...`);
+
+  // Seed results from cache (optional but helpful)
+  const followMap = new Map();
+  pubkeys.forEach(pk => followMap.set(pk, followsCache.get(pk) || []));
+
+  try {
+    const events = await pool.querySync(RELAYS, {
+      kinds: [3],
+      authors: pubkeys
+    });
+
+    // IMPORTANT: newest first so we keep the most recent contacts list
+    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+    const seen = new Set();
+
+    for (const event of events) {
+      const pk = event.pubkey;
+      if (seen.has(pk)) continue; // only use newest event per pubkey
+      seen.add(pk);
+
+      const follows = (event.tags || [])
+        .filter(t => t[0] === 'p' && t[1])
+        .map(t => t[1]);
+
+      // KEY: do NOT overwrite a non-empty cached/list with an empty event
+      if (follows.length > 0) {
+        followMap.set(pk, follows);
+        followsCache.set(pk, follows);
+      } else {
+        // keep whatever we already had (cache/previous)
+        // (do nothing)
+      }
     }
 
-    async function fetchRecentNotes(pubkeyHex, limit = 100) {
-        if (noteCache.has(pubkeyHex)) return noteCache.get(pubkeyHex);
-        const [notes] = await fetchNotesBatch([pubkeyHex], limit);
-        return notes;
+    return pubkeys.map(pk => followMap.get(pk) || []);
+  } catch (err) {
+    console.error("Batch follows fetch error:", err);
+    return pubkeys.map(pk => followsCache.get(pk) || []);
+  }
+}
+
+    async function fetchProfile(pubkeyHex, session = null) {
+    if (profileCache.has(pubkeyHex)) {
+        return profileCache.get(pubkeyHex);
     }
+
+    const [profile] = await fetchProfilesBatch([pubkeyHex], session);
+
+    return profile || null;
+}
+
+    async function fetchRecentNotes(pubkeyHex, limit = 100, session = null) {
+  if (noteCache.has(pubkeyHex)) {
+    return noteCache.get(pubkeyHex) || [];
+  }
+
+  const results = await fetchNotesBatch([pubkeyHex], limit, session);
+
+  if (!Array.isArray(results) || !Array.isArray(results[0])) return [];
+  return results[0];
+}
 
     async function fetchFollows(pubkeyHex) {
-        const [follows] = await fetchFollowsBatch([pubkeyHex]);
-        return follows;
-    }
+  if (followsCache.has(pubkeyHex)) return followsCache.get(pubkeyHex);
+  const [follows] = await fetchFollowsBatch([pubkeyHex]);
+  return follows || [];
+}
 
-    async function searchUsersByHashtags(hashtags, limit = 50) {
+    async function fetchFollowsSafe(pubkeyHex, session) {
+    // Ignore stale calls
+    if (session !== modeSessionId) return null;
+
+    const [follows] = await fetchFollowsBatch([pubkeyHex]);
+
+    // Ignore if mode changed while awaiting relays
+    if (session !== modeSessionId) return null;
+
+    return follows;
+}
+
+async function debugMyFollows(pubkey) {
+    console.log('🧪 DEBUG: Inspecting kind:3 events for your pubkey');
+
+    const events = await pool.querySync(RELAYS, {
+        kinds: [3],
+        authors: [pubkey],
+        limit: 10
+    });
+
+    events
+        .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+        .forEach((e, i) => {
+            const pCount = (e.tags || []).filter(t => t[0] === 'p').length;
+            console.log(
+                `  #${i + 1}`,
+                'created_at:', e.created_at,
+                'p-tags:', pCount,
+                'relay event id:', e.id.slice(0, 8)
+            );
+        });
+}
+
+async function getGlobalCandidates({
+  relays,
+  userPubkey,
+  userFollows,
+  resultCount,
+  session,
+  hoursBack = 72,        // sample last 3 days
+  eventLimit = 5000,     // how many notes to pull total
+  minNotesPerUser = 2,   // require at least 2 notes in sample
+  excludeFollowed = true // don't show people you already follow
+}) {
+  if (session !== modeSessionId) return [];
+
+  const since = Math.floor(Date.now() / 1000) - hoursBack * 3600;
+
+  console.log(`🌍 GLOBAL: Sampling notes since last ${hoursBack}h...`);
+
+  let events = [];
+  try {
+    // Use your existing pool directly (queryRelays also works, but yours uses abort/session logic)
+    events = await pool.querySync(relays, {
+      kinds: [1],
+      since,
+      limit: eventLimit
+    });
+  } catch (err) {
+    console.warn("GLOBAL query failed:", err.message);
+    return [];
+  }
+
+  if (session !== modeSessionId) return [];
+
+  // Count notes per author from the sample
+  const counts = new Map();
+  for (const e of events) {
+    if (!e?.pubkey) continue;
+    if (e.pubkey === userPubkey) continue;
+
+    // optional: exclude followed people
+    if (excludeFollowed && userFollows?.includes(e.pubkey)) continue;
+
+    counts.set(e.pubkey, (counts.get(e.pubkey) || 0) + 1);
+  }
+
+  // Filter authors by min activity in the sample
+  let candidates = Array.from(counts.entries())
+    .filter(([_, c]) => c >= minNotesPerUser)
+    .sort((a, b) => b[1] - a[1]) // most active in sample first
+    .map(([pk]) => pk);
+
+  if (candidates.length === 0) {
+    console.log("GLOBAL: No candidates after filtering");
+    return [];
+  }
+
+  // Add randomness so you don’t always get the same people
+  candidates = candidates.sort(() => Math.random() - 0.5);
+
+  // Overfetch so later filters (spam/nsfw/etc) still leave enough results
+  const overfetch = resultCount * 4;
+  candidates = candidates.slice(0, overfetch);
+
+  console.log(`🌍 GLOBAL: Returning ${candidates.length} candidate pubkeys`);
+  return candidates;
+}
+    
+async function searchUsersByHashtags(hashtags, limit = 50, session) {
+    if (session !== modeSessionId) return [];  
     console.log('🔍 HASHTAG DISCOVERY: Searching all posts for hashtags:', Array.from(hashtags));
     
     const userCandidates = new Map();
     const hashtagArray = Array.from(hashtags);
     
-    if (hashtagArray.length === 0) return [];
+    if (hashtagArray.length === 0) {
+        console.log('No hashtags to search for');
+        return [];
+    }
     
     try {
-        // Try each hashtag
         for (const tag of hashtagArray) {
             console.log('Searching for #' + tag);
             
             try {
-                // Use a more generous time limit for niche/hashtag searches
+                // Add timeout to prevent hanging
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
                 const events = await pool.querySync(RELAYS, {
                     kinds: [1],
                     '#t': [tag.toLowerCase()],
-                    limit: 100 // Reduced from 500 to avoid relay limits
+                    limit: 100
                 });
                 
+                clearTimeout(timeoutId);
                 console.log(`Found ${events.length} posts for #${tag}`);
                 
                 // Count users by how many matching posts they have
@@ -2406,16 +2616,20 @@ async function queryRelays(relays, filter, timeout = 10000) {
                 console.warn(`Error searching for #${tag}:`, err.message);
             }
 
+            // Check session after each iteration
+            if (session !== modeSessionId) return [];
+            
             await new Promise(resolve => setTimeout(resolve, 500));
         }
         
         // Sort and filter
         const sortedUsers = Array.from(userCandidates.entries())
             .sort((a, b) => b[1] - a[1])
-            .slice(0, limit * 2); // Reduced from 3x to 2x
+            .slice(0, limit * 2);
         
         console.log(`✅ Returning top ${sortedUsers.length} users for analysis`);
         
+        if (session !== modeSessionId) return [];
         return sortedUsers.map(([pubkey]) => pubkey);
     } catch (err) {
         console.error('Hashtag search error:', err);
@@ -2516,50 +2730,91 @@ async function fetchNotesForSocialMode(pubkeys, limit = 100) {
 
     return pubkeys.map(pk => noteCache.get(pk) || []);
 }
-    // DEDICATED: Interests mode discovery
-async function discoverByInterests(userPubkey, limit) {
-    console.log('🎯 INTERESTS MODE: Finding users with similar interests...');
-    
-    const userProfile = await fetchProfile(userPubkey);
-    const userNotes = await fetchRecentNotes(userPubkey, 50);
-    
-    // Extract user's hashtags
-    const userHashtags = new Set();
-    
-    // From bio
-    const bioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
-    bioHashtags.forEach(tag => {
-        userHashtags.add(tag.toLowerCase().replace('#', ''));
+
+function extractHashtagsFromNote(note) {
+    const tags = new Set();
+
+    // 1. Proper Nostr t-tags
+    const tTags = note.tags
+        ?.filter(t => t[0] === 't' && t[1])
+        .map(t => t[1].toLowerCase()) || [];
+    tTags.forEach(t => tags.add(t));
+
+    // 2. Inline hashtags from content
+    const contentTags = note.content
+        ?.match(/#([a-zA-Z0-9_]+)/g) || [];
+    contentTags.forEach(t => tags.add(t.slice(1).toLowerCase()));
+
+    return tags;
+}
+
+    async function discoverByInterests(userPubkey, userFollows, limit, session) {
+    if (session !== modeSessionId) return [];
+
+    console.log('🎯 INTERESTS MODE: discovering via your own hashtags');
+
+    // 1. Fetch ONLY your recent notes
+    const myNotes = (await fetchRecentNotes(userPubkey, 50, session)) || [];
+    if (session !== modeSessionId) return [];
+
+    // 2. Extract hashtags YOU actually used
+    const myTags = new Set();
+
+myNotes.forEach(note => {
+    extractHashtagsFromNote(note).forEach(tag => {
+        myTags.add(tag);
     });
-    
-    // From notes
-    if (userNotes && userNotes.length > 0) {
-        userNotes.forEach(note => {
-            const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
-            tags.forEach(tag => userHashtags.add(tag));
+});
+
+    if (myTags.size === 0) {
+        console.log('⚠️ No hashtags found — fallback to social');
+        return getRecommendations(userPubkey, userFollows, limit, session);
+    }
+
+    // 3. Randomly select 2–3 hashtags YOU used
+    const shuffled = [...myTags].sort(() => Math.random() - 0.5);
+    const selectedTags = shuffled.slice(0, Math.min(3, shuffled.length));
+
+    console.log('🔖 Using hashtags:', selectedTags);
+
+    // 4. Search other users using those hashtags
+    const candidates = new Map();
+
+    for (const tag of selectedTags) {
+        if (session !== modeSessionId) return [];
+
+        const events = await pool.querySync(RELAYS, {
+            kinds: [1],
+            '#t': [tag],
+            limit: 200
         });
+
+        events.forEach(e => {
+            if (!e.pubkey) return;
+            if (e.pubkey === userPubkey) return;
+            if (userFollows.includes(e.pubkey)) return;
+
+            candidates.set(e.pubkey, (candidates.get(e.pubkey) || 0) + 1);
+        });
+
+        await new Promise(r => setTimeout(r, 150)); // relay friendly
     }
-    
-    if (userHashtags.size === 0) {
-        console.log('⚠️ No hashtags found for user, using social mode fallback');
-        return await getRecommendations(userPubkey, limit);
-    }
-    
-    console.log(`📊 User has ${userHashtags.size} hashtags`);
-    
-    // Search for users with these hashtags
-    const candidatePubkeys = await searchUsersByHashtags(userHashtags, limit * 2);
-    
-    if (candidatePubkeys.length === 0) {
-        console.log('⚠️ No users found with these hashtags, using social mode fallback');
-        return await getRecommendations(userPubkey, limit);
-    }
-    
-    return candidatePubkeys;
+
+    // 5. Rank users by shared hashtag usage
+    const sorted = [...candidates.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([pk]) => pk);
+
+    // 6. HARD LIMIT: 4× results
+    const final = sorted.slice(0, limit * 4);
+
+    console.log(`🎯 INTERESTS MODE: returning ${final.length} candidates`);
+    return final;
 }
 
 // DEDICATED: Niche mode discovery
-async function discoverByNiche(limit) {
+async function discoverByNiche(limit, session) {
+    if (session !== modeSessionId) return [];   
     console.log('🎯 NICHE MODE: Finding users with rare/unique content...');
     
     try {
@@ -2592,111 +2847,12 @@ async function discoverByNiche(limit) {
         console.log(`🎯 Found ${rareHashtags.length} rare hashtags`);
         
         // Search for users with these rare hashtags
-        return await searchUsersByHashtags(new Set(rareHashtags), limit * 2);
+        return await searchUsersByHashtags(new Set(rareHashtags), limit * 2, session);
     } catch (err) {
         console.error('Niche discovery error:', err);
         return [];
     }
 }
-
-
-    // NEW: Search for users with similar hashtags to yours (interests mode)
-    async function searchUsersBySimilarHashtags(userProfile, userNotes, limit = 50) {
-        console.log('🔍 INTERESTS MODE: Finding users with similar hashtags...');
-        
-        // Extract hashtags with frequency count
-        const hashtagFrequency = new Map();
-        
-        // From bio (weight these higher as they're more intentional)
-        const bioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
-        bioHashtags.forEach(tag => {
-            const normalized = tag.toLowerCase().replace('#', '');
-            hashtagFrequency.set(normalized, (hashtagFrequency.get(normalized) || 0) + 3); // Bio tags worth 3x
-        });
-        
-        // From notes (count frequency over past 30 days)
-        if (userNotes && userNotes.length > 0) {
-            userNotes.forEach(note => {
-                const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
-                tags.forEach(tag => {
-                    hashtagFrequency.set(tag, (hashtagFrequency.get(tag) || 0) + 1);
-                });
-            });
-        }
-        
-        if (hashtagFrequency.size === 0) {
-            console.log('No hashtags found, falling back to social graph');
-            return [];
-        }
-        
-        // Sort by frequency and take top 5
-        const sortedHashtags = Array.from(hashtagFrequency.entries())
-            .sort((a, b) => b[1] - a[1]) // Sort by frequency descending
-            .slice(0, 5)
-            .map(([tag, count]) => ({ tag, count }));
-        
-        console.log('📊 Your top hashtags by frequency:');
-        sortedHashtags.forEach(({ tag, count }) => {
-            console.log(`  #${tag}: used ${count} times`);
-        });
-        
-        const userCandidates = new Map();
-        const hashtagArray = sortedHashtags.map(h => h.tag);
-        
-        console.log(`📌 Searching for users with these ${hashtagArray.length} hashtags:`, hashtagArray.join(', '));
-        
-        try {
-            for (const tag of hashtagArray) {
-                console.log(`Searching for users who post about #${tag}...`);
-                
-                const allEvents = [];
-                
-                // Query each relay separately
-                for (const relay of RELAYS) {
-                    try {
-                        const events = await queryRelays([relay], {
-                            kinds: [1],
-                            '#t': [tag],
-                            limit: 2000
-                        }, 5000);
-                        
-                        allEvents.push(...events);
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    } catch (err) {
-                        console.warn(`Error from ${relay}:`, err.message);
-                    }
-                }
-                
-                // Deduplicate
-                const uniqueEvents = [];
-                const seenIds = new Set();
-                for (const event of allEvents) {
-                    if (!seenIds.has(event.id)) {
-                        seenIds.add(event.id);
-                        uniqueEvents.push(event);
-                    }
-                }
-                
-                console.log(`✓ Found ${uniqueEvents.length} unique posts for #${tag}`);
-                
-                uniqueEvents.forEach(event => {
-                    const count = userCandidates.get(event.pubkey) || 0;
-                    userCandidates.set(event.pubkey, count + 1);
-                });
-            }
-            
-            const sortedUsers = Array.from(userCandidates.entries())
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, limit * 3)
-                .map(([pubkey]) => pubkey);
-            
-            console.log(`Found ${sortedUsers.length} unique users posting about these topics`);
-            return sortedUsers;
-        } catch (err) {
-            console.error('Similar hashtags search error:', err);
-            return [];
-        }
-    }
 
     // NEW: Search for users with rare/niche hashtags (niche mode)
     async function searchUsersByRareHashtags(limit = 100) {
@@ -2705,10 +2861,10 @@ async function discoverByNiche(limit) {
         try {
             // First, get a broad sample of recent posts
             const recentEvents = await queryRelays(RELAYS, {
-                kinds: [1],
-                since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60, // Last 2 weeks
-                limit: 3000
-            }, 5000);
+  kinds: [1],
+  since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
+  limit: 3000
+}, 5000, session);
             
             console.log(`Analyzing ${recentEvents.length} recent posts...`);
             
@@ -2755,21 +2911,44 @@ async function discoverByNiche(limit) {
             const shuffled = sortedUsers.sort(() => Math.random() - 0.5).slice(0, limit);
             
             console.log(`✓ Found ${shuffled.length} users with rare/niche content`);
-            return shuffled;
+            if (session !== modeSessionId) return [];
+return shuffled;
         } catch (err) {
             console.error('Rare hashtags search error:', err);
             return [];
         }
     }
+    
 
-    function calculateMatchScore(userProfile, candidateProfile, userFollows, candidateFollows, candidateNotes, searchTags = null) {
-        let scores = {
-            social: 0,
-            interests: 0,
-            engagement: 0,
-            niche: 0,
-            hashtag: 0
+    function calculateMatchScore(
+    userProfile,
+    candidateProfile,
+    userFollows,
+    candidateFollows,
+    candidateNotes,
+    searchTags = null
+) {
+    // 🚫 Abort safely if user profile is missing or stale
+    if (!userProfile || !userProfile.pubkey) {
+        return {
+            total: 0,
+            breakdown: {
+                social: 0,
+                interests: 0,
+                engagement: 0,
+                niche: 0,
+                hashtag: 0
+            }
         };
+    }
+
+    let scores = {
+        social: 0,
+        interests: 0,
+        engagement: 0,
+        niche: 0,
+        hashtag: 0
+    };
 
         if (userFollows && candidateFollows) {
             const mutualFollows = candidateFollows.filter(f => userFollows.includes(f)).length;
@@ -2892,23 +3071,55 @@ return {
     }
 
     // ========== SOCIAL GRAPH DISCOVERY FUNCTION ==========
-    async function getRecommendations(userPubkey, limit) {
-    const userFollows = await fetchFollows(userPubkey);
+async function getRecommendations(userPubkey, userFollows, limit, session) {
+    if (session !== modeSessionId) return [];
     
-    console.log('User follows:', userFollows.length);
-    
+console.log('User follows (locked snapshot):', userFollows.length);
+
     if (userFollows.length === 0) {
         console.log('No follows found, searching popular users...');
         
         try {
-            // Get popular users from the last 90 days (more inclusive)
-            const NINETY_DAYS = Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60;
+            // Check session again after async operation
+            if (session !== modeSessionId) return [];
+            
+            if (userFollows.length === 0) {
+  console.log('No follows found, using GLOBAL discovery sample...');
 
-            const recentEvents = await pool.querySync(RELAYS, {
-                kinds: [1],
-                since: NINETY_DAYS,
-                limit: 1000
-            });
+  if (session !== modeSessionId) return [];
+
+  const resultCount = limit; // your getRecommendations param is already "limit"
+
+  const globalCandidates = await getGlobalCandidates({
+    relays: RELAYS,
+    userPubkey,
+    userFollows,
+    resultCount,
+    session,
+    hoursBack: 72,
+    eventLimit: 6000,
+    minNotesPerUser: 2,
+    excludeFollowed: true
+  });
+
+  if (session !== modeSessionId) return [];
+
+  // If still empty, return your hardcoded fallback list as last resort
+  if (globalCandidates.length === 0) {
+    return [
+      '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+      '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
+      '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+      '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
+      'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
+    ];
+  }
+
+  return globalCandidates;
+}
+            
+            // Check session again
+            if (session !== modeSessionId) return [];
             
             const userCounts = new Map();
             recentEvents.forEach(event => {
@@ -2918,10 +3129,13 @@ return {
             
             const topUsers = Array.from(userCounts.entries())
                 .sort((a, b) => b[1] - a[1])
-                .slice(0, limit * 5) // Get more candidates
+                .slice(0, limit * 5)
                 .map(([pubkey]) => pubkey);
             
             console.log('Found', topUsers.length, 'popular users from last 90 days');
+            
+            // Final session check
+            if (session !== modeSessionId) return [];
             
             // If still no users, return fallback users
             if (topUsers.length === 0) {
@@ -2938,6 +3152,8 @@ return {
             return topUsers;
         } catch (err) {
             console.error('Error finding popular users:', err);
+            if (session !== modeSessionId) return [];
+            
             return [
                 '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
                 '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
@@ -2948,77 +3164,34 @@ return {
         }
     }
 
-        const candidates = new Set();
-        const sampleSize = Math.min(30, userFollows.length);
-        
-        console.log('Sampling', sampleSize, 'of your', userFollows.length, 'follows');
-        
-        const shuffledFollows = [...userFollows]
-            .sort(() => Math.random() - 0.5)
-            .slice(0, sampleSize);
-        
-        const followsOfFollows = await fetchFollowsBatch(shuffledFollows);
-        
-        followsOfFollows.forEach(theirFollows => {
-            theirFollows.forEach(pubkey => {
-                if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
-                    candidates.add(pubkey);
-                }
-            });
+    const candidates = new Set();
+    const sampleSize = Math.min(30, userFollows.length);
+    
+    console.log('Sampling', sampleSize, 'of your', userFollows.length, 'follows');
+    
+    const shuffledFollows = [...userFollows]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, sampleSize);
+    
+    const followsOfFollows = await fetchFollowsBatch(shuffledFollows);
+    
+    // Check session after async batch fetch
+    if (session !== modeSessionId) return [];
+    
+    followsOfFollows.forEach(theirFollows => {
+        theirFollows.forEach(pubkey => {
+            if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
+                candidates.add(pubkey);
+            }
         });
+    });
 
-        const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
-        console.log('Generated', candidateArray.length, 'total candidates');
-        
-        return candidateArray.slice(0, limit * 4);
-    }
-
-    async function followUser(pubkey) {
-        if (!currentUser) {
-            alert('Please login first');
-            return false;
-        }
-
-        const hasExtension = typeof window.nostr !== 'undefined';
-        const hasNsec = nsecSecretKey !== null;
-
-        if (!hasExtension && !hasNsec) {
-            alert('No signing method available');
-            return false;
-        }
-
-        try {
-            const currentFollows = Array.from(userFollowing);
-            const cleanFollows = currentFollows.filter(pk => pk !== currentUser.pubkey);
-            
-            if (!cleanFollows.includes(pubkey) && pubkey !== currentUser.pubkey) {
-                cleanFollows.push(pubkey);
-            }
-
-            const event = {
-                kind: 3,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: cleanFollows.map(pk => ['p', pk]),
-                content: ''
-            };
-
-            let signedEvent;
-
-            if (currentUser.loginMethod === 'nsec' && nsecSecretKey) {
-                signedEvent = NostrTools.finalizeEvent(event, nsecSecretKey);
-            } else {
-                signedEvent = await window.nostr.signEvent(event);
-            }
-
-            await Promise.all(RELAYS.map(relay => pool.publish([relay], signedEvent)));
-            
-            userFollowing.add(pubkey);
-            return true;
-        } catch (err) {
-            console.error('Follow error:', err);
-            return false;
-        }
-    }
+    const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
+    console.log('Generated', candidateArray.length, 'total candidates');
+    
+    if (session !== modeSessionId) return [];
+    return candidateArray.slice(0, limit * 4);
+}
 
     function createProfileCard(fren) {
         const card = document.createElement('div');
@@ -3121,8 +3294,33 @@ return {
 
     // Main search
 document.getElementById('find-btn').addEventListener('click', async () => {
-    // LOCK MODE BUTTONS
-    document.querySelectorAll('.mode-card').forEach(card => card.style.pointerEvents = 'none');
+    // NEW: Start a new search session
+    modeSessionId++;
+    const thisSession = modeSessionId;
+
+
+    // LOCK CONTROLS
+[
+    '.mode-card',
+    '#result-count',
+    '#min-followers',
+    '#activity-level',
+    '#hide-spam',
+    '#hide-nsfw',
+    '#hide-following',
+    '#recent-activity-only',
+    '.toggle-switch',
+    '#enable-cross-ref',
+    '.cross-ref-toggle',
+    '#hashtag-input',
+    '.popular-tag',
+    '#npub-input'
+].forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.6';
+    });
+});
     
     const findBtn = document.getElementById('find-btn');
     const resultsSection = document.getElementById('results-section');
@@ -3179,25 +3377,34 @@ followingSection.style.display = 'none';
 followingGrid.innerHTML = '';
 
         try {
-            const userProfile = await fetchProfile(userPubkey);
-            const userFollows = await fetchFollows(userPubkey);
+            const userProfile = await fetchProfile(userPubkey, thisSession);
+if (!userProfile || !userProfile.pubkey) {
+    console.warn('⚠️ User profile missing or stale — aborting search');
+    return;
+}
 
-            if (!currentUser) {
-                userFollowing = new Set(userFollows);
-            }
+const userFollows = await fetchFollows(userPubkey);
+await debugMyFollows(userPubkey);
+
+            console.log('🔒 Using locked follow snapshot:', userFollows.length);
 
             let candidatePubkeys;
 const resultCount = parseInt(document.getElementById('result-count').value);
 
 if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
-    candidatePubkeys = await searchUsersByHashtags(selectedHashtags, resultCount * 2);
+    candidatePubkeys = await searchUsersByHashtags(selectedHashtags, resultCount * 2, thisSession);
 } else if (discoveryMode === 'interests') {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding users with similar interests...</p>';
-    candidatePubkeys = await discoverByInterests(userPubkey, resultCount);
+    candidatePubkeys = await discoverByInterests(
+    userPubkey,
+    userFollows,
+    resultCount,
+    thisSession
+);
 } else if (discoveryMode === 'niche') {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding niche content creators...</p>';
-    candidatePubkeys = await discoverByNiche(resultCount);
+    candidatePubkeys = await discoverByNiche(resultCount, thisSession);
 } else if (crossRefEnabled && crossRefData) {
     const allCandidates = [
         ...crossRefData.youOnly,
@@ -3212,7 +3419,12 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 } else {
     // Social mode (default)
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
-    candidatePubkeys = await getRecommendations(userPubkey, resultCount);
+    candidatePubkeys = await getRecommendations(
+    userPubkey,
+    userFollows,
+    resultCount,
+    thisSession
+);
 }
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Fetching profiles and activity...</p>';
@@ -3221,9 +3433,13 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 
 // Fetch profiles and follows first
 const [allProfiles, allFollows] = await Promise.all([
-    fetchProfilesBatch(candidatePubkeys),
+    fetchProfilesBatch(candidatePubkeys, thisSession),
     fetchFollowsBatch(candidatePubkeys)
 ]);
+
+// ✅ NOW it is safe
+const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
+console.log(`Profiles with kind:0 metadata: ${metaCount}/${allProfiles.length}`);
 
 // DEBUG: Log what we found
 console.log('🔍 DEBUG: Fetched', allProfiles.length, 'profiles');
@@ -3251,6 +3467,30 @@ if (discoveryMode === 'hashtags' || discoveryMode === 'niche') {
             console.log(`Valid profiles: ${validProfiles}/${candidatePubkeys.length}`);
             console.log(`Profiles with notes: ${withNotes}, with 3+: ${with3Plus}`);
 
+            // ================================
+// 🔑 BUILD PUBKEY-LOCKED LOOKUPS
+// ================================
+
+// Profiles by pubkey
+const profileByKey = new Map();
+allProfiles.forEach(p => {
+    if (p && p.pubkey) {
+        profileByKey.set(p.pubkey, p);
+    }
+});
+
+// Notes by pubkey (LOCKED to candidatePubkeys order)
+const notesByKey = new Map();
+candidatePubkeys.forEach((pk, i) => {
+    notesByKey.set(pk, allNotes[i] || []);
+});
+
+// Follows by pubkey (LOCKED to candidatePubkeys order)
+const followsByKey = new Map();
+candidatePubkeys.forEach((pk, i) => {
+    followsByKey.set(pk, allFollows[i] || []);
+});
+
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
             const topicPopularity = new Map();
@@ -3275,52 +3515,52 @@ if (discoveryMode === 'hashtags' || discoveryMode === 'niche') {
 
             window.topicPopularity = topicPopularity;
 
-            const scoredProfiles = allProfiles
-                .map((profile, idx) => {
-                    if (!profile || !profile.pubkey) return null;
-                    
-                    const spamScore = detectSpam(profile, allNotes[idx]);
-                    const isNSFW = detectNSFW(profile, allNotes[idx]);
-                    
-                    const scores = calculateMatchScore(
-                        userProfile,
-                        profile,
-                        userFollows,
-                        allFollows[idx],
-                        allNotes[idx],
-                        discoveryMode === 'hashtags' ? selectedHashtags : null
-                    );
+const scoredProfiles = candidatePubkeys
+  .map(pubkey => {
+    const profile = profileByKey.get(pubkey);
+    if (!profile || profile.pubkey !== pubkey) return null;
 
-                    const mutual = allFollows[idx] ? allFollows[idx].filter(f => userFollows.includes(f)).length : 0;
+    const notes = notesByKey.get(pubkey) || [];
+    const follows = followsByKey.get(pubkey) || [];
 
-                    let crossRefCategory = null;
-                    if (crossRefEnabled && crossRefData) {
-                        if (crossRefData.mutual.includes(profile.pubkey)) {
-                            crossRefCategory = 'mutual';
-                        } else if (crossRefData.youOnly.includes(profile.pubkey)) {
-                            crossRefCategory = 'you-only';
-                        } else if (crossRefData.themOnly.includes(profile.pubkey)) {
-                            crossRefCategory = 'them-only';
-                        }
-                    }
+    const spamScore = detectSpam(profile, notes);
+    const isNSFW = detectNSFW(profile, notes);
 
-                    return {
-                        ...profile,
-                        npub: nip19.npubEncode(profile.pubkey),
-                        scores: scores,
-                        mutual: mutual,
-                        isFollowing: userFollowing.has(profile.pubkey),
-                        spamScore: spamScore,
-                        isNSFW: isNSFW,
-                        crossRefCategory: crossRefCategory,
-                        notes: allNotes[idx],
-                        follows: allFollows[idx]
-                    };
-                })
-                    .map(p => {
-        if (!p) return null;
+    const scores = calculateMatchScore(
+      userProfile,
+      profile,
+      userFollows,
+      follows,
+      notes,
+      discoveryMode === 'hashtags' ? selectedHashtags : null
+    );
 
-        let penalty = 0;
+    const mutual = follows.filter(f => userFollows.includes(f)).length;
+
+    let crossRefCategory = null;
+    if (crossRefEnabled && crossRefData) {
+      if (crossRefData.mutual.includes(profile.pubkey)) crossRefCategory = 'mutual';
+      else if (crossRefData.youOnly.includes(profile.pubkey)) crossRefCategory = 'you-only';
+      else if (crossRefData.themOnly.includes(profile.pubkey)) crossRefCategory = 'them-only';
+    }
+
+    return {
+      ...profile,
+      npub: nip19.npubEncode(profile.pubkey),
+      scores,
+      mutual,
+      isFollowing: userFollowing.has(profile.pubkey),
+      spamScore,
+      isNSFW,
+      crossRefCategory,
+      notes,
+      follows
+    };
+  })
+  .map(p => {
+    if (!p) return null;
+
+    let penalty = 0;
 
         // ---- DELETED ACCOUNT DETECTION ----
 const isDeleted = detectDeletedAccount(p, p.notes, p.follows);
@@ -3440,8 +3680,28 @@ if (p.scores.total < 1) return null; // or keep if you want to show 1%
             findBtn.disabled = false;
             findBtn.textContent = 'Discover Frens';
             
-            // UNLOCK MODE BUTTONS (ADD THIS)
-            document.querySelectorAll('.mode-card').forEach(card => card.style.pointerEvents = 'auto');
+            // UNLOCK CONTROLS
+[
+    '.mode-card',
+    '#result-count',
+    '#min-followers',
+    '#activity-level',
+    '#hide-spam',
+    '#hide-nsfw',
+    '#hide-following',
+    '#recent-activity-only',
+    '.toggle-switch',
+    '#enable-cross-ref',
+    '.cross-ref-toggle',
+    '#hashtag-input',
+    '.popular-tag',
+    '#npub-input'
+].forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+        el.style.pointerEvents = 'auto';
+        el.style.opacity = '1';
+    });
+});
         }
     });
 
