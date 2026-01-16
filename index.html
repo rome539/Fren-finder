@@ -2298,9 +2298,14 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     let events = [];
     try {
       events = await pool.querySync(
-        ['wss://purplepag.es', ...RELAYS], // force purplepages first
-        { kinds: [0], authors: batch }
-      );
+    [
+        'wss://relay.snort.social',
+        'wss://purplepag.es',  
+        'wss://nostr.wine',
+        ...RELAYS
+    ],
+    { kinds: [0], authors: batch }
+);
     } catch (e) {
       console.warn('Profile batch failed:', e.message);
     }
@@ -2839,7 +2844,7 @@ async function discoverByNiche(limit, session) {
         // Find rare hashtags (used 1-5 times)
         const rareHashtags = Array.from(hashtagCounts.entries())
             .filter(([tag, count]) => count >= 1 && count <= 5)
-            .slice(0, 3) // Only use 3 rare hashtags
+            .slice(0, 5)
             .map(([tag]) => tag);
         
         if (rareHashtags.length === 0) {
@@ -3301,6 +3306,10 @@ document.getElementById('find-btn').addEventListener('click', async () => {
     modeSessionId++;
     const thisSession = modeSessionId;
 
+    if (!currentUser && !document.getElementById('npub-input').value.trim()) {
+    alert('Please enter your npub or login');
+    return;
+}
 
     // LOCK CONTROLS
 [
