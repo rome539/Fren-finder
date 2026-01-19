@@ -119,19 +119,19 @@
         }
 
         .user-info-combined {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.5rem 1.5rem 0.5rem 0.5rem;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(200, 78, 58, 0.2);
-            border-radius: 3rem;
-            transition: var(--transition);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.9);
-            cursor: pointer;
-        }
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;  /* CHANGE from 1rem */
+    padding: 0.4rem 1.2rem 0.4rem 0.4rem;  /* CHANGE from 0.5rem 1.5rem 0.5rem 0.5rem */
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(200, 78, 58, 0.2);
+    border-radius: 3rem;
+    transition: var(--transition);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+}
 
         [data-theme="dark"] .user-info-combined {
             background: linear-gradient(135deg, rgba(42, 35, 25, 0.9), rgba(58, 50, 41, 0.8));
@@ -157,15 +157,15 @@
         }
 
         .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2.5px solid var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(200, 78, 58, 0.1),
-                        0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: var(--transition);
-        }
+    width: 28px;  /* CHANGE from 32px */
+    height: 28px;  /* CHANGE from 32px */
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(200, 78, 58, 0.1),
+                0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: var(--transition);
+}
 
         .user-info-combined:hover .user-avatar {
             transform: scale(1.03);
@@ -180,22 +180,22 @@
         }
 
         .user-name {
-            font-family: 'Crimson Pro', serif;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            letter-spacing: 0.01em;
-        }
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.85rem;  /* CHANGE from 1rem */
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
 
         .user-action {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-tertiary);
-            transition: var(--transition);
-        }
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;  /* CHANGE from 0.7rem */
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-tertiary);
+    transition: var(--transition);
+}
 
         .btn {
             padding: 0.75rem 1.5rem;
@@ -515,7 +515,35 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
 }
+
+        .fren-name-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.25rem;
+        }
+
+        .nip05-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--accent-success);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--accent-success);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 0.25rem;
+        }
 
         .fren-npub {
             font-family: 'JetBrains Mono', monospace;
@@ -760,28 +788,26 @@
         }
 
         .already-following-section {
-            margin-top: 3rem;
-            padding: 1.5rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 0.75rem;
-        }
+    margin-top: 2rem;
+}
 
         .following-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.75rem 0;
+    user-select: none;
+}
 
         .following-header h3 {
-            font-size: 1.25rem;
-            font-family: 'JetBrains Mono', monospace;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+    font-size: 0.9rem;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
 
         .following-count {
             background: var(--accent-info);
@@ -803,9 +829,8 @@
         }
 
         .following-content {
-            display: none;
-            padding-top: 1.5rem;
-        }
+    margin-top: 1rem;
+}
 
         .following-content.visible {
             display: block;
@@ -1730,6 +1755,7 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
+// Only reset pool on page load
 window.addEventListener('load', async function() {
     if (typeof NostrTools === 'undefined') {
         alert('Failed to load Nostr tools');
@@ -1737,9 +1763,9 @@ window.addEventListener('load', async function() {
     }
 
     const { nip19, SimplePool } = NostrTools;
-    let pool = new SimplePool();
-window._nostrPool = pool;
-    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol','wss://relay.nostr.band'];
+    pool = new SimplePool();
+    window._nostrPool = pool;
+    const RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol','wss://nostr.land'];
 
     function resetRelayPool() {
   console.log("🔄 Resetting relay pool and aborting pending queries...");
@@ -1843,25 +1869,29 @@ window._nostrPool = pool;
 }
 
 function detectDeletedAccount(profile, notes, follows) {
-    // 1. If no profile data at all
-    if (!profile || profile.name === undefined) {
-        return false; // Just treat as anonymous, not deleted
-    }
-
+    if (!profile) return false;
     const name = (profile.name || '').toLowerCase();
     const about = (profile.about || '').toLowerCase();
-
-    // 2. Only mark as deleted if VERY explicit
+    
+    // Check for explicit deletion markers
     if (name === 'deleted' || name === '[deleted]' || name === 'deactivated') {
         return true;
+    }
+    
+    if (name === 'nobody') {
+        // Only mark as deleted if they ALSO have no activity
+        const hasNotes = notes && notes.length > 0;
+        const hasFollows = follows && follows.length > 0;
+        const hasAbout = about && about.length > 5;
+        
+        if (!hasNotes && !hasFollows && !hasAbout) {
+            return true; // Inactive "nobody" account
+        }
     }
     
     if (about === 'deleted' || about === '[deleted]' || about === 'account deactivated') {
         return true;
     }
-
-    // 3. Don't mark as deleted for inactivity or minimal profiles
-    // Many active users have minimal profiles
     
     return false;
 }
@@ -2276,20 +2306,22 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
 
    async function fetchProfilesBatch(pubkeys, session) {
   const results = new Map();
-
-  // Seed from cache
-  pubkeys.forEach(pk => {
-    if (profileCache.has(pk)) {
-      results.set(pk, profileCache.get(pk));
-    }
-  });
-
-  const toFetch = pubkeys.filter(pk => !results.has(pk));
+  
+  // DON'T seed from cache - always fetch fresh
+  const toFetch = pubkeys;
+  
   if (toFetch.length === 0) {
-    return pubkeys.map(pk => results.get(pk));
+    return pubkeys.map(pk => ({
+      pubkey: pk,
+      name: 'Anonymous',
+      about: '',
+      picture: `https://robohash.org/${pk}?set=set5`,
+      nip05: null,
+      hasMetadata: false
+    }));
   }
 
-  const BATCH_SIZE = 10; // 🔑 critical
+  const BATCH_SIZE = 10;
   for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
     if (session !== modeSessionId) break;
 
@@ -2298,19 +2330,19 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     let events = [];
     try {
       events = await pool.querySync(
-    [
-        'wss://relay.snort.social',
-        'wss://purplepag.es',  
-        'wss://nostr.wine',
-        ...RELAYS
-    ],
-    { kinds: [0], authors: batch }
-);
+        [
+          'wss://relay.snort.social',
+          'wss://aggr.nostr.land',  
+          'wss://nostr.wine',
+          ...RELAYS
+        ],
+        { kinds: [0], authors: batch }
+      );
     } catch (e) {
       console.warn('Profile batch failed:', e.message);
     }
 
-    // newest profile per pubkey
+    // Newest profile per pubkey
     events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     const seen = new Set();
 
@@ -2326,14 +2358,18 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
         name: raw.name || 'Anonymous',
         about: raw.about || '',
         picture: raw.picture || `https://robohash.org/${e.pubkey}?set=set5`,
+        nip05: raw.nip05 || null,
         hasMetadata: true
       };
 
-      profileCache.set(e.pubkey, profile);
+      // ONLY cache if we got real metadata
+      if (raw.name || raw.about || raw.picture) {
+        profileCache.set(e.pubkey, profile);
+      }
       results.set(e.pubkey, profile);
     }
 
-    // fallback for missing metadata
+    // Fallback for missing metadata - DON'T cache these
     batch.forEach(pk => {
       if (!results.has(pk)) {
         results.set(pk, {
@@ -2341,13 +2377,14 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
           name: 'Anonymous',
           about: '',
           picture: `https://robohash.org/${pk}?set=set5`,
+          nip05: null,
           hasMetadata: false
         });
+        // DON'T cache Anonymous fallbacks
       }
     });
 
-    // small delay to avoid relay throttling
-    await new Promise(r => setTimeout(r, 80));
+    await new Promise(r => setTimeout(r, 120));
   }
 
   return pubkeys.map(pk => results.get(pk));
@@ -2602,17 +2639,16 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
             console.log('Searching for #' + tag);
             
             try {
-                // Add timeout to prevent hanging
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                // Search for recent posts with this hashtag (last 30 days)
+                const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
                 
                 const events = await pool.querySync(RELAYS, {
                     kinds: [1],
                     '#t': [tag.toLowerCase()],
+                    since: thirtyDaysAgo,
                     limit: 100
                 });
                 
-                clearTimeout(timeoutId);
                 console.log(`Found ${events.length} posts for #${tag}`);
                 
                 // Count users by how many matching posts they have
@@ -2627,7 +2663,7 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
             // Check session after each iteration
             if (session !== modeSessionId) return [];
             
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
         
         // Sort and filter
@@ -2861,72 +2897,6 @@ async function discoverByNiche(limit, session) {
         return [];
     }
 }
-
-    // NEW: Search for users with rare/niche hashtags (niche mode)
-    async function searchUsersByRareHashtags(limit = 100) {
-        console.log('🔍 NICHE MODE: Finding users with rare and unique hashtags...');
-        
-        try {
-            // First, get a broad sample of recent posts
-            const recentEvents = await queryRelays(RELAYS, {
-  kinds: [1],
-  since: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
-  limit: 3000
-}, 5000, session);
-            
-            console.log(`Analyzing ${recentEvents.length} recent posts...`);
-            
-            // Count hashtag popularity
-            const hashtagPopularity = new Map();
-            const userHashtags = new Map();
-            
-            recentEvents.forEach(event => {
-                const tags = event.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
-                tags.forEach(tag => {
-                    hashtagPopularity.set(tag, (hashtagPopularity.get(tag) || 0) + 1);
-                    
-                    if (!userHashtags.has(event.pubkey)) {
-                        userHashtags.set(event.pubkey, []);
-                    }
-                    userHashtags.get(event.pubkey).push(tag);
-                });
-            });
-            
-            // Find rare hashtags (used by fewer than 10 people)
-            const rareHashtags = Array.from(hashtagPopularity.entries())
-                .filter(([tag, count]) => count >= 2 && count <= 10)
-                .map(([tag]) => tag);
-            
-            console.log(`Found ${rareHashtags.length} rare hashtags (used 2-10 times)`);
-            
-            // Score users based on how many rare hashtags they use
-            const userScores = new Map();
-            
-            userHashtags.forEach((tags, pubkey) => {
-                const rareTagsUsed = tags.filter(tag => rareHashtags.includes(tag));
-                if (rareTagsUsed.length > 0) {
-                    userScores.set(pubkey, rareTagsUsed.length);
-                }
-            });
-            
-            // Get top users by rare hashtag usage
-            const sortedUsers = Array.from(userScores.entries())
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, limit * 3)
-                .map(([pubkey]) => pubkey);
-            
-            // Shuffle to add variety
-            const shuffled = sortedUsers.sort(() => Math.random() - 0.5).slice(0, limit);
-            
-            console.log(`✓ Found ${shuffled.length} users with rare/niche content`);
-            if (session !== modeSessionId) return [];
-return shuffled;
-        } catch (err) {
-            console.error('Rare hashtags search error:', err);
-            return [];
-        }
-    }
-    
 
     function calculateMatchScore(
     userProfile,
@@ -3172,7 +3142,8 @@ console.log('User follows (locked snapshot):', userFollows.length);
         }
     }
 
-    const candidates = new Set();
+    // Count how many of your follows also follow each candidate
+    const candidateCounts = new Map();
     const sampleSize = Math.min(30, userFollows.length);
     
     console.log('Sampling', sampleSize, 'of your', userFollows.length, 'follows');
@@ -3189,16 +3160,23 @@ console.log('User follows (locked snapshot):', userFollows.length);
     followsOfFollows.forEach(theirFollows => {
         theirFollows.forEach(pubkey => {
             if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
-                candidates.add(pubkey);
+                candidateCounts.set(pubkey, (candidateCounts.get(pubkey) || 0) + 1);
             }
         });
     });
 
-    const candidateArray = Array.from(candidates).sort(() => Math.random() - 0.5);
-    console.log('Generated', candidateArray.length, 'total candidates');
+    // Sort candidates by connection count and add randomness
+    const sortedCandidates = Array.from(candidateCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([pubkey]) => pubkey);
+    
+    // Add some randomness to the results for variety
+    const shuffledCandidates = sortedCandidates.sort(() => Math.random() - 0.5);
+    
+    console.log('Generated', shuffledCandidates.length, 'candidates');
     
     if (session !== modeSessionId) return [];
-    return candidateArray.slice(0, limit * 4);
+    return shuffledCandidates.slice(0, limit * 4);
 }
 
     function createProfileCard(fren) {
@@ -3243,6 +3221,28 @@ console.log('User follows (locked snapshot):', userFollows.length);
         const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
         const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
         
+        // Smart truncation for long NIP-05 addresses
+        let nip05Display = '';
+        if (fren.nip05) {
+            let displayNip05 = fren.nip05;
+            // If longer than 18 chars, truncate
+            if (displayNip05.length > 18) {
+                const atIndex = displayNip05.indexOf('@');
+                if (atIndex > 0) {
+                    // Keep first part and domain, truncate middle if needed
+                    const username = displayNip05.substring(0, atIndex);
+                    const domain = displayNip05.substring(atIndex);
+                    if (username.length > 6) {
+                        displayNip05 = username.substring(0, 6) + '...' + domain;
+                    }
+                } else {
+                    // Just truncate at end
+                    displayNip05 = displayNip05.substring(0, 16) + '...';
+                }
+            }
+            nip05Display = `<span class="nip05-badge" title="${fren.nip05}">✓ ${displayNip05}</span>`;
+        }
+        
         card.innerHTML = `
             <div class="fren-header">
                 <img src="${picture}" 
@@ -3251,6 +3251,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
                 <div class="fren-info">
                     <div class="fren-name">${name}</div>
                     <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,20)}...</div>
+                    ${nip05Display}
                 </div>
                 <div class="match-score">${fren.scores.total}%</div>
             </div>
@@ -3302,9 +3303,22 @@ console.log('User follows (locked snapshot):', userFollows.length);
 
     // Main search
 document.getElementById('find-btn').addEventListener('click', async () => {
-    // NEW: Start a new search session
     modeSessionId++;
     const thisSession = modeSessionId;
+
+    // ❌ DON'T reset pool on every search - only when truly needed
+    // resetRelayPool();
+    
+    // Just abort any pending queries
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+    }
+    
+    // CLEAR CACHES to avoid stale data
+    noteCache.clear();
+    profileCache.clear();
+    console.log('🔄 Cleared caches for fresh search');
 
     if (!currentUser && !document.getElementById('npub-input').value.trim()) {
     alert('Please enter your npub or login');
@@ -3417,6 +3431,13 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 } else if (discoveryMode === 'niche') {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding niche content creators...</p>';
     candidatePubkeys = await discoverByNiche(resultCount, thisSession);
+    
+    // Fallback to social if niche returns nothing
+    if (candidatePubkeys.length === 0) {
+        console.log('Niche mode returned 0 candidates, falling back to social discovery');
+        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No niche results, trying social network...</p>';
+        candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
+    }
 } else if (crossRefEnabled && crossRefData) {
     const allCandidates = [
         ...crossRefData.youOnly,
@@ -3575,60 +3596,59 @@ const scoredProfiles = candidatePubkeys
     let penalty = 0;
 
         // ---- DELETED ACCOUNT DETECTION ----
+        // This is the ONLY thing that removes someone completely
 const isDeleted = detectDeletedAccount(p, p.notes, p.follows);
 if (isDeleted) {
-    p.scores.total = 0; // force removal
-    return null;        // hide completely
+    return null;
 }
 
         // ---- NOTES REQUIREMENT ----
 const noteCount = p.notes?.length || 0;
-if (noteCount === 0) penalty += 40; // Heavily penalize no notes
-if (noteCount === 1) penalty += 20; // Less penalty for 1 note
-if (noteCount === 2) penalty += 10; // Even less for 2 notes
+if (noteCount === 0) penalty += 15;
+else if (noteCount === 1) penalty += 8;
+else if (noteCount === 2) penalty += 4;
 
         // ---- HASHTAG MODE ----
         if (discoveryMode === 'hashtags' && p.scores.breakdown.hashtag === 0) {
-            penalty += 40;
+            penalty += 25;
         }
 
         // ---- SPAM ----
         const hideSpam = document.getElementById('hide-spam').checked;
-        if (hideSpam && p.spamScore > 60) penalty += 30;
+        if (hideSpam && p.spamScore > 60) penalty += 20;
 
         // ---- NSFW ----
         const hideNSFW = document.getElementById('hide-nsfw').checked;
-        if (hideNSFW && p.isNSFW) penalty += 20;
+        if (hideNSFW && p.isNSFW) penalty += 15;
 
         // ---- RECENT ACTIVITY ----
         const recentActivityOnly = document.getElementById('recent-activity-only').checked;
-        if (recentActivityOnly) {
+        if (recentActivityOnly && noteCount > 0) {
             const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30*24*60*60;
             const hasRecentNote = p.notes?.some(n => n.created_at > thirtyDaysAgo);
-            if (!hasRecentNote) penalty += 40;
+            if (!hasRecentNote) penalty += 20;
         }
 
         // ---- FOLLOWER MINIMUM ----
         const minFollowers = parseInt(document.getElementById('min-followers').value);
         const followCount = p.follows?.length || 0;
         if (minFollowers > 0 && followCount < minFollowers) {
-            penalty += 30;
+            penalty += 20;
         }
 
         // ---- ACTIVITY LEVEL ----
         const activityLevel = document.getElementById('activity-level').value;
-        const tenDaysAgo = Math.floor(Date.now() / 1000) - 10*24*60*60;
-        const recentPosts = p.notes?.filter(n => n.created_at > tenDaysAgo).length || 0;
+        if (activityLevel !== 'any' && noteCount > 0) {
+            const tenDaysAgo = Math.floor(Date.now() / 1000) - 10*24*60*60;
+            const recentPosts = p.notes?.filter(n => n.created_at > tenDaysAgo).length || 0;
 
-        if (activityLevel === 'high' && recentPosts < 5) penalty += 30;
-        if (activityLevel === 'medium' && recentPosts < 2) penalty += 15;
-        if (activityLevel === 'low' && recentPosts < 1) penalty += 10;
+            if (activityLevel === 'high' && recentPosts < 5) penalty += 15;
+            else if (activityLevel === 'medium' && recentPosts < 2) penalty += 10;
+            else if (activityLevel === 'low' && recentPosts < 1) penalty += 5;
+        }
 
-        // ---- APPLY PENALTY ----
-        p.scores.total = p.scores.total - penalty;
-
-// HARD remove only if score is extremely bad
-if (p.scores.total < 1) return null; // or keep if you want to show 1%
+        // ---- APPLY PENALTY (minimum score 1, never remove) ----
+        p.scores.total = Math.max(1, p.scores.total - penalty);
 
         return p;
     })
@@ -3727,15 +3747,11 @@ if (p.scores.total < 1) return null; // or keep if you want to show 1%
 
     document.getElementById('following-header').addEventListener('click', function() {
     const content = document.getElementById('following-content');
-    const icon = document.getElementById('following-icon');
-
-    if (getComputedStyle(content).display === 'none') {
-        content.style.display = 'block';
-        icon.textContent = '▼';
-    } else {
-        content.style.display = 'none';
-        icon.textContent = '▶';
-    }
+    const icon = this.querySelector('.collapse-icon');
+    const isHidden = content.style.display === 'none';
+    
+    content.style.display = isHidden ? 'block' : 'none';
+    icon.textContent = isHidden ? '▼' : '▶';
 });
 
     // Nsec modal event listeners
