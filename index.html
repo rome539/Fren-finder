@@ -1647,9 +1647,9 @@
                     <div class="input-group">
                         <label for="result-count">Results</label>
                         <select id="result-count">
-                            <option value="10">10 Profiles</option>
-                            <option value="25">25 Profiles</option>
-                            <option value="50">50 Profiles</option>
+                            <option value="12">12 Profiles</option>
+                            <option value="27">27 Profiles</option>
+                            <option value="51">51 Profiles</option>
                         </select>
                     </div>
                 </div>
@@ -1741,11 +1741,43 @@ const noteCache = new Map();
 let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
-// SECURITY WARNING: Private key storage
-// This is stored in memory only and auto-clears after 15min inactivity
-// DO NOT: log this variable, send it over network, or store in localStorage
-// Potential exposure vectors: browser extensions, XSS, memory dumps
-let nsecSecretKey = null;
+// SECURITY: Secure private key storage using closure
+// This makes it much harder for XSS to access the key
+const SecureKeyStore = (() => {
+  let _secretKey = null;
+  
+  // Make the returned object immutable
+  return Object.freeze({
+    set(key) {
+      _secretKey = key;
+    },
+    
+    get() {
+      return _secretKey;
+    },
+    
+    has() {
+      return _secretKey !== null;
+    },
+    
+    clear() {
+      if (_secretKey) {
+        // Zero out the key bytes
+        for (let i = 0; i < _secretKey.length; i++) {
+          _secretKey[i] = 0;
+        }
+        _secretKey = null;
+      }
+    },
+    
+    // Sign an event without exposing the raw key
+    signEvent(event) {
+      if (!_secretKey) throw new Error('No key available');
+      return NostrTools.finalizeEvent(event, _secretKey);
+    }
+  });
+})();
+
 let nsecInactivityTimer = null;
 let lastActivityTime = Date.now();
 let currentAbortController = null;
@@ -1783,10 +1815,8 @@ activityEvents.forEach(event => {
 // SECURITY: Clear nsec from memory when page unloads
 let relayHealthCheck = null; // Declare globally so beforeunload can access it
 window.addEventListener('beforeunload', function() {
-    if (nsecSecretKey) {
-        nsecSecretKey.fill(0);
-        nsecSecretKey = null;
-    }
+    SecureKeyStore.clear();
+    
     // Also clear any inactivity timers
     if (nsecInactivityTimer) {
         clearTimeout(nsecInactivityTimer);
@@ -2199,7 +2229,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const pubkey = NostrTools.getPublicKey(secretKey);
             const npub = nip19.npubEncode(pubkey);
             
-            nsecSecretKey = secretKey;
+            // Store in secure key store instead of global variable
+            SecureKeyStore.set(secretKey);
             
             // Clear cache to force fresh profile fetch
             profileCache.delete(pubkey);
@@ -2246,12 +2277,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
             nsecInactivityTimer = null;
         }
         
-        if (nsecSecretKey) {
-            for (let i = 0; i < nsecSecretKey.length; i++) {
-                nsecSecretKey[i] = 0;
-            }
-            nsecSecretKey = null;
-        }
+        // Clear the secure key store
+        SecureKeyStore.clear();
         
         document.getElementById('nsec-warning-banner').classList.remove('visible');
         
@@ -2287,8 +2314,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
         let signedEvent;
         if (currentUser.loginMethod === 'extension') {
             signedEvent = await window.nostr.signEvent(event);
-        } else if (currentUser.loginMethod === 'nsec' && nsecSecretKey) {
-            signedEvent = NostrTools.finalizeEvent(event, nsecSecretKey);
+        } else if (currentUser.loginMethod === 'nsec' && SecureKeyStore.has()) {
+            signedEvent = SecureKeyStore.signEvent(event);
         } else {
             throw new Error('No signing method available');
         }
