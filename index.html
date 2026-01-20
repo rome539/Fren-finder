@@ -1742,7 +1742,8 @@ let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
 // SECURITY: Secure private key storage using closure
-// This makes it much harder for XSS to access the key
+// The key is NEVER directly accessible - only signing operations allowed
+// This prevents XSS attacks from stealing the raw key
 const SecureKeyStore = (() => {
   let _secretKey = null;
   
@@ -1752,9 +1753,8 @@ const SecureKeyStore = (() => {
       _secretKey = key;
     },
     
-    get() {
-      return _secretKey;
-    },
+    // ✅ NO .get() method - XSS cannot access raw key
+    // If you need the raw key for debugging, temporarily add it back
     
     has() {
       return _secretKey !== null;
@@ -2434,7 +2434,7 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     }));
   }
 
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 50;
   for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
     // Only check session if one was provided (not during login)
     if (session !== null && session !== undefined && session !== modeSessionId) break;
