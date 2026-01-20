@@ -13,6 +13,7 @@
     object-src 'none';
     base-uri 'self';
     form-action 'self';
+    frame-ancestors 'none';
     upgrade-insecure-requests;
 ">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -157,20 +158,18 @@
         }
 
         .user-avatar {
-    width: 28px;  /* CHANGE from 32px */
-    height: 28px;  /* CHANGE from 32px */
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2.5px solid var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(200, 78, 58, 0.1),
-                0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 2px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: var(--transition);
 }
 
         .user-info-combined:hover .user-avatar {
             transform: scale(1.03);
-            box-shadow: 0 0 0 3px rgba(200, 78, 58, 0.15),
-                        0 6px 16px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .user-details {
@@ -1420,6 +1419,66 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* Image Modal Styles */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .image-modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-modal-img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .image-modal-close:hover {
+            color: var(--accent-primary);
+        }
+
+        .image-modal-caption {
+            color: #fff;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -1682,6 +1741,10 @@ const noteCache = new Map();
 let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
+// SECURITY WARNING: Private key storage
+// This is stored in memory only and auto-clears after 15min inactivity
+// DO NOT: log this variable, send it over network, or store in localStorage
+// Potential exposure vectors: browser extensions, XSS, memory dumps
 let nsecSecretKey = null;
 let nsecInactivityTimer = null;
 let lastActivityTime = Date.now();
@@ -2068,9 +2131,20 @@ document.querySelectorAll('.mode-card').forEach(card => {
         try {
             const pubkey = await window.nostr.getPublicKey();
             const npub = nip19.npubEncode(pubkey);
+            
+            // Clear cache to force fresh profile fetch
+            profileCache.delete(pubkey);
+            
+            console.log('Fetching profile for:', npub);
             const profile = await fetchProfile(pubkey);
+            console.log('Profile loaded:', profile);
+            
             currentUser = { pubkey, npub, profile, loginMethod: 'extension' };
+            
+            console.log('Fetching follows...');
             const follows = await fetchFollows(pubkey);
+            console.log('Follows loaded:', follows.length);
+            
             userFollowing = new Set(follows);
             updateUserUI();
             document.getElementById('npub-input').value = npub;
@@ -2078,7 +2152,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
             return npub;
         } catch (err) {
             console.error('Login error:', err);
-            alert('Failed to login');
+            alert('Failed to login: ' + err.message);
             return null;
         }
     }
@@ -2127,9 +2201,19 @@ document.querySelectorAll('.mode-card').forEach(card => {
             
             nsecSecretKey = secretKey;
             
+            // Clear cache to force fresh profile fetch
+            profileCache.delete(pubkey);
+            
+            console.log('Fetching profile for:', npub);
             const profile = await fetchProfile(pubkey);
+            console.log('Profile loaded:', profile);
+            
             currentUser = { pubkey, npub, profile, loginMethod: 'nsec' };
+            
+            console.log('Fetching follows...');
             const follows = await fetchFollows(pubkey);
+            console.log('Follows loaded:', follows.length);
+            
             userFollowing = new Set(follows);
             
             updateUserUI();
@@ -2148,7 +2232,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
         } catch (err) {
             console.error('Nsec login error:', err);
             input.value = '';
-            alert('Failed to login with nsec. Please check your private key format.');
+            alert('Failed to login with nsec: ' + err.message);
             return null;
         }
     }
@@ -2310,6 +2394,8 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
   // DON'T seed from cache - always fetch fresh
   const toFetch = pubkeys;
   
+  console.log('fetchProfilesBatch: Fetching profiles for', pubkeys.length, 'pubkeys');
+  
   if (toFetch.length === 0) {
     return pubkeys.map(pk => ({
       pubkey: pk,
@@ -2323,9 +2409,12 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
 
   const BATCH_SIZE = 10;
   for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
-    if (session !== modeSessionId) break;
+    // Only check session if one was provided (not during login)
+    if (session !== null && session !== undefined && session !== modeSessionId) break;
 
     const batch = toFetch.slice(i, i + BATCH_SIZE);
+
+    console.log('fetchProfilesBatch: Querying relays for batch', batch);
 
     let events = [];
     try {
@@ -2338,6 +2427,7 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
         ],
         { kinds: [0], authors: batch }
       );
+      console.log('fetchProfilesBatch: Received', events.length, 'events from relays');
     } catch (e) {
       console.warn('Profile batch failed:', e.message);
     }
@@ -2387,7 +2477,9 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     await new Promise(r => setTimeout(r, 120));
   }
 
-  return pubkeys.map(pk => results.get(pk));
+  const finalResults = pubkeys.map(pk => results.get(pk));
+  console.log('fetchProfilesBatch: Returning results:', finalResults);
+  return finalResults;
 }
 
   // FIXED: Fetch notes individually per user in small batches
@@ -2615,7 +2707,7 @@ async function getGlobalCandidates({
   candidates = candidates.sort(() => Math.random() - 0.5);
 
   // Overfetch so later filters (spam/nsfw/etc) still leave enough results
-  const overfetch = resultCount * 4;
+  const overfetch = resultCount * 3;
   candidates = candidates.slice(0, overfetch);
 
   console.log(`🌍 GLOBAL: Returning ${candidates.length} candidate pubkeys`);
@@ -2669,7 +2761,7 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
         // Sort and filter
         const sortedUsers = Array.from(userCandidates.entries())
             .sort((a, b) => b[1] - a[1])
-            .slice(0, limit * 2);
+            .slice(0, limit * 3);
         
         console.log(`✅ Returning top ${sortedUsers.length} users for analysis`);
         
@@ -2685,7 +2777,7 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
 async function fetchNotesForHashtagModes(pubkeys, limit = 100) {
     console.log(`🔄 DEDICATED: Fetching ALL-TIME notes for ${pubkeys.length} users...`);
 
-    const BATCH_SIZE = 10; // Smaller batch for better relay handling
+    const BATCH_SIZE = 20;
     const allResults = [];
 
     for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
@@ -2733,7 +2825,7 @@ async function fetchNotesForHashtagModes(pubkeys, limit = 100) {
 async function fetchNotesForSocialMode(pubkeys, limit = 100) {
     console.log(`🔄 DEDICATED: Fetching RECENT notes for ${pubkeys.length} users...`);
 
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 20;
     const allResults = [];
 
     for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
@@ -2849,8 +2941,8 @@ myNotes.forEach(note => {
         .sort((a, b) => b[1] - a[1])
         .map(([pk]) => pk);
 
-    // 6. HARD LIMIT: 4× results
-    const final = sorted.slice(0, limit * 4);
+    // 6. HARD LIMIT: 3× results
+    const final = sorted.slice(0, limit * 3);
 
     console.log(`🎯 INTERESTS MODE: returning ${final.length} candidates`);
     return final;
@@ -2891,7 +2983,7 @@ async function discoverByNiche(limit, session) {
         console.log(`🎯 Found ${rareHashtags.length} rare hashtags`);
         
         // Search for users with these rare hashtags
-        return await searchUsersByHashtags(new Set(rareHashtags), limit * 2, session);
+        return await searchUsersByHashtags(new Set(rareHashtags), limit * 3, session);
     } catch (err) {
         console.error('Niche discovery error:', err);
         return [];
@@ -3176,12 +3268,70 @@ console.log('User follows (locked snapshot):', userFollows.length);
     console.log('Generated', shuffledCandidates.length, 'candidates');
     
     if (session !== modeSessionId) return [];
-    return shuffledCandidates.slice(0, limit * 4);
+    return shuffledCandidates.slice(0, limit * 3);
 }
+
+    // Show image modal for expanded avatar view
+    function showImageModal(imageUrl, name) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('image-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'image-modal';
+            modal.className = 'image-modal';
+            modal.innerHTML = `
+                <div class="image-modal-content">
+                    <span class="image-modal-close">&times;</span>
+                    <img class="image-modal-img" src="" alt="">
+                    <div class="image-modal-caption"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Close on click outside or close button
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.classList.contains('image-modal-close')) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+        
+        // Set image and show modal
+        const img = modal.querySelector('.image-modal-img');
+        const caption = modal.querySelector('.image-modal-caption');
+        img.src = imageUrl;
+        caption.textContent = name;
+        modal.style.display = 'flex';
+    }
 
     function createProfileCard(fren) {
         const card = document.createElement('div');
         card.className = 'fren-card';
+        
+        // HTML escape function to prevent XSS
+        const escapeHtml = (unsafe) => {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        };
+        
+        // URL sanitization to prevent javascript: and data: URLs
+        const sanitizeUrl = (url) => {
+            if (!url || typeof url !== 'string') return '';
+            const trimmed = url.trim().toLowerCase();
+            // Block dangerous protocols
+            if (trimmed.startsWith('javascript:') || 
+                trimmed.startsWith('data:') || 
+                trimmed.startsWith('vbscript:') ||
+                trimmed.startsWith('file:')) {
+                return ''; // Return empty string for dangerous URLs
+            }
+            return url.trim(); // Return original (non-lowercased) URL
+        };
         
         if (fren.isFollowing) {
             card.classList.add('already-following');
@@ -3217,14 +3367,16 @@ console.log('User follows (locked snapshot):', userFollows.length);
         
         metricsHTML += '</div>';
         
-        const name = fren.name || 'Anonymous';
-        const picture = fren.picture || `https://robohash.org/${fren.pubkey}?set=set5`;
-        const bioText = about.substring(0, 150) + (about.length > 150 ? '...' : '');
+        const name = escapeHtml((fren.name || 'Anonymous').substring(0, 100)); // Max 100 chars
+        const rawPicture = sanitizeUrl(fren.picture);
+        const picture = rawPicture || `https://robohash.org/${fren.pubkey}?set=set5`;
+        const aboutSafe = (about || '').substring(0, 500); // Max 500 chars for bio
+        const bioText = escapeHtml(aboutSafe.substring(0, 150)) + (aboutSafe.length > 150 ? '...' : '');
         
         // Smart truncation for long NIP-05 addresses
         let nip05Display = '';
         if (fren.nip05) {
-            let displayNip05 = fren.nip05;
+            let displayNip05 = escapeHtml(fren.nip05);
             // If longer than 18 chars, truncate
             if (displayNip05.length > 18) {
                 const atIndex = displayNip05.indexOf('@');
@@ -3240,7 +3392,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
                     displayNip05 = displayNip05.substring(0, 16) + '...';
                 }
             }
-            nip05Display = `<span class="nip05-badge" title="${fren.nip05}">✓ ${displayNip05}</span>`;
+            nip05Display = `<span class="nip05-badge" title="${escapeHtml(fren.nip05)}">✓ ${displayNip05}</span>`;
         }
         
         card.innerHTML = `
@@ -3288,6 +3440,14 @@ console.log('User follows (locked snapshot):', userFollows.length);
             }
         });
 
+        // Add clickable avatar to expand image
+        const avatar = card.querySelector('.fren-avatar');
+        avatar.style.cursor = 'pointer';
+        avatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showImageModal(picture, name);
+        });
+
         return card;
     }
 
@@ -3320,12 +3480,20 @@ document.getElementById('find-btn').addEventListener('click', async () => {
     profileCache.clear();
     console.log('🔄 Cleared caches for fresh search');
 
+    // VALIDATION CHECKS - Do these BEFORE locking controls
     if (!currentUser && !document.getElementById('npub-input').value.trim()) {
-    alert('Please enter your npub or login');
-    return;
-}
+        alert('Please enter your npub or login');
+        return;
+    }
 
-    // LOCK CONTROLS
+    if (discoveryMode === 'hashtags') {
+        if (selectedHashtags.size === 0) {
+            alert('Please select at least one hashtag to search');
+            return;
+        }
+    }
+
+    // LOCK CONTROLS (only after validation passes)
 [
     '.mode-card',
     '#result-count',
@@ -3361,14 +3529,7 @@ document.getElementById('find-btn').addEventListener('click', async () => {
         return;
     }
 
-        if (discoveryMode === 'hashtags') {
-            if (selectedHashtags.size === 0) {
-                alert('Please select at least one hashtag to search');
-                return;
-            }
-        }
-
-        let userPubkey;
+    let userPubkey;
 
         if (currentUser && currentUser.pubkey) {
             userPubkey = currentUser.pubkey;
@@ -3464,11 +3625,9 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 
             console.log('Fetching data for', candidatePubkeys.length, 'candidates...');
 
-// Fetch profiles and follows first
-const [allProfiles, allFollows] = await Promise.all([
-    fetchProfilesBatch(candidatePubkeys, thisSession),
-    fetchFollowsBatch(candidatePubkeys)
-]);
+// Fetch only profiles (skip follows - already in social circle)
+const allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
+const allFollows = candidatePubkeys.map(() => []); // Empty arrays for all
 
 // ✅ NOW it is safe
 const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
