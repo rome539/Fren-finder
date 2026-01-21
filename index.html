@@ -628,6 +628,10 @@
             font-size: 0.7rem;
             font-family: 'JetBrains Mono', monospace;
             border: 1px solid var(--border-color);
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .fren-actions {
@@ -1449,12 +1453,61 @@
             align-items: center;
         }
 
-        .image-modal-img {
-            max-width: 100%;
+        .image-modal-body {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .image-modal-bio {
+            flex: 1;
+            color: #fff;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
             max-height: 80vh;
-            object-fit: contain;
+            overflow-y: auto;
+        }
+
+        .image-modal-bio p {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .image-modal-bio .no-bio {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .image-modal-img {
+            width: 400px;
+            height: 400px;
+            object-fit: cover;
             border-radius: 1rem;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .image-modal-body {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .image-modal-img {
+                width: 300px;
+                height: 300px;
+            }
+
+            .image-modal-bio {
+                max-height: 40vh;
+            }
         }
 
         .image-modal-close {
@@ -1478,6 +1531,7 @@
             font-size: 1.2rem;
             margin-top: 1rem;
             text-align: center;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -2435,9 +2489,14 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
   }
 
   const BATCH_SIZE = 50;
+  const TIMEOUT = 8000; // 8 second timeout per batch
+  
   for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
-    // Only check session if one was provided (not during login)
-    if (session !== null && session !== undefined && session !== modeSessionId) break;
+    // 🚫 SESSION GUARD: Stop if session changed (mode switch detected)
+    if (session !== null && session !== undefined && session !== modeSessionId) {
+      console.warn(`⚠️ fetchProfilesBatch: Session changed, aborting (passed session=${session}, current modeSessionId=${modeSessionId})`);
+      break;
+    }
 
     const batch = toFetch.slice(i, i + BATCH_SIZE);
 
@@ -2445,15 +2504,38 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
 
     let events = [];
     try {
+      // Create a timeout controller
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+      
+      // Use more reliable relays only
       events = await pool.querySync(
         [
-          'wss://relay.snort.social',
-          'wss://aggr.nostr.land',  
+          'wss://relay.damus.io',
+          'wss://relay.primal.net',
+          'wss://nos.lol',
           'wss://nostr.wine',
-          ...RELAYS
+          'wss://relay.mostr.pub'
         ],
-        { kinds: [0], authors: batch }
+        { kinds: [0], authors: batch },
+        { signal: controller.signal }
       );
+      
+      clearTimeout(timeoutId);
+      
+      // 🚫 SESSION GUARD: Check again after async work
+      if (session !== null && session !== undefined && session !== modeSessionId) {
+        console.warn('⚠️ fetchProfilesBatch: Session changed during fetch, dropping events');
+        return pubkeys.map(pk => results.get(pk) || {
+          pubkey: pk,
+          name: 'Anonymous',
+          about: '',
+          picture: `https://robohash.org/${pk}?set=set5`,
+          nip05: null,
+          hasMetadata: false
+        });
+      }
+      
       console.log('fetchProfilesBatch: Received', events.length, 'events from relays');
     } catch (e) {
       console.warn('Profile batch failed:', e.message);
@@ -2501,7 +2583,8 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
       }
     });
 
-    await new Promise(r => setTimeout(r, 120));
+    // Longer delay between batches to allow relays to respond
+    await new Promise(r => setTimeout(r, 300));
   }
 
   const finalResults = pubkeys.map(pk => results.get(pk));
@@ -2741,7 +2824,7 @@ async function getGlobalCandidates({
   return candidates;
 }
     
-async function searchUsersByHashtags(hashtags, limit = 50, session) {
+async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = false) {
     if (session !== modeSessionId) return [];  
     console.log('🔍 HASHTAG DISCOVERY: Searching all posts for hashtags:', Array.from(hashtags));
     
@@ -2758,15 +2841,23 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
             console.log('Searching for #' + tag);
             
             try {
-                // Search for recent posts with this hashtag (last 30 days)
-                const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
-                
-                const events = await pool.querySync(RELAYS, {
+                // Build query - use time filter only if not allTime mode
+                const query = {
                     kinds: [1],
                     '#t': [tag.toLowerCase()],
-                    since: thirtyDaysAgo,
-                    limit: 100
-                });
+                    limit: 200 // Increased from 100 for better discovery
+                };
+                
+                // Only add time filter if NOT in allTime mode
+                if (!allTime) {
+                    const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+                    query.since = thirtyDaysAgo;
+                }
+                
+                console.log(`📋 Query filter:`, query);
+                console.log(`📡 Querying ${RELAYS.length} relays...`);
+                
+                const events = await pool.querySync(RELAYS, query);
                 
                 console.log(`Found ${events.length} posts for #${tag}`);
                 
@@ -2776,7 +2867,7 @@ async function searchUsersByHashtags(hashtags, limit = 50, session) {
                     userCandidates.set(event.pubkey, count + 1);
                 });
             } catch (err) {
-                console.warn(`Error searching for #${tag}:`, err.message);
+                console.error(`❌ Error searching for #${tag}:`, err.message, err);
             }
 
             // Check session after each iteration
@@ -2930,8 +3021,20 @@ myNotes.forEach(note => {
 });
 
     if (myTags.size === 0) {
-        console.log('⚠️ No hashtags found — fallback to social');
-        return getRecommendations(userPubkey, userFollows, limit, session);
+        console.log('🔄 INTERESTS MODE: No hashtags found — fallback to social');
+        
+        // 🚨 CRITICAL: Reset async state to prevent poisoned context
+        modeSessionId++;                      // Invalidate old async work
+        resetRelayPool();                     // Create new SimplePool
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+        
+        console.log('✅ Session reset complete, new session:', modeSessionId);
+        
+        // Pass the NEW session ID directly (can't reassign the parameter)
+        return getRecommendations(userPubkey, userFollows, limit, modeSessionId);
     }
 
     // 3. Randomly select 2–3 hashtags YOU used
@@ -2981,11 +3084,14 @@ async function discoverByNiche(limit, session) {
     console.log('🎯 NICHE MODE: Finding users with rare/unique content...');
     
     try {
-        // Get a sample of recent posts to find rare hashtags
+        // Get a LARGE sample of recent posts to find diverse hashtags
+        console.log('🔍 Querying for recent posts (limit: 2000)...');
         const recentEvents = await pool.querySync(RELAYS, {
             kinds: [1],
-            limit: 300 // Smaller sample
+            limit: 2000 // Much larger sample to discover diverse hashtags
         });
+        
+        console.log(`📊 Received ${recentEvents.length} recent posts from relays`);
         
         // Count hashtag frequency
         const hashtagCounts = new Map();
@@ -2996,10 +3102,12 @@ async function discoverByNiche(limit, session) {
             });
         });
         
-        // Find rare hashtags (used 1-5 times)
+        console.log(`📊 Found ${hashtagCounts.size} unique hashtags total`);
+        
+        // Find rare hashtags (used 1-5 times in our sample)
         const rareHashtags = Array.from(hashtagCounts.entries())
             .filter(([tag, count]) => count >= 1 && count <= 5)
-            .slice(0, 5)
+            .slice(0, 5) // Keep 5 hashtags
             .map(([tag]) => tag);
         
         if (rareHashtags.length === 0) {
@@ -3007,10 +3115,10 @@ async function discoverByNiche(limit, session) {
             return [];
         }
         
-        console.log(`🎯 Found ${rareHashtags.length} rare hashtags`);
+        console.log(`🎯 Found ${rareHashtags.length} rare hashtags:`, rareHashtags);
         
-        // Search for users with these rare hashtags
-        return await searchUsersByHashtags(new Set(rareHashtags), limit * 3, session);
+        // Search for users with these rare hashtags (allTime=true for niche mode)
+        return await searchUsersByHashtags(new Set(rareHashtags), limit * 3, session, true);
     } catch (err) {
         console.error('Niche discovery error:', err);
         return [];
@@ -3299,7 +3407,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
 }
 
     // Show image modal for expanded avatar view
-    function showImageModal(imageUrl, name) {
+    function showImageModal(imageUrl, name, bio = '') {
         // Create modal if it doesn't exist
         let modal = document.getElementById('image-modal');
         if (!modal) {
@@ -3309,25 +3417,63 @@ console.log('User follows (locked snapshot):', userFollows.length);
             modal.innerHTML = `
                 <div class="image-modal-content">
                     <span class="image-modal-close">&times;</span>
-                    <img class="image-modal-img" src="" alt="">
+                    <div class="image-modal-body">
+                        <div class="image-modal-bio"></div>
+                        <img class="image-modal-img" src="" alt="">
+                    </div>
                     <div class="image-modal-caption"></div>
                 </div>
             `;
             document.body.appendChild(modal);
             
-            // Close on click outside or close button
+            // Close on click anywhere except the image and bio content
             modal.addEventListener('click', (e) => {
-                if (e.target === modal || e.target.classList.contains('image-modal-close')) {
+                const modalContent = modal.querySelector('.image-modal-content');
+                const img = modal.querySelector('.image-modal-img');
+                const bioDiv = modal.querySelector('.image-modal-bio');
+                
+                // Close if clicking:
+                // 1. The dark overlay (modal itself)
+                // 2. The close button
+                // 3. Anywhere in the content area that's not the image or bio
+                if (e.target === modal || 
+                    e.target.classList.contains('image-modal-close') ||
+                    e.target === modalContent ||
+                    e.target.classList.contains('image-modal-body') ||
+                    e.target.classList.contains('image-modal-caption')) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Also close on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'flex') {
                     modal.style.display = 'none';
                 }
             });
         }
         
-        // Set image and show modal
+        // Set image, bio, and show modal
         const img = modal.querySelector('.image-modal-img');
         const caption = modal.querySelector('.image-modal-caption');
+        const bioDiv = modal.querySelector('.image-modal-bio');
+        
         img.src = imageUrl;
         caption.textContent = name;
+        
+        // HTML escape function for bio
+        const escapeHtml = (unsafe) => {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        };
+        
+        bioDiv.innerHTML = bio ? `<p>${escapeHtml(bio)}</p>` : '<p class="no-bio">No bio available</p>';
+        
         modal.style.display = 'flex';
     }
 
@@ -3438,7 +3584,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
             ${metricsHTML}
             ${hashtags.length > 0 ? `
                 <div class="tags-container">
-                    ${hashtags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
+                    ${hashtags.map(tag => `<span class="tag" title="#${escapeHtml(tag)}">#${escapeHtml(tag)}</span>`).join('')}
                 </div>
             ` : ''}
             <div class="fren-actions">
@@ -3467,12 +3613,12 @@ console.log('User follows (locked snapshot):', userFollows.length);
             }
         });
 
-        // Add clickable avatar to expand image
+        // Add clickable avatar to expand image and show bio
         const avatar = card.querySelector('.fren-avatar');
         avatar.style.cursor = 'pointer';
         avatar.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImageModal(picture, name);
+            showImageModal(picture, name, fren.about || '');
         });
 
         return card;
@@ -3491,15 +3637,14 @@ console.log('User follows (locked snapshot):', userFollows.length);
     // Main search
 document.getElementById('find-btn').addEventListener('click', async () => {
     modeSessionId++;
-    const thisSession = modeSessionId;
+    let thisSession = modeSessionId;
 
-    // ❌ DON'T reset pool on every search - only when truly needed
-    // resetRelayPool();
-    
-    // Just abort any pending queries
-    if (currentAbortController) {
-        currentAbortController.abort();
-        currentAbortController = null;
+    // Only reset pool once per browser session to keep connections alive
+    if (!pool || !window._poolInitialized) {
+        resetRelayPool();
+        window._poolInitialized = true;
+        // Give initial pool time to establish connections
+        await new Promise(r => setTimeout(r, 500));
     }
     
     // CLEAR CACHES to avoid stale data
@@ -3616,13 +3761,50 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     resultCount,
     thisSession
 );
+    
+    // Fallback to social if interests returns nothing
+    if (candidatePubkeys.length === 0) {
+        console.log('🔄 Interests mode returned 0 candidates, falling back to social discovery');
+        
+        // 🚨 CRITICAL: Reset async state to prevent poisoned context
+        modeSessionId++;                      // Invalidate old async work
+        thisSession = modeSessionId;          // Update local session to match
+        resetRelayPool();                     // Create new SimplePool
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+        
+        // Give the NEW pool time to establish connections
+        await new Promise(r => setTimeout(r, 1000));
+        
+        console.log('✅ Session reset complete, new session:', thisSession);
+        
+        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No interest matches, trying social network...</p>';
+        candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
+    }
 } else if (discoveryMode === 'niche') {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding niche content creators...</p>';
     candidatePubkeys = await discoverByNiche(resultCount, thisSession);
     
     // Fallback to social if niche returns nothing
     if (candidatePubkeys.length === 0) {
-        console.log('Niche mode returned 0 candidates, falling back to social discovery');
+        console.log('🔄 Niche mode returned 0 candidates, falling back to social discovery');
+        
+        // 🚨 CRITICAL: Reset async state to prevent poisoned context
+        modeSessionId++;                      // Invalidate old async work
+        thisSession = modeSessionId;          // Update local session to match
+        resetRelayPool();                     // Create new SimplePool
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+        
+        // Give the NEW pool time to establish connections
+        await new Promise(r => setTimeout(r, 1000));
+        
+        console.log('✅ Session reset complete, new session:', thisSession);
+        
         resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No niche results, trying social network...</p>';
         candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
     }
@@ -3652,8 +3834,10 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 
             console.log('Fetching data for', candidatePubkeys.length, 'candidates...');
 
-// Fetch only profiles (skip follows - already in social circle)
-const allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
+// Fetch profiles and notes separately
+// Use modeSessionId instead of thisSession because internal fallbacks update modeSessionId
+console.log(`📊 About to fetch profiles with session=${modeSessionId}, current global modeSessionId=${modeSessionId}`);
+const allProfiles = await fetchProfilesBatch(candidatePubkeys, modeSessionId);
 const allFollows = candidatePubkeys.map(() => []); // Empty arrays for all
 
 // ✅ NOW it is safe
@@ -3668,10 +3852,10 @@ allProfiles.forEach((profile, idx) => {
     }
 });
 
-// Use DEDICATED notes fetching based on mode
+// Fetch notes separately
 let allNotes;
 if (discoveryMode === 'hashtags' || discoveryMode === 'niche') {
-    // For hashtag-based modes: ALL-TIME notes (niche users might not post frequently)
+    // For hashtag-based modes: ALL-TIME notes
     console.log(`Using ALL-TIME notes for ${discoveryMode} mode`);
     allNotes = await fetchNotesForHashtagModes(candidatePubkeys, 25);
 } else {
@@ -3801,25 +3985,25 @@ else if (noteCount === 2) penalty += 4;
 
         // ---- SPAM ----
         const hideSpam = document.getElementById('hide-spam').checked;
-        if (hideSpam && p.spamScore > 60) penalty += 20;
+        if (hideSpam && p.spamScore > 60) return null; // HARD FILTER
 
         // ---- NSFW ----
         const hideNSFW = document.getElementById('hide-nsfw').checked;
-        if (hideNSFW && p.isNSFW) penalty += 15;
+        if (hideNSFW && p.isNSFW) return null; // HARD FILTER
 
         // ---- RECENT ACTIVITY ----
         const recentActivityOnly = document.getElementById('recent-activity-only').checked;
         if (recentActivityOnly && noteCount > 0) {
             const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30*24*60*60;
             const hasRecentNote = p.notes?.some(n => n.created_at > thirtyDaysAgo);
-            if (!hasRecentNote) penalty += 20;
+            if (!hasRecentNote) return null; // HARD FILTER
         }
 
         // ---- FOLLOWER MINIMUM ----
         const minFollowers = parseInt(document.getElementById('min-followers').value);
         const followCount = p.follows?.length || 0;
         if (minFollowers > 0 && followCount < minFollowers) {
-            penalty += 20;
+            return null; // HARD FILTER
         }
 
         // ---- ACTIVITY LEVEL ----
@@ -3833,12 +4017,12 @@ else if (noteCount === 2) penalty += 4;
             else if (activityLevel === 'low' && recentPosts < 1) penalty += 5;
         }
 
-        // ---- APPLY PENALTY (minimum score 1, never remove) ----
+        // ---- APPLY PENALTY (minimum score 1) ----
         p.scores.total = Math.max(1, p.scores.total - penalty);
 
         return p;
     })
-    .filter(Boolean)
+    .filter(Boolean) // Remove nulls from hard filters
                 .sort((a, b) => b.scores.total - a.scores.total)
                 .slice(0, parseInt(document.getElementById('result-count').value));
 
@@ -3847,8 +4031,9 @@ else if (noteCount === 2) penalty += 4;
             let newProfiles, followingProfiles;
             
             if (hideFollowing) {
+                // HARD FILTER: Remove people you're already following
                 newProfiles = scoredProfiles.filter(p => !p.isFollowing);
-                followingProfiles = scoredProfiles.filter(p => p.isFollowing);
+                followingProfiles = [];
             } else {
                 newProfiles = scoredProfiles;
                 followingProfiles = [];
