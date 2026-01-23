@@ -712,6 +712,18 @@
             font-size: 0.75rem;
         }
 
+        .github-link {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.github-link:hover {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
         .toggle-group {
             display: flex;
             gap: 2rem;
@@ -1779,8 +1791,18 @@
         </div>
 
         <footer>
-            <p>Fren Finder - Advanced Discovery for Nostr</p>
-        </footer>
+  <p>
+    Fren Finder – Advanced Discovery for Nostr ·
+    <a
+      href="https://github.com/rome539/Fren-finder"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="github-link"
+    >
+      GitHub
+    </a>
+  </p>
+</footer>
     </div>
 
    <script type="module">
