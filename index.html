@@ -3742,20 +3742,12 @@ async function discoverByNiche(userPubkey, userFollows, limit, session) {
                 break;
         }
 
-        // Stretch score range
-finalScore = finalScore * 1.25;
-
-// Convert to integer
-let normalized = Math.round(finalScore);
-
-// Apply realistic min/max values
-if (normalized < 1) normalized = 1;
-if (normalized > 100) normalized = 100;
-
-return {
-    total: normalized,
-    breakdown: scores
-};
+        // Store raw score — normalization happens later in batch
+        return {
+            total: finalScore,
+            rawScore: finalScore,
+            breakdown: scores
+        };
     }
 
     // ========== SOCIAL GRAPH DISCOVERY FUNCTION ==========
@@ -4460,7 +4452,7 @@ candidatePubkeys.forEach((pk, i) => { followsByKey.set(pk, []); });
                 }
             }
 
-const scoredProfiles = candidatePubkeys
+let scoredProfiles = candidatePubkeys
   .map(pubkey => {
     const profile = profileByKey.get(pubkey);
     if (!profile || profile.pubkey !== pubkey) return null;
@@ -4569,12 +4561,51 @@ if (recentActivityOnly) {
             else if (activityLevel === 'low' && recentPosts < 1) return null;
         }
 
-        // ---- APPLY PENALTY (minimum score 1) ----
-        p.scores.total = Math.max(1, p.scores.total - penalty);
+        // ---- APPLY PENALTY (minimum score 0.1) ----
+        p.scores.total = Math.max(0.1, p.scores.total - penalty);
 
         return p;
     })
     .filter(Boolean) // Remove nulls from hard filters
+                // ---- NORMALIZE SCORES TO REALISTIC MATCH PERCENTAGES ----
+                // Instead of showing raw 1-10% scores, map them to a realistic
+                // range (40-97%) based on relative ranking within the result set.
+                // The top match gets ~95%, the worst gets ~40%, and everything
+                // in between is distributed based on where its raw score falls.
+                .map(p => {
+                    if (!p) return null;
+                    return p;
+                })
+                .filter(Boolean);
+
+            // Compute min/max raw scores across the result set
+            if (scoredProfiles.length > 0) {
+                const rawScores = scoredProfiles.map(p => p.scores.total);
+                const maxRaw = Math.max(...rawScores);
+                const minRaw = Math.min(...rawScores);
+                const range = maxRaw - minRaw;
+
+                // Map range: best raw → 95%, worst raw → 40%
+                // If all scores are identical, everyone gets 72%
+                const DISPLAY_MIN = 40;
+                const DISPLAY_MAX = 95;
+
+                scoredProfiles.forEach(p => {
+                    let displayPercent;
+                    if (range === 0) {
+                        displayPercent = Math.round((DISPLAY_MIN + DISPLAY_MAX) / 2);
+                    } else {
+                        const normalized = (p.scores.total - minRaw) / range; // 0..1
+                        // Apply a slight curve so mid-range scores bunch more naturally
+                        const curved = Math.pow(normalized, 0.8);
+                        displayPercent = Math.round(DISPLAY_MIN + curved * (DISPLAY_MAX - DISPLAY_MIN));
+                    }
+                    p.scores.rawTotal = p.scores.total;
+                    p.scores.total = displayPercent;
+                });
+            }
+
+            scoredProfiles = scoredProfiles
                 .sort((a, b) => b.scores.total - a.scores.total)
                 .slice(0, parseInt(document.getElementById('result-count').value));
 
