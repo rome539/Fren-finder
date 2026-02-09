@@ -20,6 +20,17 @@
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>Fren Finder - Advanced Nostr Discovery</title>
+    <meta name="description" content="Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.">
+    <meta property="og:title" content="Fren Finder">
+    <meta property="og:description" content="Discover your people on Nostr">
+    <meta property="og:image" content="/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Fren Finder">
+    <meta name="twitter:description" content="Discover your people on Nostr">
+    <meta name="twitter:image" content="/og-image.png">
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="alternate icon" href="/favicon.svg">
@@ -1624,11 +1635,11 @@
                         </div>
                         <div class="mode-card" data-mode="interests">
                             <div class="mode-title">Shared Interests</div>
-                            <div class="mode-desc">Hashtag matching</div>
+                            <div class="mode-desc">Friends-of-friends with your hashtags</div>
                         </div>
                         <div class="mode-card" data-mode="niche">
-                            <div class="mode-title">Niche Communities</div>
-                            <div class="mode-desc">Specific topics</div>
+                            <div class="mode-title">Rare Hashtags</div>
+                            <div class="mode-desc">Discover live niche communities</div>
                         </div>
                         <div class="mode-card" data-mode="hashtags">
                             <div class="mode-title">Hashtag Discovery</div>
@@ -1953,6 +1964,23 @@ window.addEventListener('load', async function() {
   }
 }
 
+// Warm up relay connections with a simple query
+async function warmUpRelays() {
+    console.log("🔥 Warming up relay connections...");
+    try {
+        // Do a simple query to establish connections
+        const warmup = await pool.querySync(RELAYS, {
+            kinds: [1],
+            limit: 5
+        });
+        console.log(`🔥 Relay warmup complete, got ${warmup.length} events`);
+        return warmup.length > 0;
+    } catch (err) {
+        console.warn("Relay warmup failed:", err.message);
+        return false;
+    }
+}
+
     // Theme toggle
     document.getElementById('theme-btn').addEventListener('click', () => {
         const html = document.documentElement;
@@ -2078,6 +2106,11 @@ document.querySelectorAll('.mode-card').forEach(card => {
             findBtn.textContent = 'Discover Frens';
         }
 
+        // Clear stale caches when switching modes
+        profileCache.clear();
+        noteCache.clear();
+        // Note: followsCache is not cleared here since follows don't change between modes
+
         // UI highlight
         document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
         this.classList.add('active');
@@ -2195,14 +2228,20 @@ document.querySelectorAll('.mode-card').forEach(card => {
         
         if (!crossRefNpub || !crossRefNpub.startsWith('npub1')) return;
 
-        const mainNpub = document.getElementById('npub-input').value.trim();
-        if (!mainNpub || !mainNpub.startsWith('npub1')) {
-            alert('Please enter your main npub first');
-            return;
+        // Get main user pubkey — either from logged-in user or from npub input
+        let mainPubkey;
+        if (currentUser && currentUser.pubkey) {
+            mainPubkey = currentUser.pubkey;
+        } else {
+            const mainNpub = document.getElementById('npub-input').value.trim();
+            if (!mainNpub || !mainNpub.startsWith('npub1')) {
+                alert('Please enter your npub or login first');
+                return;
+            }
+            mainPubkey = nip19.decode(mainNpub).data;
         }
 
         try {
-            const { data: mainPubkey } = nip19.decode(mainNpub);
             const { data: crossPubkey } = nip19.decode(crossRefNpub);
 
             const mainFollows = await fetchFollows(mainPubkey);
@@ -2494,184 +2533,284 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
    async function fetchProfilesBatch(pubkeys, session) {
   const results = new Map();
   
-  // DON'T seed from cache - always fetch fresh
-  const toFetch = pubkeys;
-  
   console.log('fetchProfilesBatch: Fetching profiles for', pubkeys.length, 'pubkeys');
   
-  if (toFetch.length === 0) {
-    return pubkeys.map(pk => ({
-      pubkey: pk,
-      name: 'Anonymous',
-      about: '',
-      picture: `https://robohash.org/${pk}?set=set5`,
-      nip05: null,
-      hasMetadata: false
-    }));
+  if (pubkeys.length === 0) {
+    return [];
   }
 
-  const BATCH_SIZE = 50;
-  const TIMEOUT = 8000; // 8 second timeout per batch
+  const BATCH_SIZE = 20;
   
-  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
-    // 🚫 SESSION GUARD: Stop if session changed (mode switch detected)
+  for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
     if (session !== null && session !== undefined && session !== modeSessionId) {
-      console.warn(`⚠️ fetchProfilesBatch: Session changed, aborting (passed session=${session}, current modeSessionId=${modeSessionId})`);
+      console.warn(`⚠️ fetchProfilesBatch: Session changed, aborting`);
       break;
     }
 
-    const batch = toFetch.slice(i, i + BATCH_SIZE);
+    const batch = pubkeys.slice(i, i + BATCH_SIZE);
+    console.log(`fetchProfilesBatch: Querying batch ${i/BATCH_SIZE + 1} for ${batch.length} pubkeys`);
 
-    console.log('fetchProfilesBatch: Querying relays for batch', batch);
-
-    let events = [];
+    let allEvents = [];
+    
     try {
-      // Create a timeout controller
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
-      
-      // Use more reliable relays only
-      events = await pool.querySync(
-        [
-          'wss://relay.damus.io',
-          'wss://relay.primal.net',
-          'wss://nos.lol',
-          'wss://nostr.wine',
-          'wss://relay.mostr.pub'
-        ],
-        { kinds: [0], authors: batch },
-        { signal: controller.signal }
-      );
-      
-      clearTimeout(timeoutId);
-      
-      // 🚫 SESSION GUARD: Check again after async work
-      if (session !== null && session !== undefined && session !== modeSessionId) {
-        console.warn('⚠️ fetchProfilesBatch: Session changed during fetch, dropping events');
-        return pubkeys.map(pk => results.get(pk) || {
-          pubkey: pk,
-          name: 'Anonymous',
-          about: '',
-          picture: `https://robohash.org/${pk}?set=set5`,
-          nip05: null,
-          hasMetadata: false
-        });
-      }
-      
-      console.log('fetchProfilesBatch: Received', events.length, 'events from relays');
-    } catch (e) {
-      console.warn('Profile batch failed:', e.message);
+  const events = await pool.querySync(RELAYS, { 
+    kinds: [0], 
+    authors: batch 
+  });
+
+  // ✅ HARD STOP: ignore stale results right after await
+  if (session !== null && session !== undefined && session !== modeSessionId) {
+    console.warn(`⛔ fetchProfilesBatch: stale results ignored (session changed)`);
+    return []; // stop everything cleanly
+  }
+
+  if (events && events.length > 0) {
+    allEvents = events;
+    console.log(`   Got ${events.length} profile events`);
+
+    // DEBUG: logs only, not used for storage
+    const returnedPubkeys = events.map(e => e.pubkey?.substring(0, 8));
+    console.log(`   Returned pubkeys:`, returnedPubkeys);
+  } else {
+    // Retry once after a delay — relay connections may need time
+    console.log(`   No profile events, retrying batch after delay...`);
+    await new Promise(r => setTimeout(r, 800));
+    
+    const retryEvents = await pool.querySync(RELAYS, { 
+      kinds: [0], 
+      authors: batch 
+    });
+    
+    if (retryEvents && retryEvents.length > 0) {
+      allEvents = retryEvents;
+      console.log(`   Retry got ${retryEvents.length} profile events`);
+    } else {
+      console.log(`   Retry also returned 0 profile events`);
+    }
+  }
+} catch (e) {
+  console.warn('   Profile query error:', e.message);
+}
+    
+    if (session !== null && session !== undefined && session !== modeSessionId) {
+      break;
     }
 
-    // Newest profile per pubkey
-    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    // Process events - keep newest per pubkey
+    allEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     const seen = new Set();
 
-    for (const e of events) {
+    for (const e of allEvents) {
+  if (!e || !e.pubkey) continue;
+
+  // ✅ Fix 1 hard guard (full pubkey only)
+  if (typeof e.pubkey !== 'string' || e.pubkey.length !== 64) {
+    console.warn('❌ Bad pubkey from relay event:', e.pubkey);
+    continue;
+  }
       if (seen.has(e.pubkey)) continue;
       seen.add(e.pubkey);
 
       let raw = {};
-      try { raw = JSON.parse(e.content || '{}'); } catch {}
+      try { 
+        raw = JSON.parse(e.content || '{}'); 
+      } catch (parseErr) {
+  console.warn(`   Failed to parse profile content for ${e.pubkey.substring(0,8)}:`, parseErr.message);
 
-      const profile = {
-        pubkey: e.pubkey,
-        name: raw.name || 'Anonymous',
-        about: raw.about || '',
-        picture: raw.picture || `https://robohash.org/${e.pubkey}?set=set5`,
-        nip05: raw.nip05 || null,
-        hasMetadata: true
-      };
+  const profile = {
+    pubkey: e.pubkey,
+    name: '',
+    about: '',
+    picture: '',
+    nip05: null,
+    hasMetadata: false,
+    status: 'parse_error'
+  };
 
-      // ONLY cache if we got real metadata
-      if (raw.name || raw.about || raw.picture) {
+  results.set(e.pubkey, profile);
+  // don't cache bad profiles
+  continue;
+}
+
+      const source = (raw.profile && typeof raw.profile === 'object') ? raw.profile : raw;
+      const name =
+        source.name ||
+        source.display_name ||
+        source.displayName ||
+        source.display ||
+        source.username ||
+        '';
+      const about = source.about || source.bio || '';
+      const picture = source.picture || source.image || source.avatar || '';
+      const nip05 = source.nip05 || source.nip_05 || null;
+      const hasMetadata = !!(name || about || picture || nip05);
+
+const profile = {
+  pubkey: e.pubkey,
+
+  // ✅ do NOT force 'Anonymous' here
+  name,
+  about,
+  picture,
+  nip05,
+
+  hasMetadata,
+  status: 'ok'
+};
+
+      if (profile.hasMetadata) {
         profileCache.set(e.pubkey, profile);
       }
       results.set(e.pubkey, profile);
     }
 
-    // Fallback for missing metadata - DON'T cache these
+    // Fallback for pubkeys not returned by relays
     batch.forEach(pk => {
-      if (!results.has(pk)) {
-        results.set(pk, {
-          pubkey: pk,
-          name: 'Anonymous',
-          about: '',
-          picture: `https://robohash.org/${pk}?set=set5`,
-          nip05: null,
-          hasMetadata: false
-        });
-        // DON'T cache Anonymous fallbacks
-      }
+  if (!results.has(pk)) {
+    results.set(pk, {
+      pubkey: pk,
+      name: '',
+      about: '',
+      picture: '',
+      nip05: null,
+      hasMetadata: false,
+      status: 'missing' // ✅ fetch finished, no metadata found on your relay set
     });
+  }
+});
 
-    // Longer delay between batches to allow relays to respond
-    await new Promise(r => setTimeout(r, 300));
+    // Delay between batches
+    if (i + BATCH_SIZE < pubkeys.length) {
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
-  const finalResults = pubkeys.map(pk => results.get(pk));
-  console.log('fetchProfilesBatch: Returning results:', finalResults);
+  const finalResults = pubkeys.map(pk => {
+  if (results.has(pk)) return results.get(pk);
+
+  return {
+    pubkey: pk,
+    name: '',
+    about: '',
+    picture: '',
+    nip05: null,
+    hasMetadata: false,
+    status: 'missing'
+  };
+});
+
+  // FIX: Retry missing profiles once — relay connections may not have been ready
+  const missingPubkeys = finalResults.filter(p => !p.hasMetadata && p.status === 'missing').map(p => p.pubkey);
+  if (missingPubkeys.length > 0 && missingPubkeys.length <= pubkeys.length * 0.8) {
+    // Only retry if not ALL are missing (which would indicate a bigger problem)
+    console.log(`🔄 Retrying ${missingPubkeys.length} profiles with missing metadata...`);
+    await new Promise(r => setTimeout(r, 500));
+    
+    for (let i = 0; i < missingPubkeys.length; i += BATCH_SIZE) {
+      if (session !== null && session !== undefined && session !== modeSessionId) break;
+      
+      const batch = missingPubkeys.slice(i, i + BATCH_SIZE);
+      try {
+        const retryEvents = await pool.querySync(RELAYS, { kinds: [0], authors: batch });
+        if (session !== null && session !== undefined && session !== modeSessionId) break;
+        
+        if (retryEvents && retryEvents.length > 0) {
+          retryEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+          const retrySeen = new Set();
+          
+          for (const e of retryEvents) {
+            if (!e || !e.pubkey || typeof e.pubkey !== 'string' || e.pubkey.length !== 64) continue;
+            if (retrySeen.has(e.pubkey)) continue;
+            retrySeen.add(e.pubkey);
+            
+            let raw = {};
+            try { raw = JSON.parse(e.content || '{}'); } catch { continue; }
+            
+            const source = (raw.profile && typeof raw.profile === 'object') ? raw.profile : raw;
+            const name = source.name || source.display_name || source.displayName || source.display || source.username || '';
+            const about = source.about || source.bio || '';
+            const picture = source.picture || source.image || source.avatar || '';
+            const nip05 = source.nip05 || source.nip_05 || null;
+            const hasMetadata = !!(name || about || picture || nip05);
+            
+            if (hasMetadata) {
+              const profile = { pubkey: e.pubkey, name, about, picture, nip05, hasMetadata, status: 'ok' };
+              profileCache.set(e.pubkey, profile);
+              // Update in finalResults
+              const idx = finalResults.findIndex(p => p.pubkey === e.pubkey);
+              if (idx !== -1) finalResults[idx] = profile;
+            }
+          }
+          console.log(`   Retry recovered ${retrySeen.size} profiles`);
+        }
+      } catch (e) {
+        console.warn('   Retry batch error:', e.message);
+      }
+      
+      if (i + BATCH_SIZE < missingPubkeys.length) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+  }
+  
+  const withMeta = finalResults.filter(p => p.hasMetadata).length;
+  console.log(`fetchProfilesBatch: Returning ${finalResults.length} results (${withMeta} with metadata)`);
+  
   return finalResults;
 }
 
   // FIXED: Fetch notes individually per user in small batches
 async function fetchNotesBatch(pubkeys, limit = 100, session) {
 
-    const uncachedPubkeys = pubkeys;
-    console.log(`Fetching notes for ${uncachedPubkeys.length} users (${limit} per user)...`);
+    console.log(`Fetching notes (bulk) for ${pubkeys.length} users (${limit} per user)...`);
 
-    const BATCH_SIZE = 20;
-    const allResults = [];
+    const BATCH_SIZE = 30;
 
-    for (let i = 0; i < uncachedPubkeys.length; i += BATCH_SIZE) {
+    for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
 
-        const batch = uncachedPubkeys.slice(i, i + BATCH_SIZE);
+        const batch = pubkeys.slice(i, i + BATCH_SIZE);
 
-        const batchPromises = batch.map(async (pubkey) => {
-            try {
+        try {
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1],
+                authors: batch,
+                since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
+                limit: batch.length * limit
+            });
 
-                const events = await pool.querySync(RELAYS, {
-                    kinds: [1],
-                    authors: [pubkey],
-                    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
-                    limit: limit
-                });
+            if (session !== undefined && session !== modeSessionId) return [];
 
-                // NEW — session guard right after await
-                if (session !== modeSessionId) return [];
+            // Group by author
+            const byAuthor = new Map();
+            events.forEach(e => {
+                if (!e.pubkey) return;
+                if (!byAuthor.has(e.pubkey)) byAuthor.set(e.pubkey, []);
+                byAuthor.get(e.pubkey).push(e);
+            });
 
-                const sorted = events.sort((a, b) => b.created_at - a.created_at);
-                noteCache.set(pubkey, sorted);
-                return { pubkey, notes: sorted };
+            batch.forEach(pk => {
+                const notes = (byAuthor.get(pk) || []).sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+                noteCache.set(pk, notes);
+            });
 
-            } catch (err) {
-                console.error(`Error fetching notes for ${pubkey}:`, err);
-                noteCache.set(pubkey, []);
-                return { pubkey, notes: [] };
-            }
-        });
+        } catch (err) {
+            console.error(`Error fetching notes batch:`, err);
+            batch.forEach(pk => { if (!noteCache.has(pk)) noteCache.set(pk, []); });
+        }
 
-        const batchResults = await Promise.all(batchPromises);
-
-        // NEW — must stop if session changed while promises resolved
-        if (session !== modeSessionId) return [];
-
-        allResults.push(...batchResults);
-
-        if (i + BATCH_SIZE < uncachedPubkeys.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            // Optional: add guard here too
-            if (session !== modeSessionId) return [];
+        if (i + BATCH_SIZE < pubkeys.length) {
+            await new Promise(resolve => setTimeout(resolve, 150));
+            if (session !== undefined && session !== modeSessionId) return [];
         }
     }
 
-    console.log(`Fetched notes for ${allResults.length} users`);
-    const withNotes = allResults.filter(r => r.notes.length > 0).length;
-    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
-    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+    const withNotes = pubkeys.filter(pk => (noteCache.get(pk) || []).length > 0).length;
+    console.log(`Fetched notes for ${pubkeys.length} users, ${withNotes} have notes`);
 
     return pubkeys.map(pk => noteCache.get(pk) || []);
 }
+
+// 🚀 NEW: Fetch profiles AND notes in parallel (separate queries for reliability)
 
     const followsCache = new Map(); // pubkey -> array
 
@@ -2682,33 +2821,51 @@ async function fetchFollowsBatch(pubkeys) {
   const followMap = new Map();
   pubkeys.forEach(pk => followMap.set(pk, followsCache.get(pk) || []));
 
+  // Figure out which pubkeys actually need fetching (not cached)
+  const uncached = pubkeys.filter(pk => !followsCache.has(pk));
+  
+  if (uncached.length === 0) {
+    console.log(`  All ${pubkeys.length} follows served from cache`);
+    return pubkeys.map(pk => followMap.get(pk) || []);
+  }
+
+  console.log(`  Fetching ${uncached.length} uncached follows (${pubkeys.length - uncached.length} cached)`);
+
+  const BATCH_SIZE = 30;
+
   try {
-    const events = await pool.querySync(RELAYS, {
-      kinds: [3],
-      authors: pubkeys
-    });
+    for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
+      const batch = uncached.slice(i, i + BATCH_SIZE);
 
-    // IMPORTANT: newest first so we keep the most recent contacts list
-    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+      const events = await pool.querySync(RELAYS, {
+        kinds: [3],
+        authors: batch
+      });
 
-    const seen = new Set();
+      // IMPORTANT: newest first so we keep the most recent contacts list
+      events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
-    for (const event of events) {
-      const pk = event.pubkey;
-      if (seen.has(pk)) continue; // only use newest event per pubkey
-      seen.add(pk);
+      const seen = new Set();
 
-      const follows = (event.tags || [])
-        .filter(t => t[0] === 'p' && t[1])
-        .map(t => t[1]);
+      for (const event of events) {
+        const pk = event.pubkey;
+        if (seen.has(pk)) continue; // only use newest event per pubkey
+        seen.add(pk);
 
-      // KEY: do NOT overwrite a non-empty cached/list with an empty event
-      if (follows.length > 0) {
-        followMap.set(pk, follows);
-        followsCache.set(pk, follows);
-      } else {
-        // keep whatever we already had (cache/previous)
-        // (do nothing)
+        const follows = (event.tags || [])
+          .filter(t => t[0] === 'p' && t[1])
+          .map(t => t[1]);
+
+        // KEY: do NOT overwrite a non-empty cached/list with an empty event
+        if (follows.length > 0) {
+          followMap.set(pk, follows);
+          followsCache.set(pk, follows);
+        }
+      }
+
+      // Delay between batches
+      if (i + BATCH_SIZE < uncached.length) {
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
@@ -2915,46 +3072,58 @@ async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = fa
 
     // DEDICATED: Fetch notes for interests/niche modes (ALL TIME, no time limit)
 async function fetchNotesForHashtagModes(pubkeys, limit = 100) {
-    console.log(`🔄 DEDICATED: Fetching ALL-TIME notes for ${pubkeys.length} users...`);
+    console.log(`🔄 Fetching RECENT notes (bulk) for ${pubkeys.length} users...`);
 
-    const BATCH_SIZE = 20;
-    const allResults = [];
+    const BATCH_SIZE = 30;
+    const sessionAtStart = modeSessionId;
 
     for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
+        if (modeSessionId !== sessionAtStart) {
+            console.warn('⚠️ fetchNotesForHashtagModes: session changed, aborting');
+            return pubkeys.map(pk => noteCache.get(pk) || []);
+        }
+
         const batch = pubkeys.slice(i, i + BATCH_SIZE);
-        
-        const batchPromises = batch.map(async (pubkey) => {
-            try {
-                // NO time filter - get ALL notes
-                const events = await pool.querySync(RELAYS, {
-                    kinds: [1],
-                    authors: [pubkey],
-                    limit: limit
-                });
-                
-                const sorted = events.sort((a, b) => b.created_at - a.created_at);
-                noteCache.set(pubkey, sorted);
-                return { pubkey, notes: sorted };
-            } catch (err) {
-                console.error(`Error fetching notes for ${pubkey}:`, err);
-                noteCache.set(pubkey, []);
-                return { pubkey, notes: [] };
-            }
-        });
 
-        const batchResults = await Promise.all(batchPromises);
-        allResults.push(...batchResults);
+        try {
+            // Bulk multi-author query — much faster than one-by-one
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1],
+                authors: batch,
+                since: Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60, // 90 days
+                limit: batch.length * limit
+            });
 
-        // Longer delay to avoid relay rate limiting
+            if (modeSessionId !== sessionAtStart) return pubkeys.map(pk => noteCache.get(pk) || []);
+
+            // Group by author
+            const byAuthor = new Map();
+            events.forEach(e => {
+                if (!e.pubkey) return;
+                if (!byAuthor.has(e.pubkey)) byAuthor.set(e.pubkey, []);
+                byAuthor.get(e.pubkey).push(e);
+            });
+
+            // Sort and cache per author
+            batch.forEach(pk => {
+                const notes = (byAuthor.get(pk) || []).sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+                noteCache.set(pk, notes);
+            });
+
+            console.log(`   Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${events.length} notes from ${batch.length} authors`);
+
+        } catch (err) {
+            console.warn(`   Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message);
+            batch.forEach(pk => { if (!noteCache.has(pk)) noteCache.set(pk, []); });
+        }
+
         if (i + BATCH_SIZE < pubkeys.length) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(r => setTimeout(r, 200));
         }
     }
 
-    console.log(`✅ DEDICATED: Fetched ALL-TIME notes for ${allResults.length} users`);
-    const withNotes = allResults.filter(r => r.notes.length > 0).length;
-    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
-    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+    const withNotes = pubkeys.filter(pk => (noteCache.get(pk) || []).length > 0).length;
+    console.log(`✅ Fetched notes for ${pubkeys.length} users, ${withNotes} have notes`);
 
     return pubkeys.map(pk => noteCache.get(pk) || []);
 }
@@ -2963,46 +3132,55 @@ async function fetchNotesForHashtagModes(pubkeys, limit = 100) {
 
 // DEDICATED: Fetch notes for social mode (RECENT only)
 async function fetchNotesForSocialMode(pubkeys, limit = 100) {
-    console.log(`🔄 DEDICATED: Fetching RECENT notes for ${pubkeys.length} users...`);
+    console.log(`🔄 Fetching RECENT notes (bulk) for ${pubkeys.length} users...`);
 
-    const BATCH_SIZE = 20;
-    const allResults = [];
+    const BATCH_SIZE = 30;
+    const sessionAtStart = modeSessionId;
 
     for (let i = 0; i < pubkeys.length; i += BATCH_SIZE) {
-        const batch = pubkeys.slice(i, i + BATCH_SIZE);
-        
-        const batchPromises = batch.map(async (pubkey) => {
-            try {
-                // 30-day time filter for social mode
-                const events = await pool.querySync(RELAYS, {
-                    kinds: [1],
-                    authors: [pubkey],
-                    since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
-                    limit: limit
-                });
-                
-                const sorted = events.sort((a, b) => b.created_at - a.created_at);
-                noteCache.set(pubkey, sorted);
-                return { pubkey, notes: sorted };
-            } catch (err) {
-                console.error(`Error fetching notes for ${pubkey}:`, err);
-                noteCache.set(pubkey, []);
-                return { pubkey, notes: [] };
-            }
-        });
+        if (modeSessionId !== sessionAtStart) {
+            console.warn('⚠️ fetchNotesForSocialMode: session changed, aborting');
+            return pubkeys.map(pk => noteCache.get(pk) || []);
+        }
 
-        const batchResults = await Promise.all(batchPromises);
-        allResults.push(...batchResults);
+        const batch = pubkeys.slice(i, i + BATCH_SIZE);
+
+        try {
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1],
+                authors: batch,
+                since: Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60,
+                limit: batch.length * limit
+            });
+
+            if (modeSessionId !== sessionAtStart) return pubkeys.map(pk => noteCache.get(pk) || []);
+
+            const byAuthor = new Map();
+            events.forEach(e => {
+                if (!e.pubkey) return;
+                if (!byAuthor.has(e.pubkey)) byAuthor.set(e.pubkey, []);
+                byAuthor.get(e.pubkey).push(e);
+            });
+
+            batch.forEach(pk => {
+                const notes = (byAuthor.get(pk) || []).sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+                noteCache.set(pk, notes);
+            });
+
+            console.log(`   Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${events.length} notes from ${batch.length} authors`);
+
+        } catch (err) {
+            console.warn(`   Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, err.message);
+            batch.forEach(pk => { if (!noteCache.has(pk)) noteCache.set(pk, []); });
+        }
 
         if (i + BATCH_SIZE < pubkeys.length) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(r => setTimeout(r, 200));
         }
     }
 
-    console.log(`✅ DEDICATED: Fetched RECENT notes for ${allResults.length} users`);
-    const withNotes = allResults.filter(r => r.notes.length > 0).length;
-    const with3Plus = allResults.filter(r => r.notes.length >= 3).length;
-    console.log(`Users with notes: ${withNotes}, with 3+: ${with3Plus}`);
+    const withNotes = pubkeys.filter(pk => (noteCache.get(pk) || []).length > 0).length;
+    console.log(`✅ Fetched notes for ${pubkeys.length} users, ${withNotes} have notes`);
 
     return pubkeys.map(pk => noteCache.get(pk) || []);
 }
@@ -3024,126 +3202,381 @@ function extractHashtagsFromNote(note) {
     return tags;
 }
 
-    async function discoverByInterests(userPubkey, userFollows, limit, session) {
+// ============================================================
+// 🎯 SHARED INTERESTS MODE: Social Graph + Hashtag Matching
+// ============================================================
+// Strategy:
+// 1. Discover YOUR hashtags from your posts (random 6 selected each run)
+// 2. Build friends-of-friends extended network (kind:3 only — fast)
+// 3. Search for your hashtags via #t queries to find people who use them
+// 4. Boost candidates who are BOTH in your social graph AND use your tags
+// 5. Return candidates — main pipeline handles profiles/notes/scoring
+
+async function discoverByInterests(userPubkey, userFollows, limit, session) {
     if (session !== modeSessionId) return [];
 
-    console.log('🎯 INTERESTS MODE: discovering via your own hashtags');
-
-    // 1. Fetch ONLY your recent notes
-    const myNotes = (await fetchRecentNotes(userPubkey, 50, session)) || [];
-    if (session !== modeSessionId) return [];
-
-    // 2. Extract hashtags YOU actually used
-    const myTags = new Set();
-
-myNotes.forEach(note => {
-    extractHashtagsFromNote(note).forEach(tag => {
-        myTags.add(tag);
-    });
-});
-
-    if (myTags.size === 0) {
-        console.log('🔄 INTERESTS MODE: No hashtags found — fallback to social');
-        
-        // 🚨 CRITICAL: Reset async state to prevent poisoned context
-        modeSessionId++;                      // Invalidate old async work
-        resetRelayPool();                     // Create new SimplePool
-        if (currentAbortController) {
-            currentAbortController.abort();
-            currentAbortController = null;
-        }
-        
-        console.log('✅ Session reset complete, new session:', modeSessionId);
-        
-        // Pass the NEW session ID directly (can't reassign the parameter)
-        return getRecommendations(userPubkey, userFollows, limit, modeSessionId);
-    }
-
-    // 3. Randomly select 2–3 hashtags YOU used
-    const shuffled = [...myTags].sort(() => Math.random() - 0.5);
-    const selectedTags = shuffled.slice(0, Math.min(3, shuffled.length));
-
-    console.log('🔖 Using hashtags:', selectedTags);
-
-    // 4. Search other users using those hashtags
-    const candidates = new Map();
-
-    for (const tag of selectedTags) {
-        if (session !== modeSessionId) return [];
-
-        const events = await pool.querySync(RELAYS, {
-            kinds: [1],
-            '#t': [tag],
-            limit: 200
-        });
-
-        events.forEach(e => {
-            if (!e.pubkey) return;
-            if (e.pubkey === userPubkey) return;
-            if (userFollows.includes(e.pubkey)) return;
-
-            candidates.set(e.pubkey, (candidates.get(e.pubkey) || 0) + 1);
-        });
-
-        await new Promise(r => setTimeout(r, 150)); // relay friendly
-    }
-
-    // 5. Rank users by shared hashtag usage
-    const sorted = [...candidates.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([pk]) => pk);
-
-    // 6. HARD LIMIT: 3× results
-    const final = sorted.slice(0, limit * 3);
-
-    console.log(`🎯 INTERESTS MODE: returning ${final.length} candidates`);
-    return final;
-}
-
-// DEDICATED: Niche mode discovery
-async function discoverByNiche(limit, session) {
-    if (session !== modeSessionId) return [];   
-    console.log('🎯 NICHE MODE: Finding users with rare/unique content...');
+    console.log('🎯 INTERESTS MODE: Finding people who share your interests...');
+    
+    const candidateScores = new Map();
+    let myHashtags = new Set();
     
     try {
-        // Get a LARGE sample of recent posts to find diverse hashtags
-        console.log('🔍 Querying for recent posts (limit: 2000)...');
-        const recentEvents = await pool.querySync(RELAYS, {
-            kinds: [1],
-            limit: 2000 // Much larger sample to discover diverse hashtags
-        });
+        await new Promise(r => setTimeout(r, 500));
         
-        console.log(`📊 Received ${recentEvents.length} recent posts from relays`);
+        // ============================================
+        // STEP 1: Extract YOUR hashtags (broad fetch, random selection)
+        // ============================================
+        console.log('📊 Step 1: Analyzing your hashtag usage...');
         
-        // Count hashtag frequency
-        const hashtagCounts = new Map();
-        recentEvents.forEach(event => {
-            const tags = event.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
-            tags.forEach(tag => {
-                hashtagCounts.set(tag, (hashtagCounts.get(tag) || 0) + 1);
+        // Fetch a broad sample of YOUR posts to extract hashtags from
+        // No time restriction — we want the widest possible tag pool for variety
+        
+        let myNotes = [];
+        try {
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1],
+                authors: [userPubkey],
+                limit: 300
+            });
+            myNotes = events.sort((a, b) => b.created_at - a.created_at);
+        } catch (err) {
+            console.warn('Error fetching your notes:', err.message);
+        }
+        if (session !== modeSessionId) return [];
+        
+        console.log(`   Found ${myNotes.length} of your notes`);
+        
+        // Extract hashtags
+        const allFoundTags = new Set();
+        myNotes.forEach(note => {
+            extractHashtagsFromNote(note).forEach(tag => {
+                const lower = tag.toLowerCase();
+                if (!['nostr', 'note', 'introduction', 'introductions', 'gm', 'gn', 
+                       'bitcoin', 'btc', 'zap', 'sats', 'plebchain', 'meme', 'memes'].includes(lower)) {
+                    allFoundTags.add(lower);
+                }
             });
         });
         
-        console.log(`📊 Found ${hashtagCounts.size} unique hashtags total`);
+        // Also check bio
+        const myProfile = await fetchProfile(userPubkey, session);
+        if (session !== modeSessionId) return [];
         
-        // Find rare hashtags (used 1-5 times in our sample)
-        const rareHashtags = Array.from(hashtagCounts.entries())
-            .filter(([tag, count]) => count >= 1 && count <= 5)
-            .slice(0, 5) // Keep 5 hashtags
-            .map(([tag]) => tag);
-        
-        if (rareHashtags.length === 0) {
-            console.log('⚠️ No rare hashtags found');
-            return [];
+        if (myProfile?.about) {
+            const bioTags = myProfile.about.match(/#([a-zA-Z0-9_]+)/g) || [];
+            bioTags.forEach(tag => {
+                const lower = tag.slice(1).toLowerCase();
+                if (!['nostr', 'note', 'introduction'].includes(lower)) {
+                    allFoundTags.add(lower);
+                }
+            });
         }
         
-        console.log(`🎯 Found ${rareHashtags.length} rare hashtags:`, rareHashtags);
+        // Fisher-Yates shuffle for unbiased randomization
+        const tagArray = [...allFoundTags];
+        for (let i = tagArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tagArray[i], tagArray[j]] = [tagArray[j], tagArray[i]];
+        }
+        // Pick a SMALL random subset (6) so results vary each run
+        // even if total tag pool is only slightly larger
+        myHashtags = new Set(tagArray.slice(0, Math.min(6, tagArray.length)));
+        console.log(`   🎲 Randomly selected ${myHashtags.size} from ${allFoundTags.size} available tags`);
         
-        // Search for users with these rare hashtags (allTime=true for niche mode)
-        return await searchUsersByHashtags(new Set(rareHashtags), limit * 3, session, true);
+        console.log(`   Your hashtags for this run (${myHashtags.size}/${allFoundTags.size} total):`, [...myHashtags]);
+        
+        // Store for scoring phase
+        window.lastInterestHashtags = [...myHashtags];
+        
+        // ============================================
+        // STEP 2: Build extended network (friends of friends)
+        //         Only fetches kind:3 (follow lists) — fast and reliable
+        // ============================================
+        console.log('📊 Step 2: Building your extended network...');
+        
+        const extendedSet = new Set();
+        const connectionCount = new Map();
+        
+        if (userFollows.length > 0) {
+            const sampleSize = Math.min(50, userFollows.length);
+            const shuffledFollows = [...userFollows];
+            for (let i = shuffledFollows.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledFollows[i], shuffledFollows[j]] = [shuffledFollows[j], shuffledFollows[i]];
+            }
+            const sampledFollows = shuffledFollows.slice(0, sampleSize);
+            
+            console.log(`   Sampling ${sampledFollows.length} of your ${userFollows.length} follows`);
+            
+            const followsBatch = await fetchFollowsBatch(sampledFollows);
+            if (session !== modeSessionId) return [];
+            
+            followsBatch.forEach(followList => {
+                followList.forEach(pubkey => {
+                    if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
+                        extendedSet.add(pubkey);
+                        connectionCount.set(pubkey, (connectionCount.get(pubkey) || 0) + 1);
+                    }
+                });
+            });
+            
+            console.log(`   Extended network: ${extendedSet.size} people (2 degrees from you)`);
+        }
+        
+        // Seed candidates from extended network
+        extendedSet.forEach(pk => {
+            candidateScores.set(pk, { 
+                score: 0, 
+                sharedTags: new Set(), 
+                socialScore: connectionCount.get(pk) || 0 
+            });
+        });
+        
+        // ============================================
+        // STEP 3: Search for YOUR hashtags via #t queries
+        //         This finds people who actively post with your tags
+        //         without fetching individual notes (much lighter on relays)
+        // ============================================
+        if (myHashtags.size > 0 && session === modeSessionId) {
+            console.log('📊 Step 3: Searching for people who use your hashtags...');
+            
+            const tagsToSearch = [...myHashtags];
+            console.log(`   Searching for:`, tagsToSearch);
+            
+            for (const tag of tagsToSearch) {
+                if (session !== modeSessionId) return [];
+                
+                try {
+                    const events = await pool.querySync(RELAYS, {
+                        kinds: [1],
+                        '#t': [tag],
+                        limit: 200
+                    });
+                    
+                    if (events.length > 0) {
+                        console.log(`   ✓ #${tag}: ${events.length} posts`);
+                        
+                        events.forEach(event => {
+                            if (!event.pubkey) return;
+                            if (event.pubkey === userPubkey) return;
+                            if (userFollows.includes(event.pubkey)) return;
+                            
+                            if (!candidateScores.has(event.pubkey)) {
+                                candidateScores.set(event.pubkey, { 
+                                    score: 0, 
+                                    sharedTags: new Set(), 
+                                    socialScore: 0 
+                                });
+                            }
+                            
+                            const data = candidateScores.get(event.pubkey);
+                            data.sharedTags.add(tag);
+                            // Higher boost if they're also in your social graph
+                            const inNetwork = extendedSet.has(event.pubkey);
+                            data.score += inNetwork ? 15 : 8;
+                        });
+                    } else {
+                        console.log(`   ✗ #${tag}: 0 posts`);
+                    }
+                } catch (err) {
+                    console.warn(`   Error searching #${tag}:`, err.message);
+                }
+                
+                await new Promise(r => setTimeout(r, 150));
+            }
+            
+            const withTags = [...candidateScores.entries()].filter(([_, d]) => d.sharedTags.size > 0).length;
+            console.log(`   Found ${withTags} people who share your hashtags`);
+        }
+        
+        // ============================================
+        // FALLBACK: If no hashtags found, just use the extended network
+        // ============================================
+        if (myHashtags.size === 0 && extendedSet.size > 0) {
+            console.log('📊 Fallback: No hashtags found, using social network...');
+            extendedSet.forEach(pk => {
+                const data = candidateScores.get(pk);
+                if (data) data.score = data.socialScore;
+            });
+        }
+        
+        // ============================================
+        // SCORING: shared tags first, social proximity second
+        // ============================================
+        const sorted = [...candidateScores.entries()]
+            .map(([pubkey, data]) => ({
+                pubkey,
+                finalScore: data.score + (data.sharedTags.size * 20) + (data.socialScore * 3),
+                sharedCount: data.sharedTags.size,
+                socialScore: data.socialScore
+            }))
+            .sort((a, b) => b.finalScore - a.finalScore)
+            .map(item => item.pubkey);
+        
+        const withShared = [...candidateScores.entries()].filter(([_, d]) => d.sharedTags.size > 0).length;
+        console.log(`✅ INTERESTS MODE: Returning ${Math.min(sorted.length, limit * 3)} candidates`);
+        console.log(`   ${withShared} share your interests, your hashtags: ${myHashtags.size}`);
+        
+        return sorted.slice(0, limit * 3);
+        
     } catch (err) {
-        console.error('Niche discovery error:', err);
-        return [];
+        console.error('❌ Interests discovery error:', err);
+        
+        console.log('🚨 Emergency fallback: Using basic social discovery...');
+        try {
+            return getRecommendations(userPubkey, userFollows, limit, session);
+        } catch (e) {
+            console.error('Emergency fallback also failed:', e);
+            return [];
+        }
+    }
+}
+
+// ============================================================
+// 🎯 NICHE MODE: FRIENDS-OF-FRIENDS CANDIDATE GENERATOR
+// ============================================================
+// Strategy: Build a large pool of friends-of-friends candidates.
+// The main pipeline fetches their notes/profiles and builds topicPopularity.
+// calculateMatchScore then identifies who uses the RAREST hashtags
+// among all candidates and ranks them highest.
+//
+// This is fast because it only fetches follow lists (kind:3),
+// no notes. The heavy lifting (notes, scoring) happens in the
+// shared main pipeline where relay queries are already battle-tested.
+
+async function discoverByNiche(userPubkey, userFollows, limit, session) {
+    if (session !== modeSessionId) return [];
+    console.log('🎯 NICHE MODE: Building candidate pool from friends-of-friends...');
+
+    const candidateScores = new Map(); // pubkey → { socialScore }
+
+    try {
+        await new Promise(r => setTimeout(r, 500));
+
+        // ============================================
+        // STEP 1: Build extended network (friends of friends)
+        // ============================================
+        console.log('📊 Step 1: Building your extended network...');
+
+        if (userFollows.length > 0) {
+            const sampleSize = Math.min(60, userFollows.length);
+            const shuffledFollows = [...userFollows];
+            for (let i = shuffledFollows.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledFollows[i], shuffledFollows[j]] = [shuffledFollows[j], shuffledFollows[i]];
+            }
+            const sampledFollows = shuffledFollows.slice(0, sampleSize);
+
+            console.log(`   Sampling ${sampledFollows.length} of your ${userFollows.length} follows`);
+
+            const followsBatch = await fetchFollowsBatch(sampledFollows);
+            if (session !== modeSessionId) return [];
+
+            const connectionCount = new Map();
+
+            followsBatch.forEach(followList => {
+                followList.forEach(pubkey => {
+                    if (pubkey !== userPubkey && !userFollows.includes(pubkey)) {
+                        connectionCount.set(pubkey, (connectionCount.get(pubkey) || 0) + 1);
+                    }
+                });
+            });
+
+            connectionCount.forEach((count, pk) => {
+                candidateScores.set(pk, { socialScore: count });
+            });
+
+            console.log(`   Extended network: ${candidateScores.size} people (2 degrees from you)`);
+        }
+
+        // ============================================
+        // STEP 2: If not enough from social graph, add from global firehose
+        //         (prefer users who actually use hashtags)
+        // ============================================
+        if (candidateScores.size < limit * 2 && session === modeSessionId) {
+            console.log('📊 Step 2: Supplementing with global hashtagged users...');
+
+            try {
+                const recentEvents = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    since: Math.floor(Date.now() / 1000) - 24 * 60 * 60,
+                    limit: 3000
+                });
+
+                recentEvents.forEach(event => {
+                    if (!event.pubkey || event.pubkey === userPubkey) return;
+                    if (userFollows.includes(event.pubkey)) return;
+
+                    // Only add users who use hashtags — these are the niche-relevant ones
+                    const tags = extractHashtagsFromNote(event);
+                    if (tags.size > 0 && !candidateScores.has(event.pubkey)) {
+                        candidateScores.set(event.pubkey, { socialScore: 0 });
+                    }
+                });
+
+                console.log(`   After global supplement: ${candidateScores.size} candidates`);
+            } catch (err) {
+                console.warn('   Global supplement failed:', err.message);
+            }
+        }
+
+        // ============================================
+        // SCORING: Social proximity as a tiebreaker
+        //          (main rarity scoring happens in calculateMatchScore)
+        // ============================================
+        const sorted = [...candidateScores.entries()]
+            .map(([pubkey, data]) => ({
+                pubkey,
+                socialScore: data.socialScore
+            }))
+            // Mix of social proximity + randomness so we don't always get the same people
+            .sort((a, b) => {
+                // Tier 1: people with 3+ mutual connections
+                // Tier 2: people with 1-2 mutual connections
+                // Tier 3: global users (0 connections)
+                const tierA = a.socialScore >= 3 ? 2 : (a.socialScore >= 1 ? 1 : 0);
+                const tierB = b.socialScore >= 3 ? 2 : (b.socialScore >= 1 ? 1 : 0);
+                if (tierA !== tierB) return tierB - tierA;
+                return Math.random() - 0.5; // shuffle within tiers
+            })
+            .map(item => item.pubkey);
+
+        console.log(`✅ NICHE MODE: Returning ${Math.min(sorted.length, limit * 3)} candidates`);
+
+        // Store empty for now — window.lastNicheHashtags will be populated after scoring
+        window.lastNicheHashtags = [];
+
+        return sorted.slice(0, limit * 3);
+
+    } catch (err) {
+        console.error('❌ Niche discovery error:', err);
+
+        // EMERGENCY FALLBACK
+        console.log('🚨 Emergency fallback: recent active users...');
+        try {
+            const emergencyEvents = await pool.querySync(RELAYS, {
+                kinds: [1],
+                since: Math.floor(Date.now() / 1000) - 6 * 60 * 60,
+                limit: 2000
+            });
+
+            const emergencyUsers = new Map();
+            emergencyEvents.forEach(event => {
+                if (!event.pubkey || event.pubkey === userPubkey) return;
+                if (userFollows.includes(event.pubkey)) return;
+                emergencyUsers.set(event.pubkey, (emergencyUsers.get(event.pubkey) || 0) + 1);
+            });
+
+            const emergencySorted = [...emergencyUsers.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([pubkey]) => pubkey);
+
+            console.log(`🚨 Emergency fallback found ${emergencySorted.length} users`);
+            return emergencySorted.slice(0, limit * 3);
+        } catch (e) {
+            console.error('Emergency fallback also failed:', e);
+            return [];
+        }
     }
 }
 
@@ -3186,22 +3619,31 @@ async function discoverByNiche(limit, session) {
         const userBioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
         const candidateBioHashtags = (candidateProfile.about || '').match(/#\w+/gi) || [];
 
-        const userPostHashtags = new Set();
+        const candidatePostHashtags = new Set();
         if (candidateNotes) {
             candidateNotes.forEach(note => {
                 const tags = note.tags?.filter(t => t[0] === 't').map(t => t[1].toLowerCase()) || [];
-                tags.forEach(tag => userPostHashtags.add(tag));
+                tags.forEach(tag => candidatePostHashtags.add(tag));
+                // Also extract inline hashtags from content
+                const inlineTags = note.content?.match(/#([a-zA-Z0-9_]+)/g) || [];
+                inlineTags.forEach(t => candidatePostHashtags.add(t.slice(1).toLowerCase()));
             });
         }
 
-        const allCandidateHashtags = [
+        const allCandidateHashtags = new Set([
             ...candidateBioHashtags.map(h => h.toLowerCase().replace('#', '')),
-            ...Array.from(userPostHashtags)
-        ];
+            ...candidatePostHashtags
+        ]);
 
-        const sharedHashtags = userBioHashtags.filter(h => 
-            allCandidateHashtags.some(ch => ch === h.toLowerCase().replace('#', ''))
-        ).length;
+        // Compare against your DISCOVERED hashtags (from posts), not just bio
+        const myInterestTags = window.lastInterestHashtags 
+            ? new Set(window.lastInterestHashtags.map(t => t.toLowerCase()))
+            : new Set(userBioHashtags.map(h => h.toLowerCase().replace('#', '')));
+        
+        let sharedHashtags = 0;
+        myInterestTags.forEach(myTag => {
+            if (allCandidateHashtags.has(myTag)) sharedHashtags++;
+        });
 
         scores.interests = Math.min(100, sharedHashtags * 25);
 
@@ -3225,15 +3667,34 @@ async function discoverByNiche(limit, session) {
         ];
 
         if (allTopics.length > 0 && window.topicPopularity) {
-            const rarityScores = allTopics.map(topic => {
-                const popularity = window.topicPopularity.get(topic) || 1;
-                const totalProfiles = window.topicPopularity.size;
-                const rarityPercent = (popularity / totalProfiles) * 100;
-                return rarityPercent < 10 ? (100 - rarityPercent * 5) : 0;
+            // topicPopularity maps tag → how many candidates use it
+            // A tag used by 1-2 candidates out of many is truly rare
+            const totalCandidates = window.topicPopularity._totalCandidates || window.topicPopularity.size;
+            
+            let rareTagCount = 0;
+            let bestRarityScore = 0;
+            
+            allTopics.forEach(topic => {
+                const usageCount = window.topicPopularity.get(topic) || 0;
+                if (usageCount === 0) return; // tag not in the pool at all
+                
+                // What % of candidates use this tag?
+                const usagePercent = (usageCount / Math.max(totalCandidates, 1)) * 100;
+                
+                // Rare = used by ≤15% of candidates
+                if (usagePercent <= 15) {
+                    rareTagCount++;
+                    // Rarer → higher score: 1% usage = 95 pts, 10% = 50 pts, 15% = 25 pts
+                    const tagScore = Math.max(0, 100 - usagePercent * 5);
+                    bestRarityScore = Math.max(bestRarityScore, tagScore);
+                }
             });
             
-            const avgRarity = rarityScores.reduce((a, b) => a + b, 0) / rarityScores.length;
-            scores.niche = Math.min(100, Math.max(0, avgRarity));
+            // Score combines: best rare tag score + bonus for having multiple rare tags
+            // This avoids the "average dilution" problem of the old formula
+            scores.niche = Math.min(100, Math.max(0,
+                bestRarityScore * 0.6 + Math.min(40, rareTagCount * 10)
+            ));
         } else {
             scores.niche = 0;
         }
@@ -3562,7 +4023,26 @@ console.log('User follows (locked snapshot):', userFollows.length);
         
         metricsHTML += '</div>';
         
-        const name = escapeHtml((fren.name || 'Anonymous').substring(0, 100)); // Max 100 chars
+        let displayName;
+
+if (fren.hasMetadata && fren.name) {
+  displayName = fren.name;
+} else if (fren.status === 'missing') {
+  displayName = 'Anonymous';
+} else if (fren.status === 'parse_error') {
+  displayName = 'Profile Error';
+} else {
+  displayName = 'Loading…';
+}
+
+if (!displayName) {
+  // ✅ Only decide labels here, not in the fetcher
+  if (fren.status === 'missing') displayName = 'Anonymous';
+  else if (fren.status === 'parse_error') displayName = 'Profile Error';
+  else displayName = 'Loading…';
+}
+
+const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
         const rawPicture = sanitizeUrl(fren.picture);
         const picture = rawPicture || `https://robohash.org/${fren.pubkey}?set=set5`;
         const aboutSafe = (about || '').substring(0, 500); // Max 500 chars for bio
@@ -3658,23 +4138,12 @@ console.log('User follows (locked snapshot):', userFollows.length);
 
     // Main search
 document.getElementById('find-btn').addEventListener('click', async () => {
-    modeSessionId++;
-    let thisSession = modeSessionId;
-
-    // Only reset pool once per browser session to keep connections alive
-    if (!pool || !window._poolInitialized) {
-        resetRelayPool();
-        window._poolInitialized = true;
-        // Give initial pool time to establish connections
-        await new Promise(r => setTimeout(r, 500));
-    }
+    const findBtn = document.getElementById('find-btn');
+    const resultsSection = document.getElementById('results-section');
+    const emptyState = document.getElementById('empty-state');
+    const resultsGrid = document.getElementById('results-grid');
     
-    // CLEAR CACHES to avoid stale data
-    noteCache.clear();
-    profileCache.clear();
-    console.log('🔄 Cleared caches for fresh search');
-
-    // VALIDATION CHECKS - Do these BEFORE locking controls
+    // VALIDATION CHECKS - Do these FIRST before any async work
     if (!currentUser && !document.getElementById('npub-input').value.trim()) {
         alert('Please enter your npub or login');
         return;
@@ -3686,70 +4155,94 @@ document.getElementById('find-btn').addEventListener('click', async () => {
             return;
         }
     }
-
-    // LOCK CONTROLS (only after validation passes)
-[
-    '.mode-card',
-    '#result-count',
-    '#min-followers',
-    '#activity-level',
-    '#hide-spam',
-    '#hide-nsfw',
-    '#hide-following',
-    '#recent-activity-only',
-    '.toggle-switch',
-    '#enable-cross-ref',
-    '.cross-ref-toggle',
-    '#hashtag-input',
-    '.popular-tag',
-    '#npub-input'
-].forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => {
-        el.style.pointerEvents = 'none';
-        el.style.opacity = '0.6';
-    });
-});
     
-    const findBtn = document.getElementById('find-btn');
-    const resultsSection = document.getElementById('results-section');
-    const emptyState = document.getElementById('empty-state');
-    const resultsGrid = document.getElementById('results-grid');
-
     // SAFEGUARD: If we have a currentUser but their pubkey seems invalid
     if (currentUser && !currentUser.pubkey) {
         console.log('⚠️ Current user pubkey missing, forcing re-login');
-        logout(); // Clear the broken state
+        logout();
         alert('Your login session was lost. Please login again.');
         return;
     }
+    
+    // Prevent double-clicks
+    if (findBtn.disabled) return;
+    
+    // DISABLE BUTTON IMMEDIATELY
+    findBtn.disabled = true;
+    findBtn.textContent = 'Connecting...';
+    emptyState.style.display = 'none';
+    resultsSection.style.display = 'block';
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Connecting to relays...</p>';
+
+    // LOCK CONTROLS
+    [
+        '.mode-card',
+        '#result-count',
+        '#min-followers',
+        '#activity-level',
+        '#hide-spam',
+        '#hide-nsfw',
+        '#hide-following',
+        '#recent-activity-only',
+        '.toggle-switch',
+        '#enable-cross-ref',
+        '.cross-ref-toggle',
+        '#hashtag-input',
+        '.popular-tag',
+        '#npub-input'
+    ].forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => {
+            el.style.pointerEvents = 'none';
+            el.style.opacity = '0.6';
+        });
+    });
+
+    // NOW do the async relay setup
+    modeSessionId++;
+    let thisSession = modeSessionId;
+    
+    // Reset fallback tracking
+    window._nicheModeFellBack = false;
+
+    // Reset pool on every search to ensure fresh connections
+    resetRelayPool();
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Warm up relay connections
+    const warmupSuccess = await warmUpRelays();
+    if (!warmupSuccess) {
+        console.log('⚠️ Relay warmup returned no events, waiting longer...');
+        await new Promise(r => setTimeout(r, 1000));
+        await warmUpRelays();
+    }
+    await new Promise(r => setTimeout(r, 500));
+    
+    // CLEAR caches between searches to prevent stale metadata from previous discovery modes
+    console.log('🧹 Clearing profile and note caches for fresh search');
+    profileCache.clear();
+    noteCache.clear();
+    
+    // Update button text
+    findBtn.textContent = 'Discovering...';
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
 
     let userPubkey;
 
-        if (currentUser && currentUser.pubkey) {
-            userPubkey = currentUser.pubkey;
-        } else {
-            const npubInput = document.getElementById('npub-input').value.trim();
+    if (currentUser && currentUser.pubkey) {
+        userPubkey = currentUser.pubkey;
+    } else {
+        const npubInput = document.getElementById('npub-input').value.trim();
 
-            if (!npubInput) {
-                alert('Please enter your npub or login');
-                return;
-            }
-
-            if (!npubInput.startsWith('npub1')) {
-                alert('Invalid npub format');
-                return;
-            }
-
-            userPubkey = nip19.decode(npubInput).data;
+        if (!npubInput.startsWith('npub1')) {
+            alert('Invalid npub format');
+            // Unlock controls on error
+            findBtn.disabled = false;
+            findBtn.textContent = 'Discover Frens';
+            return;
         }
 
-        if (findBtn.disabled) return;
-
-        findBtn.disabled = true;
-        findBtn.textContent = 'Discovering...';
-        emptyState.style.display = 'none';
-        resultsSection.style.display = 'block';
-        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
+        userPubkey = nip19.decode(npubInput).data;
+    }
 
         // FIX: Clear “People You Already Follow” immediately
 const followingSection = document.getElementById('following-section');
@@ -3776,7 +4269,7 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
     candidatePubkeys = await searchUsersByHashtags(selectedHashtags, resultCount * 2, thisSession);
 } else if (discoveryMode === 'interests') {
-    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding users with similar interests...</p>';
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding friends-of-friends who share your interests...</p>';
     candidatePubkeys = await discoverByInterests(
     userPubkey,
     userFollows,
@@ -3788,49 +4281,27 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     if (candidatePubkeys.length === 0) {
         console.log('🔄 Interests mode returned 0 candidates, falling back to social discovery');
         
-        // 🚨 CRITICAL: Reset async state to prevent poisoned context
-        modeSessionId++;                      // Invalidate old async work
-        thisSession = modeSessionId;          // Update local session to match
-        resetRelayPool();                     // Create new SimplePool
-        if (currentAbortController) {
-            currentAbortController.abort();
-            currentAbortController = null;
-        }
-        
-        // Give the NEW pool time to establish connections
-        await new Promise(r => setTimeout(r, 1000));
-        
-        console.log('✅ Session reset complete, new session:', thisSession);
-        
         resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No interest matches, trying social network...</p>';
         candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
     }
 } else if (discoveryMode === 'niche') {
-    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding niche content creators...</p>';
-    candidatePubkeys = await discoverByNiche(resultCount, thisSession);
+    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Scanning your extended network for rare hashtag users...</p>';
+    candidatePubkeys = await discoverByNiche(userPubkey, userFollows, resultCount, thisSession);
     
     // Fallback to social if niche returns nothing
     if (candidatePubkeys.length === 0) {
         console.log('🔄 Niche mode returned 0 candidates, falling back to social discovery');
         
-        // 🚨 CRITICAL: Reset async state to prevent poisoned context
-        modeSessionId++;                      // Invalidate old async work
-        thisSession = modeSessionId;          // Update local session to match
-        resetRelayPool();                     // Create new SimplePool
-        if (currentAbortController) {
-            currentAbortController.abort();
-            currentAbortController = null;
-        }
+        // Mark that we fell back so we use the right notes fetching mode
+        window._nicheModeFellBack = true;
         
-        // Give the NEW pool time to establish connections
-        await new Promise(r => setTimeout(r, 1000));
-        
-        console.log('✅ Session reset complete, new session:', thisSession);
-        
-        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No niche results, trying social network...</p>';
+        resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Expanding search to social network...</p>';
         candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
+    } else {
+        window._nicheModeFellBack = false;
     }
 } else if (crossRefEnabled && crossRefData) {
+    // Cross-ref in social mode: use cross-ref candidates as the pool
     const allCandidates = [
         ...crossRefData.youOnly,
         ...crossRefData.themOnly,
@@ -3852,69 +4323,102 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 );
 }
 
+// FIX: If cross-ref is enabled in a non-social mode, merge cross-ref candidates into results
+if (crossRefEnabled && crossRefData && discoveryMode !== 'social') {
+    const crossRefPubkeys = new Set([
+        ...crossRefData.youOnly,
+        ...crossRefData.themOnly,
+        ...crossRefData.mutual
+    ]);
+    // Add cross-ref candidates that aren't already in the list
+    const existingSet = new Set(candidatePubkeys);
+    const newFromCrossRef = [...crossRefPubkeys].filter(pk => !existingSet.has(pk));
+    if (newFromCrossRef.length > 0) {
+        console.log(`🔀 Cross-ref: Adding ${newFromCrossRef.length} additional candidates from network comparison`);
+        candidatePubkeys = [...candidatePubkeys, ...newFromCrossRef];
+    }
+}
+
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Fetching profiles and activity...</p>';
 
             console.log('Fetching data for', candidatePubkeys.length, 'candidates...');
 
-// Fetch profiles and notes separately
-// Use modeSessionId instead of thisSession because internal fallbacks update modeSessionId
-console.log(`📊 About to fetch profiles with session=${modeSessionId}, current global modeSessionId=${modeSessionId}`);
-const allProfiles = await fetchProfilesBatch(candidatePubkeys, modeSessionId);
-const allFollows = candidatePubkeys.map(() => []); // Empty arrays for all
+// FIX: Sync thisSession with modeSessionId in case fallbacks updated it
+thisSession = modeSessionId;
 
-// ✅ NOW it is safe
-const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
-console.log(`Profiles with kind:0 metadata: ${metaCount}/${allProfiles.length}`);
-
-// DEBUG: Log what we found
-console.log('🔍 DEBUG: Fetched', allProfiles.length, 'profiles');
-allProfiles.forEach((profile, idx) => {
-    if (profile && profile.pubkey) {
-        console.log(`  ${idx+1}. ${profile.name || 'Anonymous'} (${profile.pubkey.substring(0, 8)}...)`);
-    }
-});
-
-// Fetch notes separately
-let allNotes;
-if (discoveryMode === 'hashtags' || discoveryMode === 'niche') {
-    // For hashtag-based modes: ALL-TIME notes
-    console.log(`Using ALL-TIME notes for ${discoveryMode} mode`);
-    allNotes = await fetchNotesForHashtagModes(candidatePubkeys, 25);
-} else {
-    // For social-based modes: RECENT notes (30 days)
-    console.log(`Using RECENT notes for ${discoveryMode} mode`);
-    allNotes = await fetchNotesForSocialMode(candidatePubkeys, 25);
+// Reset relay pool for fresh connections — discovery phase may have exhausted it
+console.log('🔄 Resetting relay pool before fetching candidate data...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 1000));
+console.log('🔥 Warming up fresh relay pool...');
+let warmupOk = await warmUpRelays();
+if (!warmupOk) {
+    await new Promise(r => setTimeout(r, 1500));
+    warmupOk = await warmUpRelays();
 }
+if (!warmupOk) {
+    console.log('🔥 Second warmup failed, trying one more time...');
+    resetRelayPool();
+    await new Promise(r => setTimeout(r, 1500));
+    await warmUpRelays();
+}
+await new Promise(r => setTimeout(r, 500));
 
-            const validProfiles = allProfiles.filter(p => p && p.pubkey).length;
-            const withNotes = allNotes.filter(n => n && n.length > 0).length;
-            const with3Plus = allNotes.filter(n => n && n.length >= 3).length;
-            console.log(`Valid profiles: ${validProfiles}/${candidatePubkeys.length}`);
-            console.log(`Profiles with notes: ${withNotes}, with 3+: ${with3Plus}`);
+// 1. PROFILES FIRST — most important, do while pool is freshest
+console.log(`📊 Fetching profiles for ${candidatePubkeys.length} candidates...`);
+const allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
 
-            // ================================
-// 🔑 BUILD PUBKEY-LOCKED LOOKUPS
-// ================================
+const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
+console.log(`Profiles with metadata: ${metaCount}/${allProfiles.length}`);
 
-// Profiles by pubkey
-const profileByKey = new Map();
-allProfiles.forEach(p => {
-    if (p && p.pubkey) {
-        profileByKey.set(p.pubkey, p);
-    }
-});
+// 2. NOTES — bulk multi-author query
+console.log(`📊 Fetching notes for ${candidatePubkeys.length} candidates...`);
+const notesSince = (discoveryMode === 'hashtags')
+    ? Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60
+    : Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
 
-// Notes by pubkey (LOCKED to candidatePubkeys order)
 const notesByKey = new Map();
-candidatePubkeys.forEach((pk, i) => {
-    notesByKey.set(pk, allNotes[i] || []);
-});
+const NOTE_BATCH = 50;
+for (let i = 0; i < candidatePubkeys.length; i += NOTE_BATCH) {
+    if (thisSession !== modeSessionId) break;
+    const batch = candidatePubkeys.slice(i, i + NOTE_BATCH);
+    try {
+        const events = await pool.querySync(RELAYS, {
+            kinds: [1], authors: batch, since: notesSince, limit: 100
+        });
+        if (events && events.length > 0) {
+            const byAuthor = new Map();
+            events.forEach(e => {
+                if (!e?.pubkey) return;
+                if (!byAuthor.has(e.pubkey)) byAuthor.set(e.pubkey, []);
+                byAuthor.get(e.pubkey).push(e);
+            });
+            byAuthor.forEach((notes, pk) => {
+                const sorted = notes.sort((a, b) => b.created_at - a.created_at).slice(0, 25);
+                notesByKey.set(pk, sorted);
+                noteCache.set(pk, sorted);
+            });
+            console.log(`   Notes batch ${Math.floor(i/NOTE_BATCH)+1}: ${events.length} events, ${byAuthor.size}/${batch.length} authors`);
+        } else {
+            console.log(`   Notes batch ${Math.floor(i/NOTE_BATCH)+1}: 0 events`);
+        }
+    } catch (e) { console.warn('Notes batch error:', e.message); }
+    if (i + NOTE_BATCH < candidatePubkeys.length) await new Promise(r => setTimeout(r, 150));
+}
+const allNotes = candidatePubkeys.map(pk => notesByKey.get(pk) || []);
+const withNotes = allNotes.filter(n => n && n.length > 0).length;
+console.log(`Notes: ${withNotes}/${candidatePubkeys.length} have notes`);
 
-// Follows by pubkey (LOCKED to candidatePubkeys order)
+// Skip follows fetch — candidates are already from the social graph.
+// Min Network Size filter will be skipped when follows aren't available.
+const allFollows = candidatePubkeys.map(() => []);
+
+// Build lookup maps
+const profileByKey = new Map();
+allProfiles.forEach(p => { if (p && p.pubkey) profileByKey.set(p.pubkey, p); });
+
 const followsByKey = new Map();
-candidatePubkeys.forEach((pk, i) => {
-    followsByKey.set(pk, allFollows[i] || []);
-});
+candidatePubkeys.forEach((pk, i) => { followsByKey.set(pk, []); });
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
@@ -3939,6 +4443,22 @@ candidatePubkeys.forEach((pk, i) => {
             });
 
             window.topicPopularity = topicPopularity;
+            // Store the total candidate count so niche scoring can compute proper usage %
+            topicPopularity._totalCandidates = candidatePubkeys.length;
+
+            // For niche mode: identify and store the rare tags we discovered
+            if (discoveryMode === 'niche') {
+                const rareTags = [...topicPopularity.entries()]
+                    .filter(([key]) => key !== '_totalCandidates')
+                    .filter(([_, count]) => count >= 1 && count <= Math.max(3, Math.floor(candidatePubkeys.length * 0.15)))
+                    .sort((a, b) => a[1] - b[1])
+                    .slice(0, 30)
+                    .map(([tag]) => tag);
+                window.lastNicheHashtags = rareTags;
+                if (rareTags.length > 0) {
+                    console.log(`🏷️ Niche: discovered ${rareTags.length} rare tags among candidates:`, rareTags.slice(0, 15));
+                }
+            }
 
 const scoredProfiles = candidatePubkeys
   .map(pubkey => {
@@ -4013,13 +4533,22 @@ else if (noteCount === 2) penalty += 4;
         const hideNSFW = document.getElementById('hide-nsfw').checked;
         if (hideNSFW && p.isNSFW) return null; // HARD FILTER
 
-        // ---- RECENT ACTIVITY ----
-        const recentActivityOnly = document.getElementById('recent-activity-only').checked;
-        if (recentActivityOnly && noteCount > 0) {
-            const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30*24*60*60;
-            const hasRecentNote = p.notes?.some(n => n.created_at > thirtyDaysAgo);
-            if (!hasRecentNote) return null; // HARD FILTER
-        }
+        // ---- RECENT ACTIVITY (FIXED) ----
+const recentActivityOnly = document.getElementById('recent-activity-only').checked;
+
+if (recentActivityOnly) {
+    const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+
+    const notes = p.notes;
+
+    // IMPORTANT:
+    // - If notes are missing or empty → activity is UNKNOWN → DO NOT EXCLUDE
+    // - Only exclude when we have notes AND they are all old
+    if (Array.isArray(notes) && notes.length > 0) {
+        const hasRecentNote = notes.some(n => n.created_at > thirtyDaysAgo);
+        if (!hasRecentNote) return null; // HARD FILTER
+    }
+}
 
         // ---- FOLLOWER MINIMUM ----
         const minFollowers = parseInt(document.getElementById('min-followers').value);
@@ -4030,13 +4559,14 @@ else if (noteCount === 2) penalty += 4;
 
         // ---- ACTIVITY LEVEL ----
         const activityLevel = document.getElementById('activity-level').value;
-        if (activityLevel !== 'any' && noteCount > 0) {
+        if (activityLevel !== 'any') {
             const tenDaysAgo = Math.floor(Date.now() / 1000) - 10*24*60*60;
             const recentPosts = p.notes?.filter(n => n.created_at > tenDaysAgo).length || 0;
 
-            if (activityLevel === 'high' && recentPosts < 5) penalty += 15;
-            else if (activityLevel === 'medium' && recentPosts < 2) penalty += 10;
-            else if (activityLevel === 'low' && recentPosts < 1) penalty += 5;
+            // Hard filter: if user wants active people, exclude those who don't meet the bar
+            if (activityLevel === 'high' && recentPosts < 5) return null;
+            else if (activityLevel === 'medium' && recentPosts < 2) return null;
+            else if (activityLevel === 'low' && recentPosts < 1) return null;
         }
 
         // ---- APPLY PENALTY (minimum score 1) ----
