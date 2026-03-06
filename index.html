@@ -1791,8 +1791,6 @@
         }
 
         .image-modal-close {
-            grid-area: caption;
-            justify-self: end;
             position: absolute;
             top: -40px;
             right: 0;
@@ -3645,36 +3643,61 @@ async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = fa
             console.log('Searching for #' + tag);
             
             try {
-                // Build query - use time filter only if not allTime mode
-                const query = {
-                    kinds: [1],
-                    '#t': [tag.toLowerCase()],
-                    limit: 200 // Increased from 100 for better discovery
-                };
-                
-                // Only add time filter if NOT in allTime mode
-                if (!allTime) {
-                    const thirtyDaysAgo = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
-                    query.since = thirtyDaysAgo;
+                // Paginated fetch — go back up to 1 year, pull up to 2000 events per tag
+                const MAX_PAGES = 4;
+                const PAGE_SIZE = 500;
+                let until = undefined;
+                let totalForTag = 0;
+
+                // Default to 1 year lookback, or no limit for allTime
+                const sinceTime = allTime ? undefined : Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+
+                for (let page = 0; page < MAX_PAGES; page++) {
+                    if (session !== modeSessionId) return [];
+
+                    const query = {
+                        kinds: [1],
+                        '#t': [tag.toLowerCase()],
+                        limit: PAGE_SIZE
+                    };
+                    if (sinceTime) query.since = sinceTime;
+                    if (until !== undefined) query.until = until;
+
+                    if (page === 0) {
+                        console.log(`📋 Query filter:`, query);
+                        console.log(`📡 Querying ${RELAYS.length} relays...`);
+                    }
+
+                    const events = await pool.querySync(RELAYS, query);
+                    
+                    if (!events || events.length === 0) break;
+                    totalForTag += events.length;
+
+                    // Count users by how many matching posts they have
+                    events.forEach(event => {
+                        const count = userCandidates.get(event.pubkey) || 0;
+                        userCandidates.set(event.pubkey, count + 1);
+                    });
+
+                    // Find oldest timestamp for next page cursor
+                    let oldest = Infinity;
+                    for (const ev of events) {
+                        if (ev.created_at < oldest) oldest = ev.created_at;
+                    }
+                    until = oldest - 1;
+
+                    // Partial page = relay is drained
+                    if (events.length < PAGE_SIZE) break;
+
+                    await new Promise(r => setTimeout(r, 200));
                 }
-                
-                console.log(`📋 Query filter:`, query);
-                console.log(`📡 Querying ${RELAYS.length} relays...`);
-                
-                const events = await pool.querySync(RELAYS, query);
-                
-                console.log(`Found ${events.length} posts for #${tag}`);
-                
-                // Count users by how many matching posts they have
-                events.forEach(event => {
-                    const count = userCandidates.get(event.pubkey) || 0;
-                    userCandidates.set(event.pubkey, count + 1);
-                });
+
+                console.log(`Found ${totalForTag} total posts for #${tag} from ${userCandidates.size} unique users`);
             } catch (err) {
                 console.error(`❌ Error searching for #${tag}:`, err.message, err);
             }
 
-            // Check session after each iteration
+            // Check session after each tag
             if (session !== modeSessionId) return [];
             
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -5320,6 +5343,19 @@ if (recentActivityOnly) {
 
     document.getElementById('npub-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') document.getElementById('find-btn').click();
+    });
+
+    // Global Enter key triggers Discover — but not when typing in inputs
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const active = document.activeElement;
+        const tag = active ? active.tagName : '';
+        // Skip if focused on any input, textarea, select, or button
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+        // Skip if inside a modal
+        if (active && active.closest('.nsec-modal, .image-modal, #npub-login-modal')) return;
+        const findBtn = document.getElementById('find-btn');
+        if (findBtn && !findBtn.disabled) findBtn.click();
     });
 
     window.copyNpub = (npub) => {
