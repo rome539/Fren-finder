@@ -1135,43 +1135,117 @@
             border-color: var(--accent-info);
         }
 
+        .cross-ref-loading {
+            display: none;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0.75rem;
+            padding: 0.6rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .cross-ref-loading.visible {
+            display: flex;
+        }
+        .cross-ref-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-info);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .cross-ref-error {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(200, 78, 58, 0.08);
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--accent-primary);
+        }
+        .cross-ref-error.visible {
+            display: block;
+        }
+
         .comparison-results {
-            margin-top: 2rem;
+            margin-top: 1rem;
             display: none;
         }
 
         .comparison-results.visible {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
         }
 
         .comparison-category {
             background: var(--bg-primary);
             border: 2px solid var(--border-color);
             border-radius: 0.75rem;
-            padding: 1.5rem;
+            padding: 1rem;
+            text-align: center;
         }
 
         .comparison-category h4 {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
+            font-size: 0.65rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             color: var(--accent-info);
         }
 
         .comparison-count {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             color: var(--text-primary);
         }
 
         .comparison-desc {
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        /* Compare button */
+        .btn-compare {
+            display: none;
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            border: none;
+            background: var(--accent-info);
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-compare.visible {
+            display: block;
+        }
+        .btn-compare:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(58, 110, 165, 0.3);
+        }
+        .btn-compare:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .login-dropdown {
@@ -1573,6 +1647,23 @@
                 flex: 1;
                 min-width: 0;
             }
+            .comparison-results.visible {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.5rem;
+            }
+            .comparison-category {
+                padding: 0.75rem 0.5rem;
+            }
+            .comparison-category h4 {
+                font-size: 0.55rem;
+                margin-bottom: 0.35rem;
+            }
+            .comparison-count {
+                font-size: 1.2rem;
+            }
+            .comparison-desc {
+                font-size: 0.6rem;
+            }
 
             /* --- Results header --- */
             .results-header h2 {
@@ -1601,6 +1692,66 @@
             .discovery-mode {
                 grid-template-columns: repeat(2, 1fr);
             }
+        }
+
+        /* Star Rating Styles */
+        .star-rating {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.85rem;
+        }
+        .star-rating .stars {
+            letter-spacing: 1px;
+            white-space: nowrap;
+            font-size: 0.85rem;
+        }
+        .star-rating .star {
+            color: var(--border-color);
+        }
+        .star-rating .star.filled {
+            color: #e8c46c;
+        }
+        .star-rating .rating-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            margin-left: 0.2rem;
+        }
+        .star-rating.loading .stars {
+            opacity: 0.3;
+            animation: pulse-stars 1.2s ease-in-out infinite;
+        }
+        @keyframes pulse-stars {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+        .fren-header .star-rating {
+            margin-top: 0.25rem;
+        }
+
+        /* Modal star rating */
+        .image-modal-rating {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .image-modal-rating .stars {
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+        }
+        .image-modal-rating .star {
+            color: rgba(255,255,255,0.25);
+        }
+        .image-modal-rating .star.filled {
+            color: #e8c46c;
+        }
+        .image-modal-rating .rating-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
         }
 
         /* Image Modal Styles */
@@ -1763,10 +1914,7 @@
                 </div>
 
                 <section class="search-section">
-                <div class="input-group">
-                    <label for="npub-input">Your Nostr Public Key</label>
-                    <input type="text" id="npub-input" placeholder="npub1... (or click Login)">
-                </div>
+                <input type="hidden" id="npub-input" value="">
 
                 <div class="cross-reference-container">
                     <div class="cross-ref-toggle">
@@ -1782,12 +1930,19 @@
                            class="cross-ref-input" 
                            id="cross-ref-input" 
                            placeholder="Enter another npub to compare networks">
+                    <button class="btn-compare" id="cross-ref-compare-btn">Compare Networks</button>
                     
+                    <div class="cross-ref-loading" id="cross-ref-loading">
+                        <div class="cross-ref-spinner"></div>
+                        <span>Fetching follow lists…</span>
+                    </div>
+                    <div class="cross-ref-error" id="cross-ref-error"></div>
+
                     <div class="comparison-results" id="comparison-results">
                         <div class="comparison-category">
-                            <h4>You Follow</h4>
+                            <h4>You Only</h4>
                             <div class="comparison-count" id="you-only-count">0</div>
-                            <div class="comparison-desc">Accounts only you follow</div>
+                            <div class="comparison-desc" id="you-only-total">Unique to you</div>
                         </div>
                         <div class="comparison-category">
                             <h4>Both Follow</h4>
@@ -1795,9 +1950,9 @@
                             <div class="comparison-desc">Shared connections</div>
                         </div>
                         <div class="comparison-category">
-                            <h4>They Follow</h4>
+                            <h4>They Only</h4>
                             <div class="comparison-count" id="them-only-count">0</div>
-                            <div class="comparison-desc">Accounts only they follow</div>
+                            <div class="comparison-desc" id="them-only-total">Unique to them</div>
                         </div>
                     </div>
                 </div>
@@ -1977,6 +2132,37 @@
             </div>
         </div>
 
+        <!-- Npub View-Only Login Modal -->
+        <div class="nsec-modal" id="npub-login-modal">
+            <div class="nsec-modal-content">
+                <div class="nsec-modal-header">
+                    <h3>View Only Login</h3>
+                    <button class="nsec-close" id="npub-modal-close">×</button>
+                </div>
+                
+                <div style="background:rgba(58,110,165,0.1);border:2px solid var(--accent-info);border-radius:0.5rem;padding:1rem;margin-bottom:1.5rem;color:var(--text-primary);font-size:0.9rem;line-height:1.6;">
+                    <strong style="color:var(--accent-info);display:block;margin-bottom:0.5rem;">Browse-only mode</strong>
+                    Enter your npub to discover frens based on your profile and network.<br>
+                    You won't be able to follow users or sign events in this mode.
+                </div>
+
+                <div class="nsec-input-group">
+                    <label for="npub-login-field">Enter your npub public key</label>
+                    <input type="text" 
+                           class="nsec-input" 
+                           id="npub-login-field" 
+                           placeholder="npub1..."
+                           autocomplete="off"
+                           spellcheck="false">
+                </div>
+
+                <div class="nsec-actions">
+                    <button class="nsec-btn nsec-btn-secondary" id="npub-modal-cancel">Cancel</button>
+                    <button class="nsec-btn" id="npub-modal-login" style="background:var(--accent-info);color:#fff;">View Profile</button>
+                </div>
+            </div>
+        </div>
+
         <footer>
   <p>
     Fren Finder – Advanced Discovery for Nostr ·
@@ -2110,6 +2296,110 @@ document.addEventListener('visibilitychange', function() {
         }
     }
 });
+
+// =============================================================================
+// KIND 38383 REVIEW RATING SYSTEM
+// =============================================================================
+const REVIEW_KIND = 38383;
+const REVIEW_RELAYS = [
+    'wss://relay.primal.net',
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://nostr.land',
+    'wss://relay.nostrplebs.com',
+    'wss://relay.mostr.pub',
+];
+const reviewCache = new Map(); // pubkey -> { avgRating, count }
+const reviewFetchPromises = new Map(); // pubkey -> Promise (dedup in-flight)
+
+function generateStarsHtml(rating, size) {
+    let html = '<span class="stars" style="font-size:' + (size || '0.85rem') + '">';
+    for (let i = 1; i <= 5; i++) {
+        html += '<span class="star ' + (i <= Math.round(rating) ? 'filled' : '') + '">&#9733;</span>';
+    }
+    return html + '</span>';
+}
+
+function ratingHtml(avgRating, count, size) {
+    if (count === 0) return '<span class="rating-text">No ratings yet</span>';
+    return generateStarsHtml(avgRating, size) +
+        '<span class="rating-text">' + parseFloat(avgRating).toFixed(1) + ' (' + count + ')</span>';
+}
+
+async function fetchReviewsForPubkey(pubkey) {
+    // Return cached
+    if (reviewCache.has(pubkey)) return reviewCache.get(pubkey);
+    // Dedup in-flight
+    if (reviewFetchPromises.has(pubkey)) return reviewFetchPromises.get(pubkey);
+
+    const p = window._nostrPool;
+    if (!p) {
+        console.warn('fetchReviewsForPubkey: pool not ready');
+        return { avgRating: 0, count: 0 };
+    }
+
+    const promise = (async () => {
+        try {
+            console.log(`⭐ Fetching kind ${REVIEW_KIND} reviews for ${pubkey.slice(0,8)}...`);
+            const events = await p.querySync(REVIEW_RELAYS, {
+                kinds: [REVIEW_KIND],
+                '#p': [pubkey],
+            });
+            console.log(`⭐ Got ${events.length} raw review events for ${pubkey.slice(0,8)}`);
+
+            // Deduplicate: keep newest per author+d-tag
+            const deduped = new Map();
+            for (const ev of events) {
+                const dTag = ev.tags.find(t => t[0] === 'd')?.[1] || '';
+                const key = ev.pubkey + ':' + dTag;
+                const existing = deduped.get(key);
+                if (!existing || ev.created_at > existing.created_at) {
+                    deduped.set(key, ev);
+                }
+            }
+
+            let total = 0, count = 0;
+            for (const ev of deduped.values()) {
+                const rTag = ev.tags.find(t => t[0] === 'rating');
+                const r = rTag ? parseInt(rTag[1]) : 0;
+                if (r >= 1 && r <= 5) { total += r; count++; }
+            }
+
+            console.log(`⭐ ${pubkey.slice(0,8)}: ${count} valid ratings, avg=${count > 0 ? (total/count).toFixed(1) : 'n/a'}`);
+
+            const result = {
+                avgRating: count > 0 ? (total / count).toFixed(1) : 0,
+                count: count
+            };
+            reviewCache.set(pubkey, result);
+            return result;
+        } catch (err) {
+            console.warn('fetchReviews error for', pubkey.slice(0,8), err);
+            const fallback = { avgRating: 0, count: 0 };
+            reviewCache.set(pubkey, fallback);
+            return fallback;
+        } finally {
+            reviewFetchPromises.delete(pubkey);
+        }
+    })();
+
+    reviewFetchPromises.set(pubkey, promise);
+    return promise;
+}
+
+// Batch fetch reviews for an array of pubkeys and update their card elements
+async function loadRatingsForCards(pubkeys) {
+    const tasks = pubkeys.map(async (pubkey) => {
+        const data = await fetchReviewsForPubkey(pubkey);
+        // Update card rating placeholder
+        const el = document.querySelector('[data-rating-pubkey="' + pubkey + '"]');
+        if (el) {
+            el.classList.remove('loading');
+            el.innerHTML = ratingHtml(data.avgRating, data.count);
+        }
+    });
+    await Promise.allSettled(tasks);
+}
 
 // Only reset pool on page load
 window.addEventListener('load', async function() {
@@ -2395,40 +2685,90 @@ document.querySelectorAll('.mode-card').forEach(card => {
     document.getElementById('enable-cross-ref').addEventListener('change', function() {
         crossRefEnabled = this.checked;
         const crossRefInput = document.getElementById('cross-ref-input');
+        const compareBtn = document.getElementById('cross-ref-compare-btn');
         const comparisonResults = document.getElementById('comparison-results');
+        const loadingEl = document.getElementById('cross-ref-loading');
+        const errorEl = document.getElementById('cross-ref-error');
         
         if (crossRefEnabled) {
             crossRefInput.classList.add('visible');
         } else {
             crossRefInput.classList.remove('visible');
+            compareBtn.classList.remove('visible');
             comparisonResults.classList.remove('visible');
+            loadingEl.classList.remove('visible');
+            errorEl.classList.remove('visible');
             crossRefData = null;
         }
     });
 
-    document.getElementById('cross-ref-input').addEventListener('blur', async function() {
-        const crossRefNpub = this.value.trim();
-        
-        if (!crossRefNpub || !crossRefNpub.startsWith('npub1')) return;
+    // Show/hide compare button based on input content
+    document.getElementById('cross-ref-input').addEventListener('input', function() {
+        const btn = document.getElementById('cross-ref-compare-btn');
+        if (this.value.trim().startsWith('npub1')) {
+            btn.classList.add('visible');
+        } else {
+            btn.classList.remove('visible');
+        }
+    });
 
-        // Get main user pubkey — either from logged-in user or from npub input
+    // Enter key triggers compare
+    document.getElementById('cross-ref-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('cross-ref-compare-btn').click();
+        }
+    });
+
+    // Compare button click handler
+    document.getElementById('cross-ref-compare-btn').addEventListener('click', async function() {
+        const crossRefNpub = document.getElementById('cross-ref-input').value.trim();
+        const loadingEl = document.getElementById('cross-ref-loading');
+        const errorEl = document.getElementById('cross-ref-error');
+        const comparisonResults = document.getElementById('comparison-results');
+        const compareBtn = this;
+
+        // Reset states
+        errorEl.classList.remove('visible');
+        errorEl.textContent = '';
+
+        if (!crossRefNpub || !crossRefNpub.startsWith('npub1')) {
+            errorEl.textContent = 'Enter a valid npub starting with npub1';
+            errorEl.classList.add('visible');
+            return;
+        }
+
+        // Get main user pubkey
         let mainPubkey;
         if (currentUser && currentUser.pubkey) {
             mainPubkey = currentUser.pubkey;
         } else {
             const mainNpub = document.getElementById('npub-input').value.trim();
             if (!mainNpub || !mainNpub.startsWith('npub1')) {
-                alert('Please enter your npub or login first');
+                errorEl.textContent = 'Please login first before using cross-reference';
+                errorEl.classList.add('visible');
                 return;
             }
             mainPubkey = nip19.decode(mainNpub).data;
         }
 
+        // Show loading, disable button
+        compareBtn.disabled = true;
+        compareBtn.textContent = 'Comparing…';
+        loadingEl.classList.add('visible');
+        comparisonResults.classList.remove('visible');
+
         try {
             const { data: crossPubkey } = nip19.decode(crossRefNpub);
 
-            const mainFollows = await fetchFollows(mainPubkey);
-            const crossFollows = await fetchFollows(crossPubkey);
+            // Clear cache to ensure fresh follow lists for accurate comparison
+            followsCache.delete(mainPubkey);
+            followsCache.delete(crossPubkey);
+
+            const [mainFollows, crossFollows] = await Promise.all([
+                fetchFollows(mainPubkey),
+                fetchFollows(crossPubkey)
+            ]);
 
             const mainSet = new Set(mainFollows);
             const crossSet = new Set(crossFollows);
@@ -2437,15 +2777,32 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const themOnly = crossFollows.filter(p => !mainSet.has(p));
             const mutual = mainFollows.filter(p => crossSet.has(p));
 
-            crossRefData = { youOnly, themOnly, mutual };
+            crossRefData = { youOnly, themOnly, mutual, crossPubkey };
+
+            console.log(`🔀 Cross-ref results:`);
+            console.log(`   Your total follows: ${mainFollows.length}`);
+            console.log(`   Their total follows: ${crossFollows.length}`);
+            console.log(`   You only: ${youOnly.length}, Both: ${mutual.length}, Them only: ${themOnly.length}`);
+            console.log(`   Check: ${youOnly.length} + ${mutual.length} = ${youOnly.length + mutual.length} (should equal ${mainFollows.length})`);
+            console.log(`   Check: ${themOnly.length} + ${mutual.length} = ${themOnly.length + mutual.length} (should equal ${crossFollows.length})`);
 
             document.getElementById('you-only-count').textContent = youOnly.length;
             document.getElementById('mutual-count').textContent = mutual.length;
             document.getElementById('them-only-count').textContent = themOnly.length;
-            document.getElementById('comparison-results').classList.add('visible');
+            
+            // Show totals for context
+            document.getElementById('you-only-total').textContent = `of ${mainFollows.length} total`;
+            document.getElementById('them-only-total').textContent = `of ${crossFollows.length} total`;
+
+            comparisonResults.classList.add('visible');
         } catch (err) {
             console.error('Cross-reference error:', err);
-            alert('Failed to analyze cross-reference');
+            errorEl.textContent = 'Failed to analyze — check the npub and try again';
+            errorEl.classList.add('visible');
+        } finally {
+            loadingEl.classList.remove('visible');
+            compareBtn.disabled = false;
+            compareBtn.textContent = 'Compare Networks';
         }
     });
 
@@ -2460,23 +2817,27 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const pubkey = await window.nostr.getPublicKey();
             const npub = nip19.npubEncode(pubkey);
             
-            // Clear cache to force fresh profile fetch
-            profileCache.delete(pubkey);
-            
-            console.log('Fetching profile for:', npub);
-            const profile = await fetchProfile(pubkey);
-            console.log('Profile loaded:', profile);
-            
-            currentUser = { pubkey, npub, profile, loginMethod: 'extension' };
-            
-            console.log('Fetching follows...');
-            const follows = await fetchFollows(pubkey);
-            console.log('Follows loaded:', follows.length);
-            
-            userFollowing = new Set(follows);
+            // Set user IMMEDIATELY so UI updates instantly
+            currentUser = { pubkey, npub, profile: {}, loginMethod: 'extension' };
             updateUserUI();
             document.getElementById('npub-input').value = npub;
-            document.getElementById('npub-input').disabled = true;
+
+            // Fetch profile + follows in background (non-blocking)
+            profileCache.delete(pubkey);
+            fetchProfile(pubkey).then(profile => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    currentUser.profile = profile;
+                    updateUserUI();
+                }
+            }).catch(err => console.warn('Background profile fetch:', err));
+
+            fetchFollows(pubkey).then(follows => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    userFollowing = new Set(follows);
+                    console.log('Follows loaded in background:', follows.length);
+                }
+            }).catch(err => console.warn('Background follows fetch:', err));
+
             return npub;
         } catch (err) {
             console.error('Login error:', err);
@@ -2498,6 +2859,73 @@ document.querySelectorAll('.mode-card').forEach(card => {
         const input = document.getElementById('nsec-input-field');
         input.value = '';
         modal.classList.remove('visible');
+    }
+
+    function showNpubLoginModal() {
+        const modal = document.getElementById('npub-login-modal');
+        const input = document.getElementById('npub-login-field');
+        input.value = '';
+        modal.classList.add('visible');
+        input.focus();
+    }
+
+    function hideNpubLoginModal() {
+        const modal = document.getElementById('npub-login-modal');
+        const input = document.getElementById('npub-login-field');
+        input.value = '';
+        modal.classList.remove('visible');
+    }
+
+    async function loginWithNpub() {
+        const input = document.getElementById('npub-login-field');
+        const npubString = input.value.trim();
+
+        if (!npubString) {
+            alert('Please enter your npub');
+            return null;
+        }
+
+        if (!npubString.startsWith('npub1')) {
+            alert('Invalid npub format. Must start with npub1');
+            input.value = '';
+            return null;
+        }
+
+        try {
+            const { data: pubkey } = nip19.decode(npubString);
+            if (!pubkey || pubkey.length !== 64) {
+                throw new Error('Invalid npub');
+            }
+
+            // Set user IMMEDIATELY so UI updates instantly
+            currentUser = { pubkey, npub: npubString, profile: {}, loginMethod: 'viewonly' };
+            updateUserUI();
+            document.getElementById('npub-input').value = npubString;
+            hideNpubLoginModal();
+
+            // Fetch profile + follows in background (non-blocking)
+            profileCache.delete(pubkey);
+            fetchProfile(pubkey).then(profile => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    currentUser.profile = profile;
+                    updateUserUI();
+                }
+            }).catch(err => console.warn('Background profile fetch:', err));
+
+            fetchFollows(pubkey).then(follows => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    userFollowing = new Set(follows);
+                    console.log('Follows loaded in background:', follows.length);
+                }
+            }).catch(err => console.warn('Background follows fetch:', err));
+
+            return npubString;
+        } catch (err) {
+            console.error('Npub login error:', err);
+            input.value = '';
+            alert('Failed to login with npub: ' + err.message);
+            return null;
+        }
     }
 
     async function loginWithNsec() {
@@ -2527,34 +2955,32 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const pubkey = NostrTools.getPublicKey(secretKey);
             const npub = nip19.npubEncode(pubkey);
             
-            // Store in secure key store instead of global variable
+            // Store in secure key store
             SecureKeyStore.set(secretKey);
             
-            // Clear cache to force fresh profile fetch
-            profileCache.delete(pubkey);
-            
-            console.log('Fetching profile for:', npub);
-            const profile = await fetchProfile(pubkey);
-            console.log('Profile loaded:', profile);
-            
-            currentUser = { pubkey, npub, profile, loginMethod: 'nsec' };
-            
-            console.log('Fetching follows...');
-            const follows = await fetchFollows(pubkey);
-            console.log('Follows loaded:', follows.length);
-            
-            userFollowing = new Set(follows);
-            
+            // Set user IMMEDIATELY so UI updates instantly
+            currentUser = { pubkey, npub, profile: {}, loginMethod: 'nsec' };
             updateUserUI();
             document.getElementById('npub-input').value = npub;
-            document.getElementById('npub-input').disabled = true;
-            
             document.getElementById('nsec-warning-banner').classList.add('visible');
-            
             hideNsecModal();
-            
-            // Start inactivity timer
             resetInactivityTimer();
+
+            // Fetch profile + follows in background (non-blocking)
+            profileCache.delete(pubkey);
+            fetchProfile(pubkey).then(profile => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    currentUser.profile = profile;
+                    updateUserUI();
+                }
+            }).catch(err => console.warn('Background profile fetch:', err));
+
+            fetchFollows(pubkey).then(follows => {
+                if (currentUser && currentUser.pubkey === pubkey) {
+                    userFollowing = new Set(follows);
+                    console.log('Follows loaded in background:', follows.length);
+                }
+            }).catch(err => console.warn('Background follows fetch:', err));
             
             console.log('Nsec login successful - key stored in memory only');
             return npub;
@@ -2645,12 +3071,15 @@ document.querySelectorAll('.mode-card').forEach(card => {
 
             const name = currentUser.profile?.name || 'Anon';
             const picture = currentUser.profile?.picture || `https://robohash.org/${currentUser.pubkey}?set=set5`;
+            const viewBadge = currentUser.loginMethod === 'viewonly'
+                ? '<span style="font-family:JetBrains Mono,monospace;font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-info);margin-left:0.25rem;">view</span>'
+                : '';
             
             userSection.innerHTML = `
                 <div class="user-info-combined" id="user-info-logout">
                     <img src="${picture}" class="user-avatar" onerror="this.src='https://robohash.org/${currentUser.pubkey}?set=set5'">
                     <div class="user-details">
-                        <span class="user-name">${name}</span>
+                        <span class="user-name">${name}${viewBadge}</span>
                         <span class="user-action">Logout</span>
                     </div>
                 </div>
@@ -2666,6 +3095,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
                     <div class="login-menu" id="login-menu">
                         <div class="login-option" id="extension-login">Extension Login</div>
                         <div class="login-option" id="nsec-login-option">Private Key (nsec)</div>
+                        <div class="login-option" id="npub-login-option" style="color:var(--accent-info)">View Only (npub)</div>
                     </div>
                 </div>
             `;
@@ -2686,6 +3116,11 @@ document.querySelectorAll('.mode-card').forEach(card => {
             document.getElementById('nsec-login-option').addEventListener('click', function() {
                 loginMenu.classList.remove('visible');
                 showNsecModal();
+            });
+
+            document.getElementById('npub-login-option').addEventListener('click', function() {
+                loginMenu.classList.remove('visible');
+                showNpubLoginModal();
             });
             
             document.addEventListener('click', function() {
@@ -3796,7 +4231,8 @@ async function discoverByNiche(userPubkey, userFollows, limit, session) {
         if (userFollows && candidateFollows) {
             const mutualFollows = candidateFollows.filter(f => userFollows.includes(f)).length;
             const followsYou = candidateFollows.includes(userProfile.pubkey);
-            scores.social = Math.min(100, (mutualFollows * 10) + (followsYou ? 20 : 0));
+            // 1 mutual = 20, 3 = 50, 5 = 70, 8+ = 100
+            scores.social = Math.min(100, (mutualFollows * 15) + (followsYou ? 25 : 0));
         }
 
         const userBioHashtags = (userProfile.about || '').match(/#\w+/gi) || [];
@@ -3828,11 +4264,13 @@ async function discoverByNiche(userPubkey, userFollows, limit, session) {
             if (allCandidateHashtags.has(myTag)) sharedHashtags++;
         });
 
-        scores.interests = Math.min(100, sharedHashtags * 25);
+        // 1 shared tag = 35, 2 = 65, 3+ = 100
+        scores.interests = Math.min(100, sharedHashtags * 35);
 
         if (candidateNotes && candidateNotes.length > 0) {
+            // ~1 post/day = 50, ~2/day = 75, 3+/day = 100
             const avgNotesPerDay = candidateNotes.length / 7;
-            scores.engagement = Math.min(100, avgNotesPerDay * 15);
+            scores.engagement = Math.min(100, avgNotesPerDay * 30);
         }
 
         const candidateBioTags = (candidateProfile.about || '').match(/#\w+/gi) || [];
@@ -4065,7 +4503,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
 }
 
     // Show image modal for expanded avatar view
-    function showImageModal(imageUrl, name, bio = '') {
+    function showImageModal(imageUrl, name, bio = '', pubkey = '') {
         // Create modal if it doesn't exist
         let modal = document.getElementById('image-modal');
         if (!modal) {
@@ -4080,6 +4518,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
                         <img class="image-modal-img" src="" alt="">
                     </div>
                     <div class="image-modal-caption"></div>
+                    <div class="image-modal-rating"></div>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -4133,6 +4572,19 @@ console.log('User follows (locked snapshot):', userFollows.length);
         bioDiv.innerHTML = bio ? `<p>${escapeHtml(bio)}</p>` : '<p class="no-bio">No bio available</p>';
         
         modal.style.display = 'flex';
+
+        // Load and display rating in modal
+        const ratingDiv = modal.querySelector('.image-modal-rating');
+        if (ratingDiv) {
+            if (pubkey) {
+                ratingDiv.innerHTML = '<span class="rating-text" style="color:rgba(255,255,255,0.4)">Loading rating...</span>';
+                fetchReviewsForPubkey(pubkey).then(data => {
+                    ratingDiv.innerHTML = ratingHtml(data.avgRating, data.count, '1.3rem');
+                });
+            } else {
+                ratingDiv.innerHTML = '';
+            }
+        }
     }
 
     function createProfileCard(fren) {
@@ -4252,6 +4704,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
                     <div class="fren-name">${name}</div>
                     <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,12)}...${fren.npub.substring(fren.npub.length - 6)}</div>
                     ${nip05Display}
+                    <div class="star-rating loading" data-rating-pubkey="${fren.pubkey}">${generateStarsHtml(0)}<span class="rating-text">...</span></div>
                 </div>
                 <div class="match-score">${fren.scores.total}%</div>
             </div>
@@ -4265,7 +4718,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
             <div class="fren-actions">
                 <button class="btn-follow ${fren.isFollowing ? 'following' : ''}" 
                         data-pubkey="${fren.pubkey}"
-                        ${!currentUser ? 'disabled' : ''}>
+                        ${!currentUser || currentUser.loginMethod === 'viewonly' ? 'disabled' : ''}>
                     ${fren.isFollowing ? 'Following' : 'Follow'}
                 </button>
                 <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
@@ -4293,7 +4746,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
         avatar.style.cursor = 'pointer';
         avatar.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImageModal(picture, name, fren.about || '');
+            showImageModal(picture, name, fren.about || '', fren.pubkey);
         });
 
         return card;
@@ -4307,6 +4760,10 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
             const card = createProfileCard(fren);
             resultsGrid.appendChild(card);
         });
+
+        // Fetch kind 38383 ratings in the background and update cards
+        const pubkeys = profiles.map(p => p.pubkey);
+        loadRatingsForCards(pubkeys);
     }
 
     // Main search
@@ -4318,7 +4775,7 @@ document.getElementById('find-btn').addEventListener('click', async () => {
     
     // VALIDATION CHECKS - Do these FIRST before any async work
     if (!currentUser && !document.getElementById('npub-input').value.trim()) {
-        alert('Please enter your npub or login');
+        alert('Please login first using the Login button');
         return;
     }
 
@@ -4362,7 +4819,9 @@ document.getElementById('find-btn').addEventListener('click', async () => {
         '.cross-ref-toggle',
         '#hashtag-input',
         '.popular-tag',
-        '#npub-input'
+        '#npub-input',
+        '#cross-ref-input',
+        '#cross-ref-compare-btn'
     ].forEach(sel => {
         document.querySelectorAll(sel).forEach(el => {
             el.style.pointerEvents = 'none';
@@ -4424,10 +4883,17 @@ followingSection.style.display = 'none';
 followingGrid.innerHTML = '';
 
         try {
-            const userProfile = await fetchProfile(userPubkey, thisSession);
+            let userProfile = await fetchProfile(userPubkey, thisSession);
 if (!userProfile || !userProfile.pubkey) {
-    console.warn('⚠️ User profile missing or stale — aborting search');
-    return;
+    console.warn('⚠️ User profile missing on first try — retrying without session...');
+    // Retry without session lock (background login may have cached it by now)
+    profileCache.delete(userPubkey);
+    userProfile = await fetchProfile(userPubkey);
+}
+if (!userProfile || !userProfile.pubkey) {
+    // Still no profile — create a minimal one so discovery can proceed
+    console.warn('⚠️ Creating minimal profile for discovery');
+    userProfile = { pubkey: userPubkey, name: '', about: '', picture: '', hasMetadata: false, status: 'missing' };
 }
 
 const userFollows = await fetchFollows(userPubkey);
@@ -4473,20 +4939,8 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     } else {
         window._nicheModeFellBack = false;
     }
-} else if (crossRefEnabled && crossRefData) {
-    // Cross-ref in social mode: use cross-ref candidates as the pool
-    const allCandidates = [
-        ...crossRefData.youOnly,
-        ...crossRefData.themOnly,
-        ...crossRefData.mutual
-    ];
-    
-    candidatePubkeys = Array.from(new Set(allCandidates))
-        .slice(0, resultCount * 2);
-    
-    resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Comparing networks...</p>';
 } else {
-    // Social mode (default)
+    // Social mode (default) — runs the same whether cross-ref is on or off
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing your network...</p>';
     candidatePubkeys = await getRecommendations(
     userPubkey,
@@ -4496,21 +4950,6 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 );
 }
 
-// FIX: If cross-ref is enabled in a non-social mode, merge cross-ref candidates into results
-if (crossRefEnabled && crossRefData && discoveryMode !== 'social') {
-    const crossRefPubkeys = new Set([
-        ...crossRefData.youOnly,
-        ...crossRefData.themOnly,
-        ...crossRefData.mutual
-    ]);
-    // Add cross-ref candidates that aren't already in the list
-    const existingSet = new Set(candidatePubkeys);
-    const newFromCrossRef = [...crossRefPubkeys].filter(pk => !existingSet.has(pk));
-    if (newFromCrossRef.length > 0) {
-        console.log(`🔀 Cross-ref: Adding ${newFromCrossRef.length} additional candidates from network comparison`);
-        candidatePubkeys = [...candidatePubkeys, ...newFromCrossRef];
-    }
-}
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Fetching profiles and activity...</p>';
 
@@ -4582,16 +5021,20 @@ const allNotes = candidatePubkeys.map(pk => notesByKey.get(pk) || []);
 const withNotes = allNotes.filter(n => n && n.length > 0).length;
 console.log(`Notes: ${withNotes}/${candidatePubkeys.length} have notes`);
 
-// Skip follows fetch — candidates are already from the social graph.
-// Min Network Size filter will be skipped when follows aren't available.
-const allFollows = candidatePubkeys.map(() => []);
+// 3. FOLLOWS — fetch candidate follow lists for mutual count and social scoring
+resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing social connections...</p>';
+console.log(`📊 Fetching follows for ${candidatePubkeys.length} candidates...`);
+
+const allFollows = await fetchFollowsBatch(candidatePubkeys);
+const withFollows = allFollows.filter(f => f && f.length > 0).length;
+console.log(`Follows: ${withFollows}/${candidatePubkeys.length} have follow lists`);
 
 // Build lookup maps
 const profileByKey = new Map();
 allProfiles.forEach(p => { if (p && p.pubkey) profileByKey.set(p.pubkey, p); });
 
 const followsByKey = new Map();
-candidatePubkeys.forEach((pk, i) => { followsByKey.set(pk, []); });
+candidatePubkeys.forEach((pk, i) => { followsByKey.set(pk, allFollows[i] || []); });
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
@@ -4772,28 +5215,13 @@ if (recentActivityOnly) {
 
             // Compute min/max raw scores across the result set
             if (scoredProfiles.length > 0) {
-                const rawScores = scoredProfiles.map(p => p.scores.total);
-                const maxRaw = Math.max(...rawScores);
-                const minRaw = Math.min(...rawScores);
-                const range = maxRaw - minRaw;
-
-                // Map range: best raw → 95%, worst raw → 40%
-                // If all scores are identical, everyone gets 72%
-                const DISPLAY_MIN = 40;
-                const DISPLAY_MAX = 95;
-
+                // Each sub-score (social, interests, engagement, niche, hashtag) maxes at 100.
+                // The weighted total therefore also maxes at 100.
+                // Display the raw score directly as a percentage — no inflation.
+                // Apply a small floor so nobody shows 0% (they made it past filters).
                 scoredProfiles.forEach(p => {
-                    let displayPercent;
-                    if (range === 0) {
-                        displayPercent = Math.round((DISPLAY_MIN + DISPLAY_MAX) / 2);
-                    } else {
-                        const normalized = (p.scores.total - minRaw) / range; // 0..1
-                        // Apply a slight curve so mid-range scores bunch more naturally
-                        const curved = Math.pow(normalized, 0.8);
-                        displayPercent = Math.round(DISPLAY_MIN + curved * (DISPLAY_MAX - DISPLAY_MIN));
-                    }
                     p.scores.rawTotal = p.scores.total;
-                    p.scores.total = displayPercent;
+                    p.scores.total = Math.max(5, Math.round(p.scores.total));
                 });
             }
 
@@ -4847,6 +5275,8 @@ if (recentActivityOnly) {
                     const card = createProfileCard(fren);
                     followingGrid.appendChild(card);
                 });
+                // Load ratings for following cards too
+                loadRatingsForCards(followingProfiles.map(p => p.pubkey));
             } else {
                 followingSection.style.display = 'none';
                 followingGrid.innerHTML = '';
@@ -4873,7 +5303,9 @@ if (recentActivityOnly) {
     '.cross-ref-toggle',
     '#hashtag-input',
     '.popular-tag',
-    '#npub-input'
+    '#npub-input',
+    '#cross-ref-input',
+    '#cross-ref-compare-btn'
 ].forEach(sel => {
     document.querySelectorAll(sel).forEach(el => {
         el.style.pointerEvents = 'auto';
@@ -4926,6 +5358,23 @@ if (recentActivityOnly) {
     document.getElementById('nsec-modal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideNsecModal();
+        }
+    });
+
+    // Npub login modal event listeners
+    document.getElementById('npub-modal-close').addEventListener('click', hideNpubLoginModal);
+    document.getElementById('npub-modal-cancel').addEventListener('click', hideNpubLoginModal);
+    document.getElementById('npub-modal-login').addEventListener('click', loginWithNpub);
+    
+    document.getElementById('npub-login-field').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            loginWithNpub();
+        }
+    });
+    
+    document.getElementById('npub-login-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideNpubLoginModal();
         }
     });
 
