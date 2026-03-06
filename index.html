@@ -1778,22 +1778,53 @@
             position: relative;
             max-width: 90%;
             max-height: 90%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+                "caption caption"
+                "bio img"
+                "rating rating";
+            gap: 1rem;
+            align-items: start;
+            max-width: 1000px;
         }
 
-        .image-modal-body {
-            display: flex;
-            gap: 2rem;
-            align-items: flex-start;
-            max-width: 1200px;
-            width: 100%;
-            overflow: hidden;
+        .image-modal-close {
+            grid-area: caption;
+            justify-self: end;
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: var(--transition);
+            z-index: 10;
+        }
+
+        .image-modal-caption {
+            grid-area: caption;
+            color: #fff;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1.4rem;
+            margin: 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .image-modal-img {
+            grid-area: img;
+            width: 400px;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .image-modal-bio {
-            flex: 1;
+            grid-area: bio;
             color: #fff;
             font-family: 'Crimson Pro', serif;
             font-size: 1.1rem;
@@ -1801,11 +1832,8 @@
             padding: 1rem;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 1rem;
-            max-height: 80vh;
+            max-height: 400px;
             overflow-y: auto;
-            overflow-x: hidden;
-            min-width: 0;
-            max-width: 100%;
             word-break: break-word;
             overflow-wrap: break-word;
         }
@@ -1823,65 +1851,44 @@
             font-style: italic;
         }
 
-        .image-modal-img {
-            width: 400px;
-            height: 400px;
-            object-fit: cover;
-            border-radius: 1rem;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            flex-shrink: 0;
+        .image-modal-rating {
+            grid-area: rating;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
         }
 
+        /* Mobile: single column, reordered */
         @media (max-width: 768px) {
-            .image-modal-body {
-                flex-direction: column-reverse;
-                align-items: center;
-                width: 100%;
-                max-width: 100%;
-                overflow: hidden;
-            }
-
-            .image-modal-img {
-                width: 250px;
-                height: 250px;
-            }
-
-            .image-modal-bio {
-                max-height: 35vh;
-                width: 100%;
-                max-width: 100%;
-                font-size: 1rem;
-                box-sizing: border-box;
-            }
-
             .image-modal-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
                 max-width: 95%;
-                padding: 0 0.5rem;
+                max-height: 95vh;
+                overflow-y: auto;
+                padding: 0 0.5rem 1rem;
             }
-        }
 
-        .image-modal-close {
-            position: absolute;
-            top: -40px;
-            right: 0;
-            color: #fff;
-            font-size: 40px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: var(--transition);
+            .image-modal-close {
+                position: static;
+                align-self: flex-end;
+                font-size: 32px;
+                padding: 0 0.25rem;
+                margin-bottom: -0.5rem;
+                order: 0;
+            }
+
+            .image-modal-caption { order: 1; margin-bottom: 0.5rem; }
+            .image-modal-img { order: 2; width: 200px; height: 200px; }
+            .image-modal-rating { order: 3; padding: 0.5rem 0; }
+            .image-modal-bio { order: 4; max-height: 25vh; width: 100%; font-size: 0.95rem; }
         }
 
         .image-modal-close:hover {
             color: var(--accent-primary);
-        }
-
-        .image-modal-caption {
-            color: #fff;
-            font-family: 'Crimson Pro', serif;
-            font-size: 1.2rem;
-            margin-top: 1rem;
-            text-align: center;
-            font-weight: 600;
         }
     </style>
 </head>
@@ -4513,11 +4520,9 @@ console.log('User follows (locked snapshot):', userFollows.length);
             modal.innerHTML = `
                 <div class="image-modal-content">
                     <span class="image-modal-close">&times;</span>
-                    <div class="image-modal-body">
-                        <div class="image-modal-bio"></div>
-                        <img class="image-modal-img" src="" alt="">
-                    </div>
                     <div class="image-modal-caption"></div>
+                    <img class="image-modal-img" src="" alt="">
+                    <div class="image-modal-bio"></div>
                     <div class="image-modal-rating"></div>
                 </div>
             `;
@@ -4535,9 +4540,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
                 // 3. Anywhere in the content area that's not the image or bio
                 if (e.target === modal || 
                     e.target.classList.contains('image-modal-close') ||
-                    e.target === modalContent ||
-                    e.target.classList.contains('image-modal-body') ||
-                    e.target.classList.contains('image-modal-caption')) {
+                    e.target === modalContent) {
                     modal.style.display = 'none';
                 }
             });
