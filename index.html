@@ -1780,10 +1780,10 @@
             max-height: 90%;
             display: grid;
             grid-template-columns: 1fr auto;
-            grid-template-rows: auto 1fr auto;
+            grid-template-rows: 1fr auto auto;
             grid-template-areas:
-                "caption caption"
                 "bio img"
+                "caption caption"
                 "rating rating";
             gap: 1rem;
             align-items: start;
@@ -1879,9 +1879,9 @@
                 order: 0;
             }
 
-            .image-modal-caption { order: 1; margin-bottom: 0.5rem; }
-            .image-modal-img { order: 2; width: 200px; height: 200px; }
-            .image-modal-rating { order: 3; padding: 0.5rem 0; }
+            .image-modal-img { order: 1; width: 200px; height: 200px; }
+            .image-modal-caption { order: 2; margin: 0.5rem 0 0.25rem; }
+            .image-modal-rating { order: 3; padding: 0.25rem 0; }
             .image-modal-bio { order: 4; max-height: 25vh; width: 100%; font-size: 0.95rem; }
         }
 
@@ -2593,6 +2593,16 @@ document.querySelectorAll('.mode-card').forEach(card => {
         document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
         this.classList.add('active');
         discoveryMode = this.dataset.mode;
+
+        // Disable 51 profiles for interests/niche — too heavy on relays
+        const option51 = document.querySelector('#result-count option[value="51"]');
+        const resultSelect = document.getElementById('result-count');
+        if (discoveryMode === 'interests' || discoveryMode === 'niche') {
+            option51.disabled = true;
+            if (resultSelect.value === '51') resultSelect.value = '27';
+        } else {
+            option51.disabled = false;
+        }
 
         // Show hashtag input only when needed
         const hashtagSearch = document.getElementById('hashtag-search');
@@ -4515,27 +4525,16 @@ console.log('User follows (locked snapshot):', userFollows.length);
         .sort((a, b) => b[1] - a[1])
         .map(([pubkey]) => pubkey);
     
-    // Cap at 1000 with true random sampling (Fisher-Yates shuffle)
-    let pool = sortedCandidates;
-    if (pool.length > 1000) {
-        // Fisher-Yates shuffle for unbiased randomness
-        for (let i = pool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        pool = pool.slice(0, 1000);
-    } else {
-        // Still shuffle for variety
-        for (let i = pool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
+    // Fisher-Yates shuffle for truly random variety each search
+    for (let i = sortedCandidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [sortedCandidates[i], sortedCandidates[j]] = [sortedCandidates[j], sortedCandidates[i]];
     }
     
-    console.log('Generated', sortedCandidates.length, 'candidates, sampled', pool.length);
+    console.log('Generated', sortedCandidates.length, 'candidates');
     
     if (session !== modeSessionId) return [];
-    return pool.slice(0, limit * 3);
+    return sortedCandidates.slice(0, limit * 3);
 }
 
     // Show image modal for expanded avatar view
@@ -4940,11 +4939,12 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Searching posts for matching hashtags...</p>';
     candidatePubkeys = await searchUsersByHashtags(selectedHashtags, resultCount * 2, thisSession);
 } else if (discoveryMode === 'interests') {
+    const interestsLimit = Math.min(resultCount, 27);
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Finding friends-of-friends who share your interests...</p>';
     candidatePubkeys = await discoverByInterests(
     userPubkey,
     userFollows,
-    resultCount,
+    interestsLimit,
     thisSession
 );
     
@@ -4953,11 +4953,12 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
         console.log('🔄 Interests mode returned 0 candidates, falling back to social discovery');
         
         resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">No interest matches, trying social network...</p>';
-        candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
+        candidatePubkeys = await getRecommendations(userPubkey, userFollows, interestsLimit, thisSession);
     }
 } else if (discoveryMode === 'niche') {
+    const nicheLimit = Math.min(resultCount, 27);
     resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Scanning your extended network for rare hashtag users...</p>';
-    candidatePubkeys = await discoverByNiche(userPubkey, userFollows, resultCount, thisSession);
+    candidatePubkeys = await discoverByNiche(userPubkey, userFollows, nicheLimit, thisSession);
     
     // Fallback to social if niche returns nothing
     if (candidatePubkeys.length === 0) {
@@ -4967,7 +4968,7 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
         window._nicheModeFellBack = true;
         
         resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Expanding search to social network...</p>';
-        candidatePubkeys = await getRecommendations(userPubkey, userFollows, resultCount, thisSession);
+        candidatePubkeys = await getRecommendations(userPubkey, userFollows, nicheLimit, thisSession);
     } else {
         window._nicheModeFellBack = false;
     }
@@ -5271,7 +5272,9 @@ if (recentActivityOnly) {
 
             scoredProfiles = scoredProfiles
                 .sort((a, b) => b.scores.total - a.scores.total)
-                .slice(0, parseInt(document.getElementById('result-count').value));
+                .slice(0, (discoveryMode === 'interests' || discoveryMode === 'niche')
+                    ? Math.min(27, parseInt(document.getElementById('result-count').value))
+                    : parseInt(document.getElementById('result-count').value));
 
             const hideFollowing = document.getElementById('hide-following').checked;
             
