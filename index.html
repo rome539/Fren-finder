@@ -3643,13 +3643,12 @@ async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = fa
             console.log('Searching for #' + tag);
             
             try {
-                // Paginated fetch — go back up to 1 year, pull up to 2000 events per tag
+                // Deep paginated fetch — 1 year lookback, up to 2000 events per tag
                 const MAX_PAGES = 4;
                 const PAGE_SIZE = 500;
                 let until = undefined;
                 let totalForTag = 0;
 
-                // Default to 1 year lookback, or no limit for allTime
                 const sinceTime = allTime ? undefined : Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
 
                 for (let page = 0; page < MAX_PAGES; page++) {
@@ -3673,22 +3672,18 @@ async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = fa
                     if (!events || events.length === 0) break;
                     totalForTag += events.length;
 
-                    // Count users by how many matching posts they have
                     events.forEach(event => {
                         const count = userCandidates.get(event.pubkey) || 0;
                         userCandidates.set(event.pubkey, count + 1);
                     });
 
-                    // Find oldest timestamp for next page cursor
                     let oldest = Infinity;
                     for (const ev of events) {
                         if (ev.created_at < oldest) oldest = ev.created_at;
                     }
                     until = oldest - 1;
 
-                    // Partial page = relay is drained
                     if (events.length < PAGE_SIZE) break;
-
                     await new Promise(r => setTimeout(r, 200));
                 }
 
@@ -3697,13 +3692,10 @@ async function searchUsersByHashtags(hashtags, limit = 50, session, allTime = fa
                 console.error(`❌ Error searching for #${tag}:`, err.message, err);
             }
 
-            // Check session after each tag
             if (session !== modeSessionId) return [];
-            
             await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        // Sort and filter
         const sortedUsers = Array.from(userCandidates.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, limit * 3);
@@ -4518,18 +4510,32 @@ console.log('User follows (locked snapshot):', userFollows.length);
         });
     });
 
-    // Sort candidates by connection count and add randomness
+    // Sort candidates by connection count
     const sortedCandidates = Array.from(candidateCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([pubkey]) => pubkey);
     
-    // Add some randomness to the results for variety
-    const shuffledCandidates = sortedCandidates.sort(() => Math.random() - 0.5);
+    // Cap at 1000 with true random sampling (Fisher-Yates shuffle)
+    let pool = sortedCandidates;
+    if (pool.length > 1000) {
+        // Fisher-Yates shuffle for unbiased randomness
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        pool = pool.slice(0, 1000);
+    } else {
+        // Still shuffle for variety
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+    }
     
-    console.log('Generated', shuffledCandidates.length, 'candidates');
+    console.log('Generated', sortedCandidates.length, 'candidates, sampled', pool.length);
     
     if (session !== modeSessionId) return [];
-    return shuffledCandidates.slice(0, limit * 3);
+    return pool.slice(0, limit * 3);
 }
 
     // Show image modal for expanded avatar view
@@ -5009,6 +5015,12 @@ const allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
 const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
 console.log(`Profiles with metadata: ${metaCount}/${allProfiles.length}`);
 
+// Reset pool before notes — profile fetches may have exhausted connections
+console.log('🔄 Resetting pool before notes fetch...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 800));
+await warmUpRelays();
+
 // 2. NOTES — bulk multi-author query
 console.log(`📊 Fetching notes for ${candidatePubkeys.length} candidates...`);
 const notesSince = (discoveryMode === 'hashtags')
@@ -5046,6 +5058,12 @@ for (let i = 0; i < candidatePubkeys.length; i += NOTE_BATCH) {
 const allNotes = candidatePubkeys.map(pk => notesByKey.get(pk) || []);
 const withNotes = allNotes.filter(n => n && n.length > 0).length;
 console.log(`Notes: ${withNotes}/${candidatePubkeys.length} have notes`);
+
+// Reset pool before follows — notes fetches may have exhausted connections
+console.log('🔄 Resetting pool before follows fetch...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 800));
+await warmUpRelays();
 
 // 3. FOLLOWS — fetch candidate follow lists for mutual count and social scoring
 resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing social connections...</p>';
