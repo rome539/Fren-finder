@@ -16,7 +16,7 @@
     frame-ancestors 'none';
     upgrade-insecure-requests;
 ">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>Fren Finder - Advanced Nostr Discovery</title>
@@ -1730,6 +1730,141 @@
             margin-top: 0.25rem;
         }
 
+        /* ── PubScore clickable rating ── */
+        .star-rating.clickable {
+            cursor: pointer;
+            border-radius: 0.4rem;
+            padding: 0.15rem 0.35rem;
+            margin: -0.15rem -0.35rem;
+            transition: background 0.15s ease;
+            position: relative;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .star-rating.clickable:hover {
+            background: rgba(232, 196, 108, 0.1);
+        }
+        .star-rating.clickable:active {
+            background: rgba(232, 196, 108, 0.18);
+        }
+
+        /* PubScore dropdown popup */
+        .pubscore-popup {
+            position: fixed;
+            z-index: 9999;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.6rem;
+            box-shadow: 0 8px 24px var(--shadow-color), 0 2px 8px rgba(0,0,0,0.08);
+            padding: 0.6rem 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(-4px);
+            animation: pubscorePopIn 0.18s ease-out forwards;
+            min-width: 0;
+        }
+        @keyframes pubscorePopIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pubscore-popup-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: #e8c46c;
+        }
+        .pubscore-popup-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+        .pubscore-popup-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #e8c46c;
+            background: rgba(232, 196, 108, 0.1);
+            border: 1px solid rgba(232, 196, 108, 0.25);
+            border-radius: 0.4rem;
+            padding: 0.3rem 0.6rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .pubscore-popup-btn:hover {
+            background: rgba(232, 196, 108, 0.2);
+            border-color: rgba(232, 196, 108, 0.4);
+        }
+        .pubscore-popup-dismiss {
+            font-size: 1rem;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            padding: 0.1rem 0.3rem;
+            line-height: 1;
+            border-radius: 0.25rem;
+            transition: color 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .pubscore-popup-dismiss:hover {
+            color: var(--text-primary);
+        }
+
+        /* Mobile: bottom bar instead of floating popup */
+        @media (max-width: 768px) {
+            .pubscore-popup {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto !important;
+                width: 100%;
+                border-radius: 0.75rem 0.75rem 0 0;
+                padding: 1rem 1.2rem;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+                gap: 0.75rem;
+                justify-content: center;
+                box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+                border: none;
+                border-top: 1px solid var(--border-color);
+                animation: pubscoreSlideUp 0.2s ease-out forwards;
+                box-sizing: border-box;
+            }
+            @keyframes pubscoreSlideUp {
+                from { opacity: 0; transform: translateY(100%); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .pubscore-popup-icon {
+                width: 20px;
+                height: 20px;
+                flex-shrink: 0;
+            }
+            .pubscore-popup-text {
+                font-size: 0.75rem;
+                flex-shrink: 0;
+            }
+            .pubscore-popup-btn {
+                padding: 0.6rem 1.4rem;
+                font-size: 0.78rem;
+                flex-shrink: 0;
+            }
+            .pubscore-popup-dismiss {
+                padding: 0.4rem 0.7rem;
+                font-size: 1.3rem;
+                flex-shrink: 0;
+            }
+            .star-rating.clickable {
+                padding: 0.3rem 0.5rem;
+                margin: -0.3rem -0.5rem;
+            }
+        }
+
         /* Modal star rating */
         .image-modal-rating {
             display: flex;
@@ -1995,13 +2130,6 @@
 
                     <div class="selected-tags" id="selected-tags"></div>
 
-                    <div class="popular-tags">
-                        <div class="popular-tags-label" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Popular Tags</span>
-                            <button onclick="renderPopularTags()" style="font-size: 0.7rem; padding: 0.25rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 1rem; cursor: pointer; font-family: 'JetBrains Mono', monospace;"> Shuffle</button>
-                        </div>
-                        <div class="popular-tags-grid" id="popular-tags"></div>
-                    </div>
                 </div>
 
                 <div class="toggle-group">
@@ -2063,6 +2191,19 @@
                             <option value="12">12 Profiles</option>
                             <option value="27">27 Profiles</option>
                             <option value="51">51 Profiles</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="nostr-client">View Profiles On</label>
+                        <select id="nostr-client">
+                            <option value="njump">njump.me</option>
+                            <option value="primal">Primal</option>
+                            <option value="nostrudel">noStrudel</option>
+                            <option value="satellite">Satellite</option>
+                            <option value="nosta">Nosta</option>
+                            <option value="jumble">Jumble</option>
+                            <option value="ditto">Ditto</option>
                         </select>
                     </div>
                 </div>
@@ -2236,6 +2377,40 @@ let nsecInactivityTimer = null;
 let lastActivityTime = Date.now();
 let currentAbortController = null;
 
+// ── Nostr client profile URL builder ──
+const NOSTR_CLIENTS = {
+    njump:     (npub) => `https://njump.me/${npub}`,
+    primal:    (npub) => `https://primal.net/p/${npub}`,
+    nostrudel: (npub) => `https://nostrudel.ninja/#/u/${npub}`,
+    satellite: (npub) => `https://satellite.earth/@${npub}`,
+    nosta:     (npub) => `https://nosta.me/${npub}`,
+    jumble:    (npub) => `https://jumble.social/${npub}`,
+    ditto:     (npub) => `https://ditto.pub/${npub}`,
+};
+
+function getNostrProfileUrl(npub) {
+    const clientId = document.getElementById('nostr-client')?.value || 'njump';
+    const builder = NOSTR_CLIENTS[clientId] || NOSTR_CLIENTS.njump;
+    return builder(npub);
+}
+
+// Persist client choice
+try {
+    const saved = localStorage.getItem('frenfinder-nostr-client');
+    if (saved) {
+        document.addEventListener('DOMContentLoaded', () => {
+            const sel = document.getElementById('nostr-client');
+            if (sel && NOSTR_CLIENTS[saved]) sel.value = saved;
+        });
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const sel = document.getElementById('nostr-client');
+        if (sel) sel.addEventListener('change', () => {
+            localStorage.setItem('frenfinder-nostr-client', sel.value);
+        });
+    });
+} catch(e) { /* localStorage unavailable */ }
+
 let modeSessionId = 0;   // NEW — used to isolate async work between modes
 
 // SECURITY: Track user activity for auto-logout
@@ -2401,9 +2576,137 @@ async function loadRatingsForCards(pubkeys) {
         if (el) {
             el.classList.remove('loading');
             el.innerHTML = ratingHtml(data.avgRating, data.count);
+            // Make clickable for PubScore
+            el.classList.add('clickable');
+            attachPubscoreClick(el);
         }
     });
     await Promise.allSettled(tasks);
+}
+
+// ── PubScore integration: swipe-safe click handler ──
+// Tracks touch start position so a swipe doesn't accidentally trigger the popup
+(function() {
+    let _touchStartX = 0;
+    let _touchStartY = 0;
+    let _touchStartTime = 0;
+    let _lastTouchEnd = 0;
+    const SWIPE_THRESHOLD = 12; // px movement that counts as a swipe
+    const TAP_MAX_DURATION = 400; // ms — longer = probably a scroll
+
+    document.addEventListener('touchstart', function(e) {
+        _touchStartX = e.touches[0].clientX;
+        _touchStartY = e.touches[0].clientY;
+        _touchStartTime = Date.now();
+    }, { passive: true });
+
+    document.addEventListener('touchend', function() {
+        _lastTouchEnd = Date.now();
+    }, { passive: true });
+
+    // Expose a helper that rating click handlers can call
+    window._isPubscoreTap = function(e) {
+        // If no recent touch event (>500ms ago), this is a mouse click — always allow
+        if (Date.now() - _lastTouchEnd > 500) return true;
+        // Touch-originated click: check movement + duration
+        const dx = Math.abs((e.clientX || 0) - _touchStartX);
+        const dy = Math.abs((e.clientY || 0) - _touchStartY);
+        const dt = Date.now() - _touchStartTime;
+        return (dx < SWIPE_THRESHOLD && dy < SWIPE_THRESHOLD && dt < TAP_MAX_DURATION);
+    };
+})();
+
+// Currently open popup reference (so we dismiss old ones)
+let _activePubscorePopup = null;
+
+function dismissPubscorePopup() {
+    if (_activePubscorePopup) {
+        _activePubscorePopup.remove();
+        _activePubscorePopup = null;
+    }
+}
+
+// Close popup when clicking elsewhere
+document.addEventListener('click', function(e) {
+    if (_activePubscorePopup && !_activePubscorePopup.contains(e.target) &&
+        !e.target.closest('.star-rating.clickable')) {
+        dismissPubscorePopup();
+    }
+});
+
+// Close popup on scroll so it doesn't float away
+window.addEventListener('scroll', function() {
+    if (_activePubscorePopup) dismissPubscorePopup();
+}, true);
+
+function attachPubscoreClick(el) {
+    el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // On mobile, ignore swipes
+        if (!window._isPubscoreTap(e)) return;
+
+        // If this element already has the popup open, dismiss it
+        if (_activePubscorePopup && _activePubscorePopup._sourceEl === el) {
+            dismissPubscorePopup();
+            return;
+        }
+
+        // Dismiss any other open popup
+        dismissPubscorePopup();
+
+        const npub = el.getAttribute('data-rating-npub');
+        if (!npub) return;
+
+        const url = 'https://pubscore.space/?npub=' + encodeURIComponent(npub);
+
+        // Build popup
+        const popup = document.createElement('div');
+        popup.className = 'pubscore-popup';
+        popup._sourceEl = el;
+        popup.innerHTML = `
+            <svg class="pubscore-popup-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span class="pubscore-popup-text">Open PubScore?</span>
+            <button class="pubscore-popup-btn">Open</button>
+            <span class="pubscore-popup-dismiss">&times;</span>
+        `;
+
+        // "Open" button → new tab
+        popup.querySelector('.pubscore-popup-btn').addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            window.open(url, '_blank', 'noopener,noreferrer');
+            dismissPubscorePopup();
+        });
+
+        // Dismiss "×"
+        popup.querySelector('.pubscore-popup-dismiss').addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            dismissPubscorePopup();
+        });
+
+        // Prevent taps inside popup from propagating
+        popup.addEventListener('click', function(ev) { ev.stopPropagation(); });
+
+        // Position below the rating element using fixed coords
+        const rect = el.getBoundingClientRect();
+        document.body.appendChild(popup);
+        
+        // Clamp horizontal position so popup doesn't overflow viewport
+        const popupWidth = popup.offsetWidth;
+        let left = rect.left;
+        if (left + popupWidth > window.innerWidth - 12) {
+            left = window.innerWidth - popupWidth - 12;
+        }
+        if (left < 12) left = 12;
+        
+        popup.style.left = left + 'px';
+        popup.style.top = (rect.bottom + 6) + 'px';
+
+        _activePubscorePopup = popup;
+    });
 }
 
 // Only reset pool on page load
@@ -2631,22 +2934,9 @@ document.querySelectorAll('.mode-card').forEach(card => {
     const POPULAR_TAGS = ['bitcoin', 'nostr', 'lightning', 'crypto', 'privacy', 'art', 'photography', 'music', 'writing', 'design', 'coding', 'tech', 'ai', 'web3', 'freedom', 'travel', 'food', 'fitness', 'nature', 'coffee', 'startup', 'business', 'marketing', 'trading', 'investing'];
 
     function renderPopularTags() {
-        const container = document.getElementById('popular-tags');
-        container.innerHTML = '';
-        
-        // Sample 5 random tags
-        const shuffled = [...POPULAR_TAGS].sort(() => Math.random() - 0.5);
-        const sampled = shuffled.slice(0, 5);
-        
-        sampled.forEach(tag => {
-            const tagEl = document.createElement('div');
-            tagEl.className = 'popular-tag';
-            tagEl.textContent = `#${tag}`;
-            tagEl.addEventListener('click', () => addHashtag(tag));
-            container.appendChild(tagEl);
-        });
+        // Popular tags section removed — no-op
     }
-    window.renderPopularTags = renderPopularTags; // Make globally accessible for shuffle button
+    window.renderPopularTags = renderPopularTags;
     renderPopularTags();
 
     function addHashtag(tag) {
@@ -4538,7 +4828,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
 }
 
     // Show image modal for expanded avatar view
-    function showImageModal(imageUrl, name, bio = '', pubkey = '') {
+    function showImageModal(imageUrl, name, bio = '', pubkey = '', npub = '') {
         // Create modal if it doesn't exist
         let modal = document.getElementById('image-modal');
         if (!modal) {
@@ -4610,7 +4900,23 @@ console.log('User follows (locked snapshot):', userFollows.length);
             if (pubkey) {
                 ratingDiv.innerHTML = '<span class="rating-text" style="color:rgba(255,255,255,0.4)">Loading rating...</span>';
                 fetchReviewsForPubkey(pubkey).then(data => {
-                    ratingDiv.innerHTML = ratingHtml(data.avgRating, data.count, '1.3rem');
+                    const ratingContent = ratingHtml(data.avgRating, data.count, '1.3rem');
+                    if (npub) {
+                        const psUrl = 'https://pubscore.space/?npub=' + encodeURIComponent(npub);
+                        ratingDiv.innerHTML = `<a href="${psUrl}" target="_blank" rel="noopener noreferrer"
+                            style="display:inline-flex;align-items:center;gap:0.5rem;text-decoration:none;color:inherit;
+                            padding:0.4rem 0.8rem;border-radius:0.5rem;transition:background 0.15s;"
+                            onmouseover="this.style.background='rgba(232,196,108,0.12)'"
+                            onmouseout="this.style.background='transparent'"
+                            title="View on PubScore">
+                            ${ratingContent}
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-left:0.3rem;">
+                                ↗ PubScore
+                            </span>
+                        </a>`;
+                    } else {
+                        ratingDiv.innerHTML = ratingContent;
+                    }
                 });
             } else {
                 ratingDiv.innerHTML = '';
@@ -4735,7 +5041,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
                     <div class="fren-name">${name}</div>
                     <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,12)}...${fren.npub.substring(fren.npub.length - 6)}</div>
                     ${nip05Display}
-                    <div class="star-rating loading" data-rating-pubkey="${fren.pubkey}">${generateStarsHtml(0)}<span class="rating-text">...</span></div>
+                    <div class="star-rating loading" data-rating-pubkey="${fren.pubkey}" data-rating-npub="${fren.npub}">${generateStarsHtml(0)}<span class="rating-text">...</span></div>
                 </div>
                 <div class="match-score">${fren.scores.total}%</div>
             </div>
@@ -4752,7 +5058,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
                         ${!currentUser || currentUser.loginMethod === 'viewonly' ? 'disabled' : ''}>
                     ${fren.isFollowing ? 'Following' : 'Follow'}
                 </button>
-                <a href="https://njump.me/${fren.npub}" target="_blank" class="btn-view-profile">View</a>
+                <a href="#" onclick="event.preventDefault();window.open(getNostrProfileUrl('${fren.npub}'),'_blank','noopener,noreferrer')" class="btn-view-profile">View</a>
             </div>
         `;
 
@@ -4777,7 +5083,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
         avatar.style.cursor = 'pointer';
         avatar.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImageModal(picture, name, fren.about || '', fren.pubkey);
+            showImageModal(picture, name, fren.about || '', fren.pubkey, fren.npub);
         });
 
         return card;
@@ -4850,6 +5156,7 @@ document.getElementById('find-btn').addEventListener('click', async () => {
         '.cross-ref-toggle',
         '#hashtag-input',
         '.popular-tag',
+        '.tag-remove',
         '#npub-input',
         '#cross-ref-input',
         '#cross-ref-compare-btn'
@@ -5350,6 +5657,7 @@ if (recentActivityOnly) {
     '.cross-ref-toggle',
     '#hashtag-input',
     '.popular-tag',
+    '.tag-remove',
     '#npub-input',
     '#cross-ref-input',
     '#cross-ref-compare-btn'
