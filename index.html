@@ -1484,59 +1484,6 @@
             background: var(--bg-secondary);
         }
 
-        .nsec-acknowledge {
-            margin-bottom: 1.25rem;
-        }
-
-        .nsec-ack-label {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.65rem;
-            cursor: pointer;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            line-height: 1.5;
-            user-select: none;
-        }
-
-        .nsec-ack-label input[type="checkbox"] {
-            appearance: none;
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            min-width: 16px;
-            border: 2px solid var(--accent-primary);
-            border-radius: 3px;
-            background: var(--bg-secondary);
-            cursor: pointer;
-            margin-top: 1px;
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .nsec-ack-label input[type="checkbox"]:checked {
-            background: var(--accent-primary);
-        }
-
-        .nsec-ack-label input[type="checkbox"]:checked::after {
-            content: '✓';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        .nsec-btn-primary:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
         @media (max-width: 768px) {
             /* --- Layout --- */
             .container {
@@ -2314,13 +2261,6 @@
                     Never enter your nsec on public/shared computers
                 </div>
 
-                <div class="nsec-acknowledge">
-                    <label class="nsec-ack-label">
-                        <input type="checkbox" id="nsec-ack-checkbox">
-                        <span>I understand the risks and I'm on a trusted device I control</span>
-                    </label>
-                </div>
-
                 <div class="nsec-input-group">
                     <label for="nsec-input-field">Enter your nsec private key</label>
                     <input type="password" 
@@ -2333,7 +2273,7 @@
 
                 <div class="nsec-actions">
                     <button class="nsec-btn nsec-btn-secondary" id="nsec-cancel">Cancel</button>
-                    <button class="nsec-btn nsec-btn-primary" id="nsec-login" disabled>Login</button>
+                    <button class="nsec-btn nsec-btn-primary" id="nsec-login">Login</button>
                 </div>
             </div>
         </div>
@@ -2551,8 +2491,6 @@ const REVIEW_RELAYS = [
 ];
 const reviewCache = new Map(); // pubkey -> { avgRating, count }
 const reviewFetchPromises = new Map(); // pubkey -> Promise (dedup in-flight)
-const PUBSCORE_API    = 'https://api.pubscore.space';
-const NOSTR_CACHE_API = 'https://api.pubscore.space'; // same VPS, /nostr/* routes
 
 function generateStarsHtml(rating, size) {
     let html = '<span class="stars" style="font-size:' + (size || '0.85rem') + '">';
@@ -2629,85 +2567,21 @@ async function fetchReviewsForPubkey(pubkey) {
     return promise;
 }
 
-// ── PubScore API: batch fetch scores for up to 200 npubs in one request ──
-async function fetchScoresFromAPI(pubkeys) {
-    try {
-        const { nip19 } = NostrTools;
-        const npubMap = {}; // npub -> pubkey
-        for (const pk of pubkeys) {
-            try { npubMap[nip19.npubEncode(pk)] = pk; } catch (_) {}
-        }
-        const npubList = Object.keys(npubMap);
-        if (npubList.length === 0) return {};
-
-        const url = PUBSCORE_API + '/scores?npubs=' + npubList.join(',');
-        console.log(`⭐ PubScore API: batch fetching ${npubList.length} profiles…`);
-
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-
-        const json = await res.json();
-        const scores = json.scores || {};
-
-        const result = {};
-        for (const [npub, scoreData] of Object.entries(scores)) {
-            const pk = npubMap[npub];
-            if (!pk) continue;
-            const data = {
-                avgRating: scoreData.avgRating ?? 0,
-                count: scoreData.count ?? 0,
-            };
-            reviewCache.set(pk, data);
-            result[pk] = data;
-        }
-        console.log(`⭐ PubScore API: got scores for ${Object.keys(result).length}/${npubList.length} profiles`);
-        return result;
-    } catch (err) {
-        console.warn('⭐ PubScore API batch fetch failed, falling back to relay:', err.message);
-        return null; // null = API unavailable, trigger relay fallback
-    }
-}
-
-// ── Update a card element with rating data ──
-function applyRatingToCard(pubkey, data) {
-    const el = document.querySelector('[data-rating-pubkey="' + pubkey + '"]');
-    if (!el) return;
-    el.classList.remove('loading');
-    el.innerHTML = ratingHtml(data.avgRating, data.count);
-    el.classList.add('clickable');
-    attachPubscoreClick(el);
-}
-
-// ── Batch fetch ratings: API-first, relay fallback if API is down ──
+// Batch fetch reviews for an array of pubkeys and update their card elements
 async function loadRatingsForCards(pubkeys) {
-    if (!pubkeys || pubkeys.length === 0) return;
-
-    const uncached = pubkeys.filter(pk => !reviewCache.has(pk));
-
-    // PRIMARY: one batch request to the PubScore API
-    let apiResults = null;
-    if (uncached.length > 0) {
-        apiResults = await fetchScoresFromAPI(uncached);
-    }
-
-    // apiResults === null  → API is down, relay-fetch everything
-    // apiResults === {}    → API is up, no scores exist yet (trust it, skip relay)
-    const needsRelayFetch = apiResults === null ? uncached : [];
-
-    // Apply all cached/API results to cards immediately
-    for (const pk of pubkeys) {
-        const cached = reviewCache.get(pk);
-        if (cached) applyRatingToCard(pk, cached);
-    }
-
-    // FALLBACK: relay fetch only if API failed
-    if (needsRelayFetch.length > 0) {
-        const relayTasks = needsRelayFetch.map(async (pk) => {
-            const data = await fetchReviewsForPubkey(pk);
-            applyRatingToCard(pk, data);
-        });
-        await Promise.allSettled(relayTasks);
-    }
+    const tasks = pubkeys.map(async (pubkey) => {
+        const data = await fetchReviewsForPubkey(pubkey);
+        // Update card rating placeholder
+        const el = document.querySelector('[data-rating-pubkey="' + pubkey + '"]');
+        if (el) {
+            el.classList.remove('loading');
+            el.innerHTML = ratingHtml(data.avgRating, data.count);
+            // Make clickable for PubScore
+            el.classList.add('clickable');
+            attachPubscoreClick(el);
+        }
+    });
+    await Promise.allSettled(tasks);
 }
 
 // ── PubScore integration: swipe-safe click handler ──
@@ -2856,31 +2730,12 @@ window.addEventListener('load', async function() {
   }
 
   try {
-    // Close existing connections before creating new ones
-    if (pool && typeof pool.close === 'function') {
-      try { pool.close(RELAYS); } catch(e) { /* ignore close errors */ }
-    }
-    pool = new NostrTools.SimplePool();
+    pool = new NostrTools.SimplePool();   // ✅ THIS is what your functions use
     window._nostrPool = pool;
-    window._poolCreatedAt = Date.now();
-    window._poolQueryCount = 0;
     console.log("✅ New SimplePool created safely.");
   } catch (err) {
     console.warn("Pool reset error:", err);
   }
-}
-
-// Only reset pool if it's old or has done too many queries
-function resetPoolIfNeeded() {
-    const age = Date.now() - (window._poolCreatedAt || 0);
-    const queries = window._poolQueryCount || 0;
-    // Reset if pool is older than 5 minutes or has done 100+ queries
-    if (age > 5 * 60 * 1000 || queries > 100) {
-        console.log(`🔄 Pool stale (age=${Math.round(age/1000)}s, queries=${queries}), resetting...`);
-        resetRelayPool();
-        return true;
-    }
-    return false;
 }
 
 // Warm up relay connections with a simple query
@@ -3299,22 +3154,15 @@ document.querySelectorAll('.mode-card').forEach(card => {
     function showNsecModal() {
         const modal = document.getElementById('nsec-modal');
         const input = document.getElementById('nsec-input-field');
-        const checkbox = document.getElementById('nsec-ack-checkbox');
-        const loginBtn = document.getElementById('nsec-login');
         input.value = '';
-        checkbox.checked = false;
-        loginBtn.disabled = true;
         modal.classList.add('visible');
-        // Don't focus the input — user must check the box first
+        input.focus();
     }
 
     function hideNsecModal() {
         const modal = document.getElementById('nsec-modal');
         const input = document.getElementById('nsec-input-field');
-        const checkbox = document.getElementById('nsec-ack-checkbox');
         input.value = '';
-        checkbox.checked = false;
-        document.getElementById('nsec-login').disabled = true;
         modal.classList.remove('visible');
     }
 
@@ -3591,7 +3439,6 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     if (session !== modeSessionId) return []; // 🚫 ignore stale queries
 
     try {
-        window._poolQueryCount = (window._poolQueryCount || 0) + 1;
         currentAbortController = new AbortController();
         const signal = currentAbortController.signal;
 
@@ -3606,60 +3453,14 @@ async function queryRelays(relays, filter, timeout = 10000, session = null) {
     }
 }
 
-// ── VPS-first profiles fetch ──────────────────────────────────────────────────
-async function fetchProfilesFromVPS(pubkeys) {
-    try {
-        const url = NOSTR_CACHE_API + '/nostr/profiles?pubkeys=' + pubkeys.join(',');
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json    = await res.json();
-        const profiles = json.profiles || {};
-        // Populate profileCache
-        for (const [pk, p] of Object.entries(profiles)) {
-            if (p) profileCache.set(pk, { pubkey: pk, ...p, hasMetadata: !!(p.name || p.about || p.picture || p.nip05), status: 'ok' });
-        }
-        console.log(`🏠 VPS profiles: got ${Object.keys(profiles).length}/${pubkeys.length}`);
-        return profiles;
-    } catch (err) {
-        console.warn('🏠 VPS profiles failed, falling back to relays:', err.message);
-        return null;
-    }
-}
-
    async function fetchProfilesBatch(pubkeys, session) {
   const results = new Map();
   
-  // ── Check in-memory cache first ──
-  const uncached = [];
-  for (const pk of pubkeys) {
-    if (profileCache.has(pk)) results.set(pk, profileCache.get(pk));
-    else uncached.push(pk);
+  console.log('fetchProfilesBatch: Fetching profiles for', pubkeys.length, 'pubkeys');
+  
+  if (pubkeys.length === 0) {
+    return [];
   }
-
-  if (uncached.length === 0) {
-    console.log('fetchProfilesBatch: all served from cache');
-    return pubkeys.map(pk => results.get(pk) || { pubkey: pk, name: '', about: '', picture: '', nip05: null, hasMetadata: false, status: 'cached_empty' });
-  }
-
-  console.log('fetchProfilesBatch: Fetching profiles for', uncached.length, 'pubkeys');
-
-  // ── PRIMARY: VPS ──
-  const vpsProfiles = await fetchProfilesFromVPS(uncached);
-
-  if (vpsProfiles !== null) {
-      for (const pk of uncached) {
-          const p = vpsProfiles[pk];
-          results.set(pk, p
-              ? { pubkey: pk, ...p, hasMetadata: !!(p.name || p.about || p.picture || p.nip05), status: 'ok' }
-              : { pubkey: pk, name: '', about: '', picture: '', nip05: null, hasMetadata: false, status: 'missing' }
-          );
-      }
-      return pubkeys.map(pk => results.get(pk) || { pubkey: pk, name: '', about: '', picture: '', nip05: null, hasMetadata: false, status: 'missing' });
-  }
-
-  // ── FALLBACK: direct relay queries ──
-  console.log('fetchProfilesBatch: VPS unavailable, querying relays directly...');
-  if (pubkeys.length === 0) { return []; }
 
   const BATCH_SIZE = 20;
   
@@ -3936,74 +3737,64 @@ async function fetchNotesBatch(pubkeys, limit = 100, session) {
 
     const followsCache = new Map(); // pubkey -> array
 
-// ── VPS-first follows fetch ───────────────────────────────────────────────────
-// Tries api.pubscore.space/nostr/follows first (fast, cached on VPS).
-// Falls back to direct relay queries if the VPS is unreachable.
-
-async function fetchFollowsFromVPS(pubkeys) {
-    try {
-        const url = NOSTR_CACHE_API + '/nostr/follows?pubkeys=' + pubkeys.join(',');
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
-        // Populate followsCache with results
-        const follows = json.follows || {};
-        for (const [pk, list] of Object.entries(follows)) {
-            if (list?.length) followsCache.set(pk, list);
-        }
-        console.log(`🏠 VPS follows: got ${Object.keys(follows).length}/${pubkeys.length}`);
-        return follows; // { hex: hex[] }
-    } catch (err) {
-        console.warn('🏠 VPS follows failed, falling back to relays:', err.message);
-        return null; // null = use relay fallback
-    }
-}
-
 async function fetchFollowsBatch(pubkeys) {
   console.log(`Fetching follows for ${pubkeys.length} users...`);
 
+  // Seed results from cache (optional but helpful)
   const followMap = new Map();
   pubkeys.forEach(pk => followMap.set(pk, followsCache.get(pk) || []));
 
+  // Figure out which pubkeys actually need fetching (not cached)
   const uncached = pubkeys.filter(pk => !followsCache.has(pk));
+  
   if (uncached.length === 0) {
     console.log(`  All ${pubkeys.length} follows served from cache`);
     return pubkeys.map(pk => followMap.get(pk) || []);
   }
 
-  console.log(`  Fetching ${uncached.length} uncached follows...`);
+  console.log(`  Fetching ${uncached.length} uncached follows (${pubkeys.length - uncached.length} cached)`);
 
-  // ── PRIMARY: VPS cache ──
-  const vpsResult = await fetchFollowsFromVPS(uncached);
-
-  if (vpsResult !== null) {
-      // VPS responded — apply results and return (no relay needed)
-      for (const [pk, list] of Object.entries(vpsResult)) followMap.set(pk, list);
-      uncached.forEach(pk => { if (!followMap.get(pk)?.length) followMap.set(pk, followsCache.get(pk) || []); });
-      return pubkeys.map(pk => followMap.get(pk) || []);
-  }
-
-  // ── FALLBACK: direct relay queries ──
-  console.log('  VPS unavailable, querying relays directly...');
   const BATCH_SIZE = 30;
+
   try {
     for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
       const batch = uncached.slice(i, i + BATCH_SIZE);
-      const events = await pool.querySync(RELAYS, { kinds: [3], authors: batch });
+
+      const events = await pool.querySync(RELAYS, {
+        kinds: [3],
+        authors: batch
+      });
+
+      // IMPORTANT: newest first so we keep the most recent contacts list
       events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
       const seen = new Set();
+
       for (const event of events) {
         const pk = event.pubkey;
-        if (seen.has(pk)) continue;
+        if (seen.has(pk)) continue; // only use newest event per pubkey
         seen.add(pk);
-        const follows = (event.tags || []).filter(t => t[0] === 'p' && t[1]).map(t => t[1]);
-        if (follows.length > 0) { followMap.set(pk, follows); followsCache.set(pk, follows); }
+
+        const follows = (event.tags || [])
+          .filter(t => t[0] === 'p' && t[1])
+          .map(t => t[1]);
+
+        // KEY: do NOT overwrite a non-empty cached/list with an empty event
+        if (follows.length > 0) {
+          followMap.set(pk, follows);
+          followsCache.set(pk, follows);
+        }
       }
-      if (i + BATCH_SIZE < uncached.length) await new Promise(r => setTimeout(r, 200));
+
+      // Delay between batches
+      if (i + BATCH_SIZE < uncached.length) {
+        await new Promise(r => setTimeout(r, 200));
       }
+    }
+
     return pubkeys.map(pk => followMap.get(pk) || []);
   } catch (err) {
-    console.error('Batch follows fetch error:', err);
+    console.error("Batch follows fetch error:", err);
     return pubkeys.map(pk => followsCache.get(pk) || []);
   }
 }
@@ -5383,16 +5174,18 @@ document.getElementById('find-btn').addEventListener('click', async () => {
     // Reset fallback tracking
     window._nicheModeFellBack = false;
 
-    // Smart pool reset — only if pool is stale, not on every search
-    resetPoolIfNeeded();
+    // Reset pool on every search to ensure fresh connections
+    resetRelayPool();
+    await new Promise(r => setTimeout(r, 1000));
     
-    // Single warmup — no retry loops, no extra sleeps
+    // Warm up relay connections
     const warmupSuccess = await warmUpRelays();
     if (!warmupSuccess) {
-        console.log('⚠️ Warmup failed, resetting pool and trying once more...');
-        resetRelayPool();
+        console.log('⚠️ Relay warmup returned no events, waiting longer...');
+        await new Promise(r => setTimeout(r, 1000));
         await warmUpRelays();
     }
+    await new Promise(r => setTimeout(r, 500));
     
     // CLEAR caches between searches to prevent stale metadata from previous discovery modes
     console.log('🧹 Clearing profile and note caches for fresh search');
@@ -5505,80 +5298,44 @@ if (discoveryMode === 'hashtags' && selectedHashtags.size > 0) {
 // FIX: Sync thisSession with modeSessionId in case fallbacks updated it
 thisSession = modeSessionId;
 
-// Smart check — only reset if pool is exhausted
-resetPoolIfNeeded();
+// Reset relay pool for fresh connections — discovery phase may have exhausted it
+console.log('🔄 Resetting relay pool before fetching candidate data...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 1000));
+console.log('🔥 Warming up fresh relay pool...');
+let warmupOk = await warmUpRelays();
+if (!warmupOk) {
+    await new Promise(r => setTimeout(r, 1500));
+    warmupOk = await warmUpRelays();
+}
+if (!warmupOk) {
+    console.log('🔥 Second warmup failed, trying one more time...');
+    resetRelayPool();
+    await new Promise(r => setTimeout(r, 1500));
+    await warmUpRelays();
+}
+await new Promise(r => setTimeout(r, 500));
 
-// ── Try VPS discovery endpoint first ────────────────────────────────────────
-// One HTTP request replaces 3 sequential relay fetch pipelines.
-// Falls back to direct relay fetching if VPS is unavailable.
-
-let allProfiles, allNotes, allFollows;
-
-const vpsDiscovery = await (async () => {
-    try {
-        const days = (discoveryMode === 'hashtags') ? 90 : 30;
-        const url  = NOSTR_CACHE_API + '/nostr/discovery?npub=' +
-                     encodeURIComponent(nip19.npubEncode(userPubkey)) + '&days=' + days;
-        const res  = await fetch(url, { signal: AbortSignal.timeout(12000) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return await res.json();
-    } catch (err) {
-        console.warn('🏠 VPS discovery failed, falling back to relay pipeline:', err.message);
-        return null;
-    }
-})();
-
-if (vpsDiscovery && thisSession === modeSessionId) {
-    console.log('🏠 VPS discovery hit:', vpsDiscovery.meta);
-
-    // Populate in-memory caches from VPS response
-    if (vpsDiscovery.userFollows?.length) {
-        followsCache.set(userPubkey, vpsDiscovery.userFollows);
-        userFollows = vpsDiscovery.userFollows;
-    }
-    for (const [pk, list] of Object.entries(vpsDiscovery.followsOf || {})) {
-        if (list?.length) followsCache.set(pk, list);
-    }
-    for (const [pk, p] of Object.entries(vpsDiscovery.profiles || {})) {
-        if (p) profileCache.set(pk, { pubkey: pk, ...p, hasMetadata: !!(p.name || p.about || p.picture || p.nip05), status: 'ok' });
-    }
-    for (const [pk, notes] of Object.entries(vpsDiscovery.notes || {})) {
-        if (notes?.length) noteCache.set(pk, notes);
-    }
-
-    // Override candidatePubkeys with VPS-computed ordering (already ranked by mutual count)
-    if (vpsDiscovery.candidates?.length && candidatePubkeys.length === 0) {
-        candidatePubkeys = vpsDiscovery.candidates.slice(0,
-            parseInt(document.getElementById('result-count').value) * 3);
-    }
-
-    // Build allProfiles, allNotes, allFollows arrays in candidatePubkeys order
-    allProfiles = candidatePubkeys.map(pk => profileCache.get(pk) || { pubkey: pk, name: '', about: '', picture: '', nip05: null, hasMetadata: false, status: 'missing' });
-    allNotes    = candidatePubkeys.map(pk => noteCache.get(pk) || []);
-    allFollows  = candidatePubkeys.map(pk => followsCache.get(pk) || []);
-
-} else {
-    // ── FALLBACK: original sequential relay pipeline ──────────────────────────
-    if (thisSession !== modeSessionId) { return; }
-
-    // 1. PROFILES FIRST
+// 1. PROFILES FIRST — most important, do while pool is freshest
 console.log(`📊 Fetching profiles for ${candidatePubkeys.length} candidates...`);
-    allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
+const allProfiles = await fetchProfilesBatch(candidatePubkeys, thisSession);
+
 const metaCount = allProfiles.filter(p => p && p.hasMetadata).length;
 console.log(`Profiles with metadata: ${metaCount}/${allProfiles.length}`);
 
-    // 2. NOTES + FOLLOWS — in parallel instead of sequential
-    if (thisSession !== modeSessionId) { return; }
-    console.log(`📊 Fetching notes + follows in parallel...`);
+// Reset pool before notes — profile fetches may have exhausted connections
+console.log('🔄 Resetting pool before notes fetch...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 800));
+await warmUpRelays();
 
+// 2. NOTES — bulk multi-author query
+console.log(`📊 Fetching notes for ${candidatePubkeys.length} candidates...`);
 const notesSince = (discoveryMode === 'hashtags')
     ? Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60
     : Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
 
-    const [notesByKey, rawFollows] = await Promise.all([
-        // Notes
-        (async () => {
-            const map = new Map();
+const notesByKey = new Map();
 const NOTE_BATCH = 50;
 for (let i = 0; i < candidatePubkeys.length; i += NOTE_BATCH) {
     if (thisSession !== modeSessionId) break;
@@ -5587,7 +5344,7 @@ for (let i = 0; i < candidatePubkeys.length; i += NOTE_BATCH) {
         const events = await pool.querySync(RELAYS, {
             kinds: [1], authors: batch, since: notesSince, limit: batch.length * 5
         });
-                    if (events?.length) {
+        if (events && events.length > 0) {
             const byAuthor = new Map();
             events.forEach(e => {
                 if (!e?.pubkey) return;
@@ -5596,24 +5353,33 @@ for (let i = 0; i < candidatePubkeys.length; i += NOTE_BATCH) {
             });
             byAuthor.forEach((notes, pk) => {
                 const sorted = notes.sort((a, b) => b.created_at - a.created_at).slice(0, 25);
-                            map.set(pk, sorted);
+                notesByKey.set(pk, sorted);
                 noteCache.set(pk, sorted);
             });
+            console.log(`   Notes batch ${Math.floor(i/NOTE_BATCH)+1}: ${events.length} events, ${byAuthor.size}/${batch.length} authors`);
+        } else {
+            console.log(`   Notes batch ${Math.floor(i/NOTE_BATCH)+1}: 0 events`);
         }
     } catch (e) { console.warn('Notes batch error:', e.message); }
-    if (i + NOTE_BATCH < candidatePubkeys.length) await new Promise(r => setTimeout(r, 50));
+    if (i + NOTE_BATCH < candidatePubkeys.length) await new Promise(r => setTimeout(r, 150));
 }
-            return map;
-        })(),
-        // Follows
-        fetchFollowsBatch(candidatePubkeys)
-    ]);
+const allNotes = candidatePubkeys.map(pk => notesByKey.get(pk) || []);
+const withNotes = allNotes.filter(n => n && n.length > 0).length;
+console.log(`Notes: ${withNotes}/${candidatePubkeys.length} have notes`);
 
-    allNotes   = candidatePubkeys.map(pk => notesByKey.get(pk) || []);
-    allFollows = rawFollows;
-    console.log(`Notes: ${allNotes.filter(n => n?.length).length}/${candidatePubkeys.length} have notes`);
-    console.log(`Follows: ${allFollows.filter(f => f?.length).length}/${candidatePubkeys.length} have follow lists`);
-}
+// Reset pool before follows — notes fetches may have exhausted connections
+console.log('🔄 Resetting pool before follows fetch...');
+resetRelayPool();
+await new Promise(r => setTimeout(r, 800));
+await warmUpRelays();
+
+// 3. FOLLOWS — fetch candidate follow lists for mutual count and social scoring
+resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Analyzing social connections...</p>';
+console.log(`📊 Fetching follows for ${candidatePubkeys.length} candidates...`);
+
+const allFollows = await fetchFollowsBatch(candidatePubkeys);
+const withFollows = allFollows.filter(f => f && f.length > 0).length;
+console.log(`Follows: ${withFollows}/${candidatePubkeys.length} have follow lists`);
 
 // Build lookup maps
 const profileByKey = new Map();
@@ -5621,9 +5387,6 @@ allProfiles.forEach(p => { if (p && p.pubkey) profileByKey.set(p.pubkey, p); });
 
 const followsByKey = new Map();
 candidatePubkeys.forEach((pk, i) => { followsByKey.set(pk, allFollows[i] || []); });
-
-const notesByKey = new Map();
-candidatePubkeys.forEach((pk, i) => { notesByKey.set(pk, allNotes[i] || []); });
 
             resultsGrid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-secondary)">Calculating match scores...</p>';
 
@@ -5953,12 +5716,6 @@ if (recentActivityOnly) {
     document.getElementById('nsec-close').addEventListener('click', hideNsecModal);
     document.getElementById('nsec-cancel').addEventListener('click', hideNsecModal);
     document.getElementById('nsec-login').addEventListener('click', loginWithNsec);
-
-    document.getElementById('nsec-ack-checkbox').addEventListener('change', function() {
-        const loginBtn = document.getElementById('nsec-login');
-        loginBtn.disabled = !this.checked;
-        if (this.checked) document.getElementById('nsec-input-field').focus();
-    });
     
     document.getElementById('nsec-input-field').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
