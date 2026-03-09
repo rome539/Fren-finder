@@ -4851,91 +4851,51 @@ async function getRecommendations(userPubkey, userFollows, limit, session) {
 console.log('User follows (locked snapshot):', userFollows.length);
 
     if (userFollows.length === 0) {
-        console.log('No follows found, searching popular users...');
+        console.log('No follows found — using 10 seed accounts to build candidate pool');
         
-        try {
-            // Check session again after async operation
-            if (session !== modeSessionId) return [];
-            
-            if (userFollows.length === 0) {
-  console.log('No follows found, using GLOBAL discovery sample...');
+        // Curated seed npubs — we crawl THEIR follow lists to generate candidates
+        const seedPubkeys = [
+            '5069ea44d8977e77c6aea605d0c5386b24504a3abd0fe8a3d1cf5f4cedca40a7',  // npub12p5753xcjal8034w5czap3fcdvj9qj36h5873g73ea05emw2gznszr0ann
+            '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',  // npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6
+            '3f770d65d3a764a9c5cb503ae123e62ec7598ad035d836e2a810f3877a745b24',  // npub18ams6ewn5aj2n3wt2qawzglx9mr4nzksxhvrdc4gzrecw7n5tvjqctp424
+            '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd',  // npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p
+            'e2ccf7cf20403f3f2a4a55b328f0de3be38558a7d5f33632fdaaefc726c1c8eb',  // npub1utx00neqgqln72j22kej3ux7803c2k986henvvha4thuwfkper4s7r50e8
+            'e83b66a8ed2d37c07d1abea6e1b000a15549c69508fa4c5875556d52b0526c2b',  // npub1aqakd28d95muqlg6h6nwrvqq5925n354prayckr424k49vzjds4s0c237n
+            'e3a59924933c9f9f2df83449055eb3858f1480fdd0c5edb95df08bedcd2e6624',  // npub1uwjejfyn8j0e7t0cx3ys2h4nsk83fq8a6rz7mw2a7z97mnfwvcjqcvaxfl
+            '32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245',  // npub1xtscya34g58tk0z605fvr788k263gsu6cy9x0mhnm87echrgufzsevkk5s
+            '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',  // npub1gcxzte5zlkncx26j68ez60fzkvtkm9e0vrwdcvsjakxf9mu9qewqlfnj5z
+            '20d29810d6a5f92b045ade02ebbadc9036d741cc686b00415c42b4236fe4ad2f'   // npub1yrffsyxk5hujkpz6mcpwhwkujqmdwswvdp4sqs2ug26zxmly45hsfpn8p0
+        ];
 
-  if (session !== modeSessionId) return [];
-
-  const resultCount = limit; // your getRecommendations param is already "limit"
-
-  const globalCandidates = await getGlobalCandidates({
-    relays: RELAYS,
-    userPubkey,
-    userFollows,
-    resultCount,
-    session,
-    hoursBack: 72,
-    eventLimit: 6000,
-    minNotesPerUser: 2,
-    excludeFollowed: true
-  });
-
-  if (session !== modeSessionId) return [];
-
-  // If still empty, return your hardcoded fallback list as last resort
-  if (globalCandidates.length === 0) {
-    return [
-      '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
-      '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
-      '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-      '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
-      'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
-    ];
-  }
-
-  return globalCandidates;
-}
-            
-            // Check session again
-            if (session !== modeSessionId) return [];
-            
-            const userCounts = new Map();
-            recentEvents.forEach(event => {
-                const count = userCounts.get(event.pubkey) || 0;
-                userCounts.set(event.pubkey, count + 1);
+        // Crawl the seed accounts' follow lists to build a candidate pool
+        // (same logic as the normal social graph crawl below)
+        const seedFollowLists = await fetchFollowsBatch(seedPubkeys);
+        
+        if (session !== modeSessionId) return [];
+        
+        const candidateCounts = new Map();
+        seedFollowLists.forEach(theirFollows => {
+            theirFollows.forEach(pubkey => {
+                if (pubkey !== userPubkey && !seedPubkeys.includes(pubkey)) {
+                    candidateCounts.set(pubkey, (candidateCounts.get(pubkey) || 0) + 1);
+                }
             });
-            
-            const topUsers = Array.from(userCounts.entries())
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, limit * 5)
-                .map(([pubkey]) => pubkey);
-            
-            console.log('Found', topUsers.length, 'popular users from last 90 days');
-            
-            // Final session check
-            if (session !== modeSessionId) return [];
-            
-            // If still no users, return fallback users
-            if (topUsers.length === 0) {
-                console.log('No popular users found, using fallback users');
-                return [
-                    '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
-                    '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
-                    '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-                    '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
-                    'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
-                ];
-            }
-            
-            return topUsers;
-        } catch (err) {
-            console.error('Error finding popular users:', err);
-            if (session !== modeSessionId) return [];
-            
-            return [
-                '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
-                '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c',
-                '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-                '85080d3bad70ccdcd7f74c29a44f55bb85cbcd3dd0cbb957da1d215bdb931204',
-                'c48e29f04b482cc01ca1f9ef8c86ef8318c059e0e9353235162f080f26e14c11'
-            ];
+        });
+        
+        // Sort by how many seed accounts follow them, then shuffle for variety
+        const sortedCandidates = Array.from(candidateCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([pubkey]) => pubkey);
+        
+        for (let i = sortedCandidates.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [sortedCandidates[i], sortedCandidates[j]] = [sortedCandidates[j], sortedCandidates[i]];
         }
+        
+        console.log('Generated', sortedCandidates.length, 'candidates from seed accounts');
+        
+        if (session !== modeSessionId) return [];
+        return sortedCandidates.slice(0, limit * 3);
     }
 
     // Count how many of your follows also follow each candidate
