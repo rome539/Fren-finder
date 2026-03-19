@@ -2251,8 +2251,8 @@
                     <p id="latin-egg" style="font-family:'Crimson Pro',serif;font-size:0.8rem;font-style:italic;color:var(--text-tertiary);opacity:0;max-height:0;overflow:hidden;transition:opacity 0.6s ease, max-height 0.4s ease;margin-top:0;">Qui amicum invenit, thesaurum invenit.</p>
                 </div>
                 <div class="header-actions">
+                    <button class="btn theme-toggle" id="theme-btn">Theme</button>
                     <div id="user-section"></div>
-                    <button class="btn theme-toggle" id="theme-btn">Toggle Theme</button>
                 </div>
             </div>
         </header>
@@ -3098,13 +3098,19 @@ async function warmUpRelays() {
 }
 
     // Theme toggle
+    function updateThemeLabel() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.getElementById('theme-btn').textContent = isDark ? 'Light' : 'Dark';
+    }
     document.getElementById('theme-btn').addEventListener('click', () => {
         const html = document.documentElement;
         const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
+        updateThemeLabel();
     });
     document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
+    updateThemeLabel();
 
     // Spam detection
     function detectSpam(profile, notes) {
