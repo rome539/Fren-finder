@@ -34,6 +34,12 @@
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="alternate icon" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#c84e3a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Fren Finder">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -2076,6 +2082,165 @@
         .image-modal-close:hover {
             color: var(--accent-primary);
         }
+
+        /* NIP-46 Bunker */
+        .bunker-status {
+            text-align: center;
+            padding: 8px 0 4px;
+        }
+        .bunker-status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            margin-bottom: 12px;
+        }
+        .bunker-status-text.waiting {
+            color: var(--accent-primary);
+        }
+        .bunker-status-text.error {
+            color: var(--accent-primary);
+        }
+        .bunker-qr-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .bunker-qr-wrap canvas {
+            border-radius: 10px;
+        }
+        .bunker-string-box {
+            position: relative;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 12px 42px 12px 14px;
+            word-break: break-all;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+            max-height: 72px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.15s;
+            margin-bottom: 12px;
+        }
+        .bunker-string-box:hover {
+            border-color: var(--accent-primary);
+        }
+        .bunker-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-tertiary);
+            transition: all 0.15s;
+            padding: 0;
+        }
+        .bunker-copy-btn:hover {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        .bunker-copy-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .bunker-or {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+            margin: 14px 0 10px;
+            position: relative;
+        }
+        .bunker-or::before,
+        .bunker-or::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 24px);
+            height: 1px;
+            background: var(--border-color);
+        }
+        .bunker-or::before { left: 0; }
+        .bunker-or::after { right: 0; }
+        .bunker-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        .bunker-input-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .bunker-input-row input:focus {
+            border-color: var(--accent-primary);
+        }
+        .bunker-input-row button {
+            padding: 0 18px;
+            background: var(--accent-primary);
+            border: 1px solid var(--accent-primary);
+            border-radius: 0.5rem;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .bunker-input-row button:hover {
+            opacity: 0.9;
+        }
+        .bunker-input-row button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        @keyframes bunker-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .bunker-waiting {
+            animation: bunker-pulse 2s ease-in-out infinite;
+        }
+        .bunker-action-link {
+            display: inline-block;
+            margin-top: 8px;
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .bunker-action-link:hover {
+            color: var(--accent-primary);
+        }
     </style>
 </head>
 <body>
@@ -2365,6 +2530,39 @@
                 <div class="nsec-actions">
                     <button class="nsec-btn nsec-btn-secondary" id="npub-modal-cancel">Cancel</button>
                     <button class="nsec-btn" id="npub-modal-login" style="background:var(--accent-info);color:#fff;">View Profile</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NIP-46 Bunker Login Modal -->
+        <div class="nsec-modal" id="bunker-modal">
+            <div class="nsec-modal-content">
+                <div class="nsec-modal-header">
+                    <h3>Remote Signer</h3>
+                    <button class="nsec-close" id="bunker-close">×</button>
+                </div>
+
+                <div id="bunkerContent">
+                    <div class="bunker-status">
+                        <div class="bunker-status-text" id="bunkerStatusText">Scan or paste in your remote signer</div>
+                    </div>
+                    <div class="bunker-qr-wrap" id="bunkerQrWrap"></div>
+                    <div class="bunker-string-box" id="bunkerStringBox" style="display:none;" title="Click to copy"></div>
+                    <button class="bunker-copy-btn" id="bunkerCopyFloatBtn" style="display:none;">
+                        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+
+                    <div class="bunker-or">or</div>
+
+                    <div class="bunker-input-row">
+                        <input type="text" id="bunkerUrlInput" placeholder="bunker://..." autocomplete="off">
+                        <button id="bunkerConnectBtn">Connect</button>
+                    </div>
+
+                    <div style="text-align:center;">
+                        <button class="bunker-action-link" id="bunkerRefreshBtn" style="display:none;">↻ Refresh connection</button>
+                        <button class="bunker-action-link" id="bunkerCancelBtn" style="display:none;">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3448,6 +3646,490 @@ document.querySelectorAll('.mode-card').forEach(card => {
         }
     }
 
+    // =====================================================================
+    // NIP-46 BUNKER / REMOTE SIGNER (inlined)
+    // =====================================================================
+
+    let _bunkerSession = null;   // { clientSk, clientPk, signerPk, userPk, relays, sub }
+    let _bunkerConnecting = false;
+    let _bunkerRefreshTimer = null;
+    let _bunkerHeartbeat = null;
+    const BUNKER_RELAYS = ['wss://relay.nsec.app', 'wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net'];
+    const _BUNKER_KEY = 'ff-bunker';
+
+    function randomHex(bytes = 16) {
+        const arr = new Uint8Array(bytes);
+        crypto.getRandomValues(arr);
+        return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    let _nip44mod = null;
+    async function _loadNip44() {
+        if (_nip44mod) return _nip44mod;
+        _nip44mod = await import("https://esm.sh/nostr-tools@2.7.2/nip44");
+        return _nip44mod;
+    }
+
+    async function nip44Encrypt(privkey, pubkey, text) {
+        const mod = await _loadNip44();
+        if (mod.getConversationKey) {
+            const ck = mod.getConversationKey(privkey, pubkey);
+            return mod.encrypt(text, ck);
+        }
+        const ck = mod.v2.utils.getConversationKey(privkey, pubkey);
+        return mod.v2.encrypt(text, ck);
+    }
+
+    async function nip44Decrypt(privkey, pubkey, ciphertext) {
+        const mod = await _loadNip44();
+        if (mod.getConversationKey) {
+            const ck = mod.getConversationKey(privkey, pubkey);
+            return mod.decrypt(ciphertext, ck);
+        }
+        const ck = mod.v2.utils.getConversationKey(privkey, pubkey);
+        return mod.v2.decrypt(ciphertext, ck);
+    }
+
+    async function bunkerRequest(method, params = []) {
+        if (!_bunkerSession) throw new Error('No bunker session');
+        const { clientSk, clientPk, signerPk, relays } = _bunkerSession;
+        const reqId = randomHex(8);
+        const payload = JSON.stringify({ id: reqId, method, params });
+        const encrypted = await nip44Encrypt(clientSk, signerPk, payload);
+        const event = {
+            kind: 24133,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['p', signerPk]],
+            content: encrypted,
+        };
+        const signed = NostrTools.finalizeEvent(event, clientSk);
+        const sinceTs = Math.floor(Date.now() / 1000) - 60;
+
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            const timeout = setTimeout(() => {
+                if (!settled) { settled = true; sub.close(); reject(new Error('Bunker request timed out (45s)')); }
+            }, 45000);
+
+            const sub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
+                async onevent(ev) {
+                    try {
+                        const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
+                        const resp = JSON.parse(decrypted);
+                        if (resp.id !== reqId) return;
+                        if (resp.result === 'auth_url' && resp.error) {
+                            window.open(resp.error, '_blank', 'width=600,height=700');
+                            return;
+                        }
+                        if (settled) return;
+                        settled = true; clearTimeout(timeout); sub.close();
+                        resp.error ? reject(new Error(resp.error)) : resolve(resp.result);
+                    } catch (e) { /* not for us */ }
+                },
+                oneose() {}
+            });
+
+            Promise.allSettled(relays.map(async url => {
+                try { (await pool.ensureRelay(url)).publish(signed); } catch (e) {}
+            }));
+        });
+    }
+
+    async function bunkerSignEvent(eventTemplate) {
+        const unsigned = {
+            kind: eventTemplate.kind,
+            content: eventTemplate.content || '',
+            tags: eventTemplate.tags || [],
+            created_at: eventTemplate.created_at || Math.floor(Date.now() / 1000),
+        };
+        const resultStr = await bunkerRequest('sign_event', [JSON.stringify(unsigned)]);
+        return JSON.parse(resultStr);
+    }
+
+    async function startBunkerClientFlow() {
+        if (_bunkerConnecting) return;
+        _bunkerConnecting = true;
+
+        const clientSk = NostrTools.generateSecretKey();
+        const clientPk = NostrTools.getPublicKey(clientSk);
+        const secret = randomHex(8);
+        const relays = BUNKER_RELAYS;
+
+        const relayParams = relays.map(r => `relay=${encodeURIComponent(r)}`).join('&');
+        const connectUri = `nostrconnect://${clientPk}?${relayParams}&secret=${secret}&name=${encodeURIComponent('Fren Finder')}&perms=${encodeURIComponent('sign_event:3')}`;
+
+        await Promise.allSettled(relays.map(url => pool.ensureRelay(url)));
+        const sinceTs = Math.floor(Date.now() / 1000) - 60;
+
+        let settled = false;
+
+        const sub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
+            async onevent(ev) {
+                if (settled) return;
+                try {
+                    const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
+                    const resp = JSON.parse(decrypted);
+
+                    if (resp.error && resp.result !== 'auth_url') {
+                        updateBunkerUI('error', 'Connection rejected: ' + resp.error);
+                        _bunkerConnecting = false; settled = true; sub.close();
+                        return;
+                    }
+                    if (resp.result === 'auth_url' && resp.error) {
+                        window.open(resp.error, '_blank', 'width=600,height=700');
+                        return;
+                    }
+                    if (resp.result !== secret && resp.result !== 'ack') return;
+
+                    settled = true;
+                    const signerPk = ev.pubkey;
+                    sub.close();
+
+                    _bunkerSession = { clientSk, clientPk, signerPk, userPk: null, relays, sub: null };
+                    updateBunkerUI('waiting', 'Connected! Fetching your identity…');
+
+                    try {
+                        const userPk = await bunkerRequest('get_public_key');
+                        _bunkerSession.userPk = userPk;
+                        await completeBunkerLogin(userPk);
+                    } catch (e) {
+                        _bunkerSession.userPk = signerPk;
+                        await completeBunkerLogin(signerPk);
+                    }
+                } catch (e) { /* not for us */ }
+            },
+            oneose() {}
+        });
+
+        // Show QR and string AFTER subscription is active
+        updateBunkerUI('waiting', 'Waiting for remote signer…', connectUri);
+        _bunkerSession = { clientSk, clientPk, signerPk: null, userPk: null, relays, sub };
+
+        // PWA recovery
+        function onResume() {
+            if (settled || !_bunkerConnecting) {
+                document.removeEventListener('visibilitychange', onResume);
+                return;
+            }
+            if (document.hidden) return;
+            console.log('[NIP-46] PWA resumed — force-reconnecting relays');
+            try { _bunkerSession?.sub?.close(); } catch (e) {}
+            for (const url of relays) {
+                try { const r = pool.relays?.get(url); if (r) r.close(); } catch (e) {}
+            }
+            setTimeout(async () => {
+                if (settled || !_bunkerConnecting) return;
+                try {
+                    await Promise.allSettled(relays.map(u => pool.ensureRelay(u)));
+                    const freshSince = Math.floor(Date.now() / 1000) - 180;
+                    const newSub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: freshSince }], {
+                        async onevent(ev) {
+                            if (settled) return;
+                            try {
+                                const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
+                                const resp = JSON.parse(decrypted);
+                                if (resp.error && resp.result !== 'auth_url') {
+                                    updateBunkerUI('error', resp.error);
+                                    _bunkerConnecting = false; settled = true; return;
+                                }
+                                if (resp.result === 'auth_url' && resp.error) {
+                                    window.open(resp.error, '_blank', 'width=600,height=700'); return;
+                                }
+                                if (resp.result !== secret && resp.result !== 'ack') return;
+                                settled = true; newSub.close();
+                                const signerPk = ev.pubkey;
+                                _bunkerSession = { clientSk, clientPk, signerPk, userPk: null, relays, sub: null };
+                                updateBunkerUI('waiting', 'Connected! Fetching identity…');
+                                try {
+                                    const userPk = await bunkerRequest('get_public_key');
+                                    _bunkerSession.userPk = userPk;
+                                    await completeBunkerLogin(userPk);
+                                } catch (e2) {
+                                    _bunkerSession.userPk = signerPk;
+                                    await completeBunkerLogin(signerPk);
+                                }
+                            } catch (e) {}
+                        },
+                        oneose() {}
+                    });
+                    if (_bunkerSession) _bunkerSession.sub = newSub;
+                } catch (e) {}
+            }, 500);
+        }
+        document.addEventListener('visibilitychange', onResume);
+
+        // Show refresh button after 90s
+        clearTimeout(_bunkerRefreshTimer);
+        document.getElementById('bunkerRefreshBtn').style.display = 'none';
+        _bunkerRefreshTimer = setTimeout(() => {
+            if (_bunkerConnecting && !_bunkerSession?.signerPk) {
+                document.getElementById('bunkerRefreshBtn').style.display = '';
+                const st = document.getElementById('bunkerStatusText');
+                st.textContent = 'Still waiting — refresh if your signer didn\u2019t connect';
+                st.classList.remove('bunker-waiting');
+            }
+        }, 90000);
+    }
+
+    async function connectBunkerUrl(bunkerUrl) {
+        if (_bunkerConnecting) return;
+        _bunkerConnecting = true;
+        try {
+            const url = new URL(bunkerUrl);
+            if (url.protocol !== 'bunker:') throw new Error('Invalid bunker URL');
+            const signerPk = url.hostname || url.pathname.replace(/^\/\//, '');
+            if (!signerPk || signerPk.length !== 64) throw new Error('Invalid signer pubkey');
+            const relays = url.searchParams.getAll('relay');
+            if (!relays.length) throw new Error('No relays in bunker URL');
+            const secret = url.searchParams.get('secret') || '';
+
+            const clientSk = NostrTools.generateSecretKey();
+            const clientPk = NostrTools.getPublicKey(clientSk);
+            _bunkerSession = { clientSk, clientPk, signerPk, userPk: null, relays, sub: null };
+            updateBunkerUI('waiting', 'Connecting to remote signer…');
+
+            await Promise.allSettled(relays.map(u => pool.ensureRelay(u)));
+            const sinceTs = Math.floor(Date.now() / 1000) - 60;
+            let settled = false;
+
+            const responseSub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
+                async onevent(ev) {
+                    if (settled) return;
+                    try {
+                        const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
+                        const resp = JSON.parse(decrypted);
+                        if (resp.result === 'auth_url' && resp.error) {
+                            window.open(resp.error, '_blank', 'width=600,height=700'); return;
+                        }
+                        if (resp.error && resp.result !== 'auth_url') {
+                            updateBunkerUI('error', resp.error);
+                            _bunkerConnecting = false; settled = true; responseSub.close(); return;
+                        }
+                        settled = true; responseSub.close();
+                        _bunkerSession.sub = null;
+                        updateBunkerUI('waiting', 'Connected! Fetching identity…');
+                        try {
+                            const userPk = await bunkerRequest('get_public_key');
+                            _bunkerSession.userPk = userPk;
+                            await completeBunkerLogin(userPk);
+                        } catch (e) {
+                            _bunkerSession.userPk = signerPk;
+                            await completeBunkerLogin(signerPk);
+                        }
+                    } catch (e) {}
+                },
+                oneose() {}
+            });
+            _bunkerSession.sub = responseSub;
+
+            // Send connect request
+            const reqId = randomHex(8);
+            const connectPayload = JSON.stringify({ id: reqId, method: 'connect', params: [signerPk, secret, 'sign_event:3'] });
+            const encrypted = await nip44Encrypt(clientSk, signerPk, connectPayload);
+            const signedEv = NostrTools.finalizeEvent({
+                kind: 24133, created_at: Math.floor(Date.now() / 1000),
+                tags: [['p', signerPk]], content: encrypted,
+            }, clientSk);
+            await Promise.allSettled(relays.map(async u => {
+                try { (await pool.ensureRelay(u)).publish(signedEv); } catch (e) {}
+            }));
+        } catch (e) {
+            updateBunkerUI('error', e.message);
+            _bunkerConnecting = false; _bunkerSession = null;
+        }
+    }
+
+    async function completeBunkerLogin(userPk) {
+        clearTimeout(_bunkerRefreshTimer);
+        const npub = nip19.npubEncode(userPk);
+        currentUser = { pubkey: userPk, npub, profile: {}, loginMethod: 'bunker' };
+        _bunkerConnecting = false;
+        _saveBunkerSession();
+        updateUserUI();
+        document.getElementById('npub-input').value = npub;
+        hideBunkerModal();
+        startBunkerHeartbeat();
+
+        profileCache.delete(userPk);
+        fetchProfile(userPk).then(profile => {
+            if (currentUser && currentUser.pubkey === userPk) {
+                currentUser.profile = profile;
+                updateUserUI();
+            }
+        }).catch(() => {});
+        fetchFollows(userPk).then(follows => {
+            if (currentUser && currentUser.pubkey === userPk) {
+                userFollowing = new Set(follows);
+            }
+        }).catch(() => {});
+    }
+
+    function _saveBunkerSession() {
+        if (!_bunkerSession?.clientSk || !_bunkerSession?.signerPk || !_bunkerSession?.userPk) return;
+        try {
+            localStorage.setItem(_BUNKER_KEY, JSON.stringify({
+                sk: Array.from(_bunkerSession.clientSk).map(b => b.toString(16).padStart(2, '0')).join(''),
+                pk: _bunkerSession.clientPk,
+                signer: _bunkerSession.signerPk,
+                user: _bunkerSession.userPk,
+                relays: _bunkerSession.relays,
+                t: Date.now(),
+            }));
+        } catch (e) {}
+    }
+
+    function _clearBunkerSession() {
+        try { localStorage.removeItem(_BUNKER_KEY); } catch (e) {}
+    }
+
+    async function _restoreBunkerSession() {
+        let d;
+        try {
+            const raw = localStorage.getItem(_BUNKER_KEY);
+            if (!raw) return false;
+            d = JSON.parse(raw);
+        } catch (e) { return false; }
+
+        if (!d.sk || !d.pk || !d.signer || !d.user || !d.relays?.length) {
+            _clearBunkerSession(); return false;
+        }
+        if (d.t && Date.now() - d.t > 86400000) {
+            _clearBunkerSession(); return false;
+        }
+
+        _bunkerSession = {
+            clientSk: new Uint8Array(d.sk.match(/.{2}/g).map(h => parseInt(h, 16))),
+            clientPk: d.pk, signerPk: d.signer, userPk: d.user, relays: d.relays, sub: null,
+        };
+        await Promise.allSettled(d.relays.map(u => pool.ensureRelay(u)));
+
+        try {
+            const pong = await Promise.race([
+                bunkerRequest('ping'),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
+            ]);
+            if (pong !== 'pong') throw new Error('bad pong');
+        } catch (e) {
+            _bunkerSession = null; _clearBunkerSession(); return false;
+        }
+
+        console.log('[NIP-46] Session restored from localStorage');
+        const npub = nip19.npubEncode(d.user);
+        currentUser = { pubkey: d.user, npub, profile: {}, loginMethod: 'bunker' };
+        document.getElementById('npub-input').value = npub;
+        updateUserUI();
+        startBunkerHeartbeat();
+
+        fetchProfile(d.user).then(profile => {
+            if (currentUser && currentUser.pubkey === d.user) {
+                currentUser.profile = profile; updateUserUI();
+            }
+        }).catch(() => {});
+        fetchFollows(d.user).then(follows => {
+            if (currentUser && currentUser.pubkey === d.user) {
+                userFollowing = new Set(follows);
+            }
+        }).catch(() => {});
+        return true;
+    }
+
+    function updateBunkerUI(state, text, connectUri) {
+        const statusText = document.getElementById('bunkerStatusText');
+        const qrWrap = document.getElementById('bunkerQrWrap');
+        const stringBox = document.getElementById('bunkerStringBox');
+        const cancelBtn = document.getElementById('bunkerCancelBtn');
+
+        statusText.textContent = text;
+        statusText.className = 'bunker-status-text' + (state === 'waiting' ? ' waiting bunker-waiting' : state === 'error' ? ' error' : '');
+
+        if (state === 'waiting' && connectUri) {
+            renderBunkerQR(qrWrap, connectUri);
+            stringBox.textContent = connectUri;
+            stringBox.style.display = '';
+            stringBox.dataset.uri = connectUri;
+            cancelBtn.style.display = '';
+        } else if (state === 'waiting') {
+            qrWrap.innerHTML = '<div style="width:24px;height:24px;margin:16px auto;border:2px solid var(--accent-primary);border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div>';
+            stringBox.style.display = 'none';
+            cancelBtn.style.display = '';
+        } else if (state === 'error') {
+            qrWrap.innerHTML = '';
+            stringBox.style.display = 'none';
+            cancelBtn.style.display = '';
+        } else {
+            qrWrap.innerHTML = '';
+            stringBox.style.display = 'none';
+            cancelBtn.style.display = 'none';
+        }
+    }
+
+    async function renderBunkerQR(container, data) {
+        container.innerHTML = '';
+        try {
+            if (!window.qrcode) {
+                const mod = await import('https://esm.sh/qrcode-generator@1.4.4');
+                window.qrcode = mod.default || mod;
+            }
+            const qr = window.qrcode(0, 'L');
+            qr.addData(data); qr.make();
+            const mc = qr.getModuleCount();
+            const cs = Math.max(3, Math.min(5, Math.floor(240 / mc)));
+            const mg = 12, sz = mc * cs + mg * 2;
+            const cv = document.createElement('canvas');
+            cv.width = sz; cv.height = sz;
+            cv.style.width = Math.min(240, sz) + 'px';
+            cv.style.height = Math.min(240, sz) + 'px';
+            cv.style.borderRadius = '10px';
+            const ctx = cv.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, sz, sz);
+            ctx.fillStyle = '#000';
+            for (let r = 0; r < mc; r++)
+                for (let c = 0; c < mc; c++)
+                    if (qr.isDark(r, c)) ctx.fillRect(mg + c * cs, mg + r * cs, cs, cs);
+            container.appendChild(cv);
+        } catch (e) {
+            container.innerHTML = '<div style="color:var(--text-tertiary);font-size:0.8rem;">QR unavailable — copy the string below</div>';
+        }
+    }
+
+    function showBunkerModal() {
+        const modal = document.getElementById('bunker-modal');
+        modal.classList.add('visible');
+        updateBunkerUI('idle', 'Scan or paste in your remote signer');
+        if (!_bunkerConnecting && !_bunkerSession?.signerPk) {
+            startBunkerClientFlow();
+        }
+    }
+
+    function hideBunkerModal() {
+        document.getElementById('bunker-modal').classList.remove('visible');
+    }
+
+    function startBunkerHeartbeat() {
+        stopBunkerHeartbeat();
+        _bunkerHeartbeat = setInterval(async () => {
+            if (!currentUser || currentUser.loginMethod !== 'bunker' || !_bunkerSession?.signerPk) {
+                stopBunkerHeartbeat(); return;
+            }
+            try {
+                const pong = await Promise.race([
+                    bunkerRequest('ping'),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
+                ]);
+                if (pong === 'pong') { console.log('[NIP-46] Heartbeat OK'); }
+                else { throw new Error('bad response'); }
+            } catch (e) {
+                console.log('[NIP-46] Heartbeat failed:', e.message);
+                stopBunkerHeartbeat();
+                logout();
+            }
+        }, 30000);
+    }
+
+    function stopBunkerHeartbeat() {
+        if (_bunkerHeartbeat) { clearInterval(_bunkerHeartbeat); _bunkerHeartbeat = null; }
+    }
+
     function logout() {
         currentUser = null;
         userFollowing.clear();
@@ -3459,6 +4141,15 @@ document.querySelectorAll('.mode-card').forEach(card => {
         
         // Clear the secure key store
         SecureKeyStore.clear();
+
+        // Clean up bunker session
+        stopBunkerHeartbeat();
+        if (_bunkerSession) {
+            try { _bunkerSession.sub?.close(); } catch (e) {}
+            _bunkerSession = null;
+        }
+        _bunkerConnecting = false;
+        _clearBunkerSession();
         
         document.getElementById('nsec-warning-banner').classList.remove('visible');
         
@@ -3496,6 +4187,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
             signedEvent = await window.nostr.signEvent(event);
         } else if (currentUser.loginMethod === 'nsec' && SecureKeyStore.has()) {
             signedEvent = SecureKeyStore.signEvent(event);
+        } else if (currentUser.loginMethod === 'bunker' && _bunkerSession) {
+            signedEvent = await bunkerSignEvent(event);
         } else {
             throw new Error('No signing method available');
         }
@@ -3529,6 +4222,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const picture = currentUser.profile?.picture || `https://robohash.org/${currentUser.pubkey}?set=set5`;
             const viewBadge = currentUser.loginMethod === 'viewonly'
                 ? '<span style="font-family:JetBrains Mono,monospace;font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-info);margin-left:0.25rem;">view</span>'
+                : currentUser.loginMethod === 'bunker'
+                ? '<span style="font-family:JetBrains Mono,monospace;font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-tertiary);margin-left:0.25rem;">nip-46</span>'
                 : '';
             
             userSection.innerHTML = `
@@ -3550,6 +4245,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
                     <button class="btn btn-login" id="login-btn">Login</button>
                     <div class="login-menu" id="login-menu">
                         <div class="login-option" id="extension-login">Extension Login</div>
+                        <div class="login-option" id="bunker-login-option">Remote Signer (NIP-46)</div>
                         <div class="login-option" id="nsec-login-option">Private Key (nsec)</div>
                         <div class="login-option" id="npub-login-option" style="color:var(--accent-info)">View Only (npub)</div>
                     </div>
@@ -3567,6 +4263,11 @@ document.querySelectorAll('.mode-card').forEach(card => {
             document.getElementById('extension-login').addEventListener('click', function() {
                 loginMenu.classList.remove('visible');
                 loginWithExtension();
+            });
+
+            document.getElementById('bunker-login-option').addEventListener('click', function() {
+                loginMenu.classList.remove('visible');
+                showBunkerModal();
             });
             
             document.getElementById('nsec-login-option').addEventListener('click', function() {
@@ -5861,6 +6562,80 @@ if (recentActivityOnly) {
         }
     });
 
+    // Bunker modal event listeners
+    document.getElementById('bunker-close').addEventListener('click', hideBunkerModal);
+    document.getElementById('bunker-modal').addEventListener('click', function(e) {
+        if (e.target === this) hideBunkerModal();
+    });
+
+    document.getElementById('bunkerStringBox').addEventListener('click', function() {
+        const uri = this.dataset.uri || this.textContent;
+        navigator.clipboard.writeText(uri).then(() => {
+            const orig = this.textContent;
+            this.textContent = '✓ Copied!';
+            setTimeout(() => { this.textContent = orig; }, 1500);
+        });
+    });
+
+    document.getElementById('bunkerCopyFloatBtn').addEventListener('click', function() {
+        const box = document.getElementById('bunkerStringBox');
+        const uri = box.dataset.uri || box.textContent;
+        navigator.clipboard.writeText(uri);
+    });
+
+    document.getElementById('bunkerConnectBtn').addEventListener('click', async function() {
+        const input = document.getElementById('bunkerUrlInput');
+        const url = input.value.trim();
+        if (!url) return alert('Paste a bunker:// URL');
+        if (!url.startsWith('bunker://')) return alert('URL must start with bunker://');
+        if (_bunkerSession?.sub) { try { _bunkerSession.sub.close(); } catch (e) {} }
+        _bunkerSession = null; _bunkerConnecting = false;
+        await connectBunkerUrl(url);
+    });
+
+    document.getElementById('bunkerUrlInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('bunkerConnectBtn').click();
+        }
+    });
+
+    document.getElementById('bunkerCancelBtn').addEventListener('click', function() {
+        clearTimeout(_bunkerRefreshTimer);
+        if (_bunkerSession?.sub) { try { _bunkerSession.sub.close(); } catch (e) {} }
+        _bunkerSession = null; _bunkerConnecting = false;
+        updateBunkerUI('idle', 'Scan or paste in your remote signer');
+        document.getElementById('bunkerQrWrap').innerHTML = '';
+        document.getElementById('bunkerStringBox').style.display = 'none';
+        document.getElementById('bunkerCancelBtn').style.display = 'none';
+        document.getElementById('bunkerRefreshBtn').style.display = 'none';
+        document.getElementById('bunkerUrlInput').value = '';
+    });
+
+    document.getElementById('bunkerRefreshBtn').addEventListener('click', function() {
+        clearTimeout(_bunkerRefreshTimer);
+        if (_bunkerSession?.sub) { try { _bunkerSession.sub.close(); } catch (e) {} }
+        _bunkerSession = null; _bunkerConnecting = false;
+        this.style.display = 'none';
+        startBunkerClientFlow();
+    });
+
     updateUserUI();
+
+    // Restore bunker session in the background
+    _restoreBunkerSession().then(restored => {
+        if (restored) console.log('[NIP-46] Bunker session active from previous visit');
+    }).catch(() => {});
 });
 </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('SW registered:', reg.scope))
+                .catch(err => console.warn('SW registration failed:', err));
+        });
+    }
+</script>
+</body>
+</html>

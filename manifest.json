@@ -1,0 +1,18 @@
+{
+  "name": "Fren Finder - Nostr Discovery",
+  "short_name": "Fren Finder",
+  "description": "Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#c84e3a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["social"]
+}
