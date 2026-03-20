@@ -1164,6 +1164,7 @@
 
         .cross-ref-input {
             width: 100%;
+            min-width: 0;
             padding: 0.875rem 1.25rem;
             background: var(--bg-primary);
             border: 2px solid var(--border-color);
@@ -1173,6 +1174,7 @@
             color: var(--text-primary);
             transition: var(--transition);
             display: none;
+            box-sizing: border-box;
         }
 
         .cross-ref-input.visible {
@@ -1182,6 +1184,138 @@
         .cross-ref-input:focus {
             outline: none;
             border-color: var(--accent-info);
+        }
+
+        .cross-ref-search-wrap {
+            position: relative;
+            display: none;
+        }
+        .cross-ref-search-wrap.visible {
+            display: block;
+        }
+
+        .cross-ref-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 8px 24px var(--shadow-color);
+        }
+        .cross-ref-dropdown.open {
+            display: block;
+        }
+        .cross-ref-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1rem;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .cross-ref-dropdown-item:hover {
+            background: var(--bg-tertiary);
+        }
+        .cross-ref-dropdown-item img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+        }
+        .cross-ref-dropdown-info {
+            min-width: 0;
+            flex: 1;
+        }
+        .cross-ref-dropdown-name {
+            font-family: 'Crimson Pro', serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cross-ref-dropdown-nip05 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cross-ref-dropdown-score {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .cross-ref-dropdown-score .stars {
+            display: inline-flex;
+            gap: 0;
+        }
+        .cross-ref-dropdown-score .rating-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6rem;
+            color: var(--text-tertiary);
+            margin-left: 0.15rem;
+        }
+        .cross-ref-dropdown-searching {
+            padding: 1rem;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+        .cross-ref-selected {
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 0.5rem;
+        }
+        .cross-ref-selected.visible {
+            display: flex;
+        }
+        .cross-ref-selected img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .cross-ref-selected-name {
+            font-family: 'Crimson Pro', serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cross-ref-selected-clear {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0 0.25rem;
+            line-height: 1;
+        }
+        .cross-ref-selected-clear:hover {
+            color: var(--accent-primary);
         }
 
         .cross-ref-loading {
@@ -2328,10 +2462,19 @@
                             Cross-Reference With Another Account
                         </div>
                     </div>
-                    <input type="text" 
-                           class="cross-ref-input" 
-                           id="cross-ref-input" 
-                           placeholder="Enter another npub to compare networks">
+                    <div class="cross-ref-search-wrap" id="cross-ref-search-wrap">
+                        <input type="text" 
+                               class="cross-ref-input" style="display:block;"
+                               id="cross-ref-input" 
+                               placeholder="Search name or paste npub"
+                               autocomplete="off">
+                        <div class="cross-ref-dropdown" id="cross-ref-dropdown"></div>
+                    </div>
+                    <div class="cross-ref-selected" id="cross-ref-selected">
+                        <img id="cross-ref-selected-img" src="" alt="">
+                        <span class="cross-ref-selected-name" id="cross-ref-selected-name"></span>
+                        <button class="cross-ref-selected-clear" id="cross-ref-selected-clear" title="Clear">✕</button>
+                    </div>
                     <button class="btn-compare" id="cross-ref-compare-btn">Compare Networks</button>
                     
                     <div class="cross-ref-loading" id="cross-ref-loading">
@@ -2386,7 +2529,7 @@
                         <input type="text" 
                                class="hashtag-input" 
                                id="hashtag-input" 
-                               placeholder="Enter hashtags (e.g., bitcoin, nostr, photography)">
+                               placeholder="Add hashtags (e.g., bitcoin, nostr)">
                         <div class="tag-suggestions" id="tag-suggestions"></div>
                     </div>
 
@@ -3322,7 +3465,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
         
         // Reset cross-reference UI if not enabled
         if (!crossRefEnabled) {
-            document.getElementById('cross-ref-input').classList.remove('visible');
+            document.getElementById('cross-ref-search-wrap').classList.remove('visible');
             document.getElementById('comparison-results').classList.remove('visible');
         }
     });
@@ -3387,34 +3530,240 @@ document.querySelectorAll('.mode-card').forEach(card => {
     // Cross-reference
     let crossRefEnabled = false;
     let crossRefData = null;
+    let _crossRefSelectedPubkey = null;
+    let _crossRefSearchTimer = null;
+
+    // Search nostr profiles by name using Primal's cache API, fallback to search.nos.today
+    async function searchNostrProfiles(query) {
+        // Strategy 1: Primal cache API
+        try {
+            const results = await _searchViaPrimal(query);
+            if (results.length > 0) return results;
+        } catch (e) {
+            console.warn('[CrossRef] Primal search failed:', e.message);
+        }
+
+        // Strategy 2: NIP-50 via search.nos.today
+        try {
+            return await _searchViaNip50(query);
+        } catch (e) {
+            console.warn('[CrossRef] NIP-50 fallback failed:', e.message);
+            return [];
+        }
+    }
+
+    function _searchViaPrimal(query) {
+        return new Promise((resolve) => {
+            const profiles = [];
+            const seen = new Set();
+            let ws;
+            const timeout = setTimeout(() => {
+                try { ws?.close(); } catch (e) {}
+                resolve(profiles);
+            }, 5000);
+
+            try {
+                ws = new WebSocket('wss://cache2.primal.net/v1');
+                const subId = 'crossref_' + Math.random().toString(36).slice(2, 8);
+                
+                ws.onopen = () => {
+                    ws.send(JSON.stringify(["REQ", subId, { cache: ["user_search", { query, limit: 6 }] }]));
+                };
+
+                ws.onmessage = (msg) => {
+                    try {
+                        const data = JSON.parse(msg.data);
+                        if (data[0] === 'EVENT' && data[1] === subId) {
+                            const ev = data[2];
+                            if (ev.kind === 0 && ev.pubkey && !seen.has(ev.pubkey)) {
+                                seen.add(ev.pubkey);
+                                let meta = {};
+                                try { meta = JSON.parse(ev.content || '{}'); } catch (e) {}
+                                profiles.push({
+                                    pubkey: ev.pubkey,
+                                    name: meta.display_name || meta.displayName || meta.name || '',
+                                    nip05: meta.nip05 || '',
+                                    picture: meta.picture || '',
+                                    npub: nip19.npubEncode(ev.pubkey),
+                                });
+                            }
+                        } else if (data[0] === 'EOSE' && data[1] === subId) {
+                            clearTimeout(timeout);
+                            try { ws.close(); } catch (e) {}
+                            resolve(profiles);
+                        }
+                    } catch (e) {}
+                };
+
+                ws.onerror = () => {
+                    clearTimeout(timeout);
+                    resolve(profiles);
+                };
+            } catch (e) {
+                clearTimeout(timeout);
+                resolve(profiles);
+            }
+        });
+    }
+
+    async function _searchViaNip50(query) {
+        const profiles = [];
+        const seen = new Set();
+        const searchRelays = ['wss://search.nos.today'];
+        await Promise.allSettled(searchRelays.map(u => pool.ensureRelay(u)));
+        const events = await Promise.race([
+            pool.querySync(searchRelays, { kinds: [0], search: query, limit: 6 }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
+        ]);
+        for (const ev of events) {
+            if (seen.has(ev.pubkey)) continue;
+            seen.add(ev.pubkey);
+            let meta = {};
+            try { meta = JSON.parse(ev.content || '{}'); } catch (e) {}
+            profiles.push({
+                pubkey: ev.pubkey,
+                name: meta.display_name || meta.displayName || meta.name || '',
+                nip05: meta.nip05 || '',
+                picture: meta.picture || '',
+                npub: nip19.npubEncode(ev.pubkey),
+            });
+        }
+        return profiles;
+    }
+
+    function renderCrossRefDropdown(profiles) {
+        const dd = document.getElementById('cross-ref-dropdown');
+        if (!profiles.length) {
+            dd.innerHTML = '<div class="cross-ref-dropdown-searching">No profiles found</div>';
+            dd.classList.add('open');
+            return;
+        }
+        dd.innerHTML = profiles.map(p => {
+            const img = p.picture ? `<img src="${p.picture}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23888%22 width=%2240%22 height=%2240%22/></svg>'" alt="">` : `<img src="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23888%22 width=%2240%22 height=%2240%22/></svg>" alt="">`;
+            const displayName = p.name || p.npub.slice(0, 16) + '…';
+            const sub = p.nip05 || p.npub.slice(0, 24) + '…';
+            // Check cache first for instant display
+            const cached = reviewCache.get(p.pubkey);
+            const scoreHtml = cached && cached.count > 0
+                ? `<span class="cross-ref-dropdown-score">${generateStarsHtml(cached.avgRating, '0.7rem')}<span class="rating-text">${parseFloat(cached.avgRating).toFixed(1)}</span></span>`
+                : `<span class="cross-ref-dropdown-score" data-score-pubkey="${p.pubkey}"></span>`;
+            return `<div class="cross-ref-dropdown-item" data-pubkey="${p.pubkey}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-picture="${(p.picture || '').replace(/"/g, '&quot;')}" data-npub="${p.npub}">
+                ${img}
+                <div class="cross-ref-dropdown-info">
+                    <div class="cross-ref-dropdown-name">${displayName} ${scoreHtml}</div>
+                    <div class="cross-ref-dropdown-nip05">${sub}</div>
+                </div>
+            </div>`;
+        }).join('');
+        dd.classList.add('open');
+
+        // Fetch scores for profiles not already cached
+        const uncached = profiles.filter(p => !reviewCache.has(p.pubkey)).map(p => p.pubkey);
+        if (uncached.length > 0) {
+            fetchScoresFromAPI(uncached).then(scores => {
+                if (!scores) return;
+                for (const [pk, data] of Object.entries(scores)) {
+                    if (data.count > 0) {
+                        const el = dd.querySelector(`[data-score-pubkey="${pk}"]`);
+                        if (el) {
+                            el.innerHTML = `${generateStarsHtml(data.avgRating, '0.7rem')}<span class="rating-text">${parseFloat(data.avgRating).toFixed(1)}</span>`;
+                        }
+                    }
+                }
+            }).catch(() => {});
+        }
+    }
+
+    function selectCrossRefProfile(pubkey, name, picture, npub) {
+        _crossRefSelectedPubkey = pubkey;
+        const input = document.getElementById('cross-ref-input');
+        input.value = npub;
+        document.getElementById('cross-ref-dropdown').classList.remove('open');
+
+        const sel = document.getElementById('cross-ref-selected');
+        const img = document.getElementById('cross-ref-selected-img');
+        const nameEl = document.getElementById('cross-ref-selected-name');
+        img.src = picture || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23888%22 width=%2240%22 height=%2240%22/></svg>';
+        nameEl.textContent = name || npub.slice(0, 20) + '…';
+        sel.classList.add('visible');
+
+        document.getElementById('cross-ref-compare-btn').classList.add('visible');
+    }
+
+    function clearCrossRefSelection() {
+        _crossRefSelectedPubkey = null;
+        document.getElementById('cross-ref-input').value = '';
+        document.getElementById('cross-ref-selected').classList.remove('visible');
+        document.getElementById('cross-ref-compare-btn').classList.remove('visible');
+        document.getElementById('cross-ref-dropdown').classList.remove('open');
+        document.getElementById('cross-ref-input').focus();
+    }
+
+    document.getElementById('cross-ref-dropdown').addEventListener('click', function(e) {
+        const item = e.target.closest('.cross-ref-dropdown-item');
+        if (!item) return;
+        selectCrossRefProfile(item.dataset.pubkey, item.dataset.name, item.dataset.picture, item.dataset.npub);
+    });
+
+    document.getElementById('cross-ref-selected-clear').addEventListener('click', clearCrossRefSelection);
 
     document.getElementById('enable-cross-ref').addEventListener('change', function() {
         crossRefEnabled = this.checked;
-        const crossRefInput = document.getElementById('cross-ref-input');
+        const searchWrap = document.getElementById('cross-ref-search-wrap');
         const compareBtn = document.getElementById('cross-ref-compare-btn');
         const comparisonResults = document.getElementById('comparison-results');
         const loadingEl = document.getElementById('cross-ref-loading');
         const errorEl = document.getElementById('cross-ref-error');
         
         if (crossRefEnabled) {
-            crossRefInput.classList.add('visible');
+            searchWrap.classList.add('visible');
         } else {
-            crossRefInput.classList.remove('visible');
+            searchWrap.classList.remove('visible');
             compareBtn.classList.remove('visible');
             comparisonResults.classList.remove('visible');
             loadingEl.classList.remove('visible');
             errorEl.classList.remove('visible');
             crossRefData = null;
+            clearCrossRefSelection();
         }
     });
 
-    // Show/hide compare button based on input content
+    // Debounced search on input
     document.getElementById('cross-ref-input').addEventListener('input', function() {
+        const val = this.value.trim();
         const btn = document.getElementById('cross-ref-compare-btn');
-        if (this.value.trim().startsWith('npub1')) {
+        const dd = document.getElementById('cross-ref-dropdown');
+
+        // Clear any previous selection if user is typing again
+        if (_crossRefSelectedPubkey) {
+            _crossRefSelectedPubkey = null;
+            document.getElementById('cross-ref-selected').classList.remove('visible');
+        }
+
+        clearTimeout(_crossRefSearchTimer);
+
+        // If it's an npub, show compare button directly
+        if (val.startsWith('npub1') && val.length > 10) {
             btn.classList.add('visible');
+            dd.classList.remove('open');
+            return;
         } else {
             btn.classList.remove('visible');
+        }
+
+        // Search by name if 2+ chars
+        if (val.length >= 2) {
+            dd.innerHTML = '<div class="cross-ref-dropdown-searching">Searching…</div>';
+            dd.classList.add('open');
+            _crossRefSearchTimer = setTimeout(async () => {
+                const results = await searchNostrProfiles(val);
+                // Only render if input still matches
+                if (document.getElementById('cross-ref-input').value.trim() === val) {
+                    renderCrossRefDropdown(results);
+                }
+            }, 350);
+        } else {
+            dd.classList.remove('open');
         }
     });
 
@@ -3422,13 +3771,26 @@ document.querySelectorAll('.mode-card').forEach(card => {
     document.getElementById('cross-ref-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            document.getElementById('cross-ref-compare-btn').click();
+            const dd = document.getElementById('cross-ref-dropdown');
+            // If dropdown is open with results, select the first one
+            const firstItem = dd.querySelector('.cross-ref-dropdown-item');
+            if (dd.classList.contains('open') && firstItem) {
+                selectCrossRefProfile(firstItem.dataset.pubkey, firstItem.dataset.name, firstItem.dataset.picture, firstItem.dataset.npub);
+            } else {
+                document.getElementById('cross-ref-compare-btn').click();
+            }
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.cross-ref-search-wrap')) {
+            document.getElementById('cross-ref-dropdown').classList.remove('open');
         }
     });
 
     // Compare button click handler
     document.getElementById('cross-ref-compare-btn').addEventListener('click', async function() {
-        const crossRefNpub = document.getElementById('cross-ref-input').value.trim();
         const loadingEl = document.getElementById('cross-ref-loading');
         const errorEl = document.getElementById('cross-ref-error');
         const comparisonResults = document.getElementById('comparison-results');
@@ -3438,10 +3800,24 @@ document.querySelectorAll('.mode-card').forEach(card => {
         errorEl.classList.remove('visible');
         errorEl.textContent = '';
 
-        if (!crossRefNpub || !crossRefNpub.startsWith('npub1')) {
-            errorEl.textContent = 'Enter a valid npub starting with npub1';
-            errorEl.classList.add('visible');
-            return;
+        // Resolve the cross-ref pubkey
+        let crossPubkey;
+        if (_crossRefSelectedPubkey) {
+            crossPubkey = _crossRefSelectedPubkey;
+        } else {
+            const inputVal = document.getElementById('cross-ref-input').value.trim();
+            if (!inputVal || !inputVal.startsWith('npub1')) {
+                errorEl.textContent = 'Search for a profile or paste an npub';
+                errorEl.classList.add('visible');
+                return;
+            }
+            try {
+                crossPubkey = nip19.decode(inputVal).data;
+            } catch (e) {
+                errorEl.textContent = 'Invalid npub — check and try again';
+                errorEl.classList.add('visible');
+                return;
+            }
         }
 
         // Get main user pubkey
@@ -3465,8 +3841,6 @@ document.querySelectorAll('.mode-card').forEach(card => {
         comparisonResults.classList.remove('visible');
 
         try {
-            const { data: crossPubkey } = nip19.decode(crossRefNpub);
-
             // Clear cache to ensure fresh follow lists for accurate comparison
             followsCache.delete(mainPubkey);
             followsCache.delete(crossPubkey);
@@ -3489,8 +3863,6 @@ document.querySelectorAll('.mode-card').forEach(card => {
             console.log(`   Your total follows: ${mainFollows.length}`);
             console.log(`   Their total follows: ${crossFollows.length}`);
             console.log(`   You only: ${youOnly.length}, Both: ${mutual.length}, Them only: ${themOnly.length}`);
-            console.log(`   Check: ${youOnly.length} + ${mutual.length} = ${youOnly.length + mutual.length} (should equal ${mainFollows.length})`);
-            console.log(`   Check: ${themOnly.length} + ${mutual.length} = ${themOnly.length + mutual.length} (should equal ${crossFollows.length})`);
 
             document.getElementById('you-only-count').textContent = youOnly.length;
             document.getElementById('mutual-count').textContent = mutual.length;
