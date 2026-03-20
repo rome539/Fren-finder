@@ -2293,7 +2293,7 @@
                 <div class="logo-section">
                     <h1 id="logo-title" style="cursor:default;">Fren Finder</h1>
                     <p class="subtitle">Advanced Nostr Discovery</p>
-                    <p id="latin-egg" style="font-family:'Crimson Pro',serif;font-size:0.8rem;font-style:italic;color:var(--text-tertiary);opacity:0;max-height:0;overflow:hidden;transition:opacity 0.6s ease, max-height 0.4s ease;margin-top:0;">Qui amicum invenit, thesaurum invenit.</p>
+                    <p id="latin-egg" style="font-family:'Crimson Pro',serif;font-size:0.8rem;font-style:italic;color:var(--text-tertiary);opacity:0;max-height:0;overflow:hidden;transition:opacity 0.5s cubic-bezier(0.4,0,0.2,1), max-height 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s cubic-bezier(0.4,0,0.2,1);margin-top:0;">Qui amicum invenit, thesaurum invenit.</p>
                 </div>
                 <div class="header-actions">
                     <button class="btn theme-toggle" id="theme-btn">Theme</button>
@@ -6703,8 +6703,8 @@ if (recentActivityOnly) {
             const el = document.getElementById('latin-egg');
             const show = el.style.opacity === '0';
             el.style.opacity = show ? '1' : '0';
-            el.style.maxHeight = show ? '2rem' : '0';
-            el.style.marginTop = show ? '0.3rem' : '0';
+            el.style.maxHeight = show ? '3rem' : '0';
+            el.style.marginTop = show ? '0.4rem' : '0';
     });
 
     // Restore bunker session in the background
