@@ -4162,6 +4162,15 @@ document.querySelectorAll('.mode-card').forEach(card => {
 
     function hideBunkerModal() {
         document.getElementById('bunker-modal').classList.remove('visible');
+
+        // If we were waiting for a connection (no signerPk yet), tear down
+        // the stale flow so a fresh one starts on the next open
+        if (_bunkerConnecting && !_bunkerSession?.signerPk) {
+            clearTimeout(_bunkerRefreshTimer);
+            if (_bunkerSession?.sub) { try { _bunkerSession.sub.close(); } catch (e) {} }
+            _bunkerSession = null;
+            _bunkerConnecting = false;
+        }
     }
 
     function startBunkerHeartbeat() {
