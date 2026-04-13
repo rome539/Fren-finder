@@ -21,16 +21,36 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>Fren Finder - Advanced Nostr Discovery</title>
     <meta name="description" content="Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.">
-    <meta property="og:title" content="Fren Finder">
-    <meta property="og:description" content="Discover your people on Nostr">
-    <meta property="og:image" content="/og-image.png">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://frenfinder.net/">
+    <meta property="og:title" content="Fren Finder - Advanced Nostr Discovery">
+    <meta property="og:description" content="Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.">
+    <meta property="og:image" content="https://frenfinder.net/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://frenfinder.net/">
+    <meta property="og:site_name" content="Fren Finder">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Fren Finder">
-    <meta name="twitter:description" content="Discover your people on Nostr">
-    <meta name="twitter:image" content="/og-image.png">
+    <meta name="twitter:title" content="Fren Finder - Advanced Nostr Discovery">
+    <meta name="twitter:description" content="Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.">
+    <meta name="twitter:image" content="https://frenfinder.net/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Fren Finder",
+      "url": "https://frenfinder.net/",
+      "description": "Discover your people on Nostr. Find new friends through shared interests, niche hashtags, and your social graph.",
+      "applicationCategory": "SocialNetworkingApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
     <link rel="icon" type="image/png" href="/apple-touch-icon.png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
@@ -2373,6 +2393,11 @@
         }
         .bunker-input-row input:focus {
             border-color: var(--accent-primary);
+        }
+        @media (max-width: 768px) {
+            .bunker-input-row input {
+                font-size: 16px;
+            }
         }
         .bunker-input-row button {
             padding: 0 18px;
