@@ -1,11 +1,9 @@
-const CACHE_NAME = 'fren-finder-v1';
+const CACHE_NAME = 'fren-finder-v2-security';
 
 // Shell assets to precache — the app itself
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/favicon.png',
-  '/favicon.svg',
   '/apple-touch-icon.png',
   '/og-image.png'
 ];
@@ -24,7 +22,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+        keys.filter(key => key.startsWith('fren-finder-') && key !== CACHE_NAME).map(key => caches.delete(key))
       )
     ).then(() => self.clients.claim())
   );
@@ -55,13 +53,13 @@ self.addEventListener('fetch', event => {
   }
 
   // CDN scripts (unpkg, jsdelivr, esm.sh) — cache-first
-  if (['unpkg.com', 'cdn.jsdelivr.net', 'esm.sh'].some(d => url.hostname.includes(d))) {
+  if (['unpkg.com', 'cdn.jsdelivr.net', 'esm.sh'].includes(url.hostname)) {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
         return fetch(request).then(response => {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           return response;
         });
       })
@@ -75,7 +73,7 @@ self.addEventListener('fetch', event => {
       fetch(request)
         .then(response => {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           return response;
         })
         .catch(() => caches.match(request))

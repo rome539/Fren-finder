@@ -4,18 +4,24 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://esm.sh;
+    script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://esm.sh https://accounts.google.com https://apis.google.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com data:;
     img-src 'self' https: data: blob:;
     media-src 'self' https: data: blob:;
     connect-src 'self' https: wss:;
+    frame-src https://accounts.google.com https://content.googleapis.com https://docs.google.com https://drive.google.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
-    frame-ancestors 'none';
+    script-src-attr 'none';
     upgrade-insecure-requests;
 ">
+    <style id="frame-guard">html { display: none !important; }</style>
+    <script>
+        // Defense in depth for static hosts; HTTP frame-ancestors is still required.
+        if (window.top === window.self) document.getElementById('frame-guard').remove();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -2754,6 +2760,89 @@
             </div>
         </div>
 
+        <!-- Continue with Google — unified create / recover (NIP-XX) -->
+        <div class="nsec-modal" id="google-recovery-modal">
+            <div class="nsec-modal-content">
+                <div class="nsec-modal-header">
+                    <h3>Continue with Google</h3>
+                    <button class="nsec-close" id="google-recovery-close">×</button>
+                </div>
+
+                <div style="background:rgba(58,110,165,0.1);border:2px solid var(--accent-info);border-radius:0.5rem;padding:1rem;margin-bottom:1.25rem;color:var(--text-primary);font-size:0.9rem;line-height:1.6;">
+                    Your key is encrypted and decrypted in your browser — Google
+                    only ever stores ciphertext it can't read.
+                </div>
+
+                <div id="google-recovery-status" style="font-size:0.9rem;min-height:1.4rem;margin-bottom:1rem;color:var(--text-secondary,#888);"></div>
+
+                <!-- New user: choose import vs. create -->
+                <div id="google-choice" style="display:none;flex-direction:column;gap:0.6rem;margin-bottom:0.5rem;">
+                    <button class="nsec-btn nsec-btn-secondary" id="google-choice-import" style="text-align:left;line-height:1.4;height:auto;padding:0.8rem 1rem;">
+                        <strong>Made an account in another app?</strong><br>
+                        <span style="font-size:0.85rem;opacity:0.8;">Find its backup in your Google Drive</span>
+                    </button>
+                    <button class="nsec-btn nsec-btn-primary" id="google-choice-create" style="text-align:left;line-height:1.4;height:auto;padding:0.8rem 1rem;">
+                        <strong>Create a new account</strong><br>
+                        <span style="font-size:0.85rem;opacity:0.85;">New Nostr key, backed up to your Drive</span>
+                    </button>
+                </div>
+
+                <!-- Recover existing / imported: enter PIN or passphrase -->
+                <div id="google-unlock" style="display:none;">
+                    <div class="nsec-input-group">
+                        <label for="google-recovery-pin" id="google-unlock-label">Backup PIN</label>
+                        <input type="password" class="nsec-input" id="google-recovery-pin"
+                               placeholder="Enter your PIN" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="nsec-actions">
+                        <button class="nsec-btn nsec-btn-secondary" id="google-recovery-cancel">Cancel</button>
+                        <button class="nsec-btn nsec-btn-primary" id="google-recovery-unlock">Unlock</button>
+                    </div>
+                    <div id="google-recover-different-wrap" style="display:none;margin-top:0.85rem;text-align:center;">
+                        <a href="#" id="google-recover-different" style="font-size:0.85rem;color:var(--accent-info);text-decoration:underline;cursor:pointer;">Not your account? Recover a different one from Drive</a>
+                    </div>
+                </div>
+
+                <!-- Create a new account: set a PIN -->
+                <div id="google-create" style="display:none;">
+                    <div class="nsec-input-group">
+                        <label for="google-create-pin">Set a recovery passphrase (16+ characters)</label>
+                        <input type="password" class="nsec-input" id="google-create-pin"
+                               placeholder="Use several random words" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="nsec-input-group">
+                        <label for="google-create-pin2">Confirm passphrase</label>
+                        <input type="password" class="nsec-input" id="google-create-pin2"
+                               placeholder="Re-enter your passphrase" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div style="font-size:0.82rem;color:var(--text-secondary,#888);margin-bottom:0.8rem;line-height:1.5;">
+                        If you forget this passphrase and haven't made a portable backup, your account can't be recovered.
+                    </div>
+                    <div class="nsec-actions">
+                        <button class="nsec-btn nsec-btn-secondary" id="google-create-cancel">Back</button>
+                        <button class="nsec-btn nsec-btn-primary" id="google-create-btn">Create account</button>
+                    </div>
+                </div>
+
+                <!-- Optional: make portable (export to My Drive) -->
+                <div id="google-portable" style="display:none;">
+                    <div style="font-size:0.9rem;color:var(--text-primary);margin-bottom:0.8rem;line-height:1.5;">
+                        <strong>Make your account portable?</strong><br>
+                        Write a copy to your Google Drive that other compatible apps can recover, protected by a strong passphrase (separate from your recovery passphrase).
+                    </div>
+                    <div class="nsec-input-group">
+                        <label for="google-portable-pass">Passphrase (16+ characters, use several random words)</label>
+                        <input type="password" class="nsec-input" id="google-portable-pass"
+                               placeholder="Choose a strong passphrase" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="nsec-actions">
+                        <button class="nsec-btn nsec-btn-secondary" id="google-portable-skip">Not now</button>
+                        <button class="nsec-btn nsec-btn-primary" id="google-portable-btn">Make portable</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- NIP-46 Bunker Login Modal -->
         <div class="nsec-modal" id="bunker-modal">
             <div class="nsec-modal-content">
@@ -2810,15 +2899,29 @@
 </script>
 
 <script>
+function safeText(value) { return typeof value === 'string' ? value : ''; }
+function safeImageUrl(value) {
+    try {
+        const url = new URL(safeText(value));
+        return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+    } catch { return ''; }
+}
+function setProfileImage(img, value, pubkey) {
+    const fallback = 'https://robohash.org/' + encodeURIComponent(pubkey) + '?set=set5';
+    img.addEventListener('error', () => { img.src = fallback; }, { once: true });
+    img.src = safeImageUrl(value) || fallback;
+}
+function validPubkey(value) { return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value); }
+function safeCount(value) { return Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0; }
+
 const PUBSCORE_API = 'https://api.pubscore.space';
 const profileCache = new Map();  
 const noteCache = new Map();
 let currentUser = null;
 let userFollowing = new Set();
 let discoveryMode = 'social';
-// SECURITY: Secure private key storage using closure
-// The key is NEVER directly accessible - only signing operations allowed
-// This prevents XSS attacks from stealing the raw key
+// Reduce accidental key exposure. This closure is not an XSS security boundary:
+// scripts in this origin can still invoke signing, so all rendering must stay safe.
 const SecureKeyStore = (() => {
   let _secretKey = null;
   
@@ -2828,8 +2931,7 @@ const SecureKeyStore = (() => {
       _secretKey = key;
     },
     
-    // ✅ NO .get() method - XSS cannot access raw key
-    // If you need the raw key for debugging, temporarily add it back
+    // Deliberately expose no key getter.
     
     has() {
       return _secretKey !== null;
@@ -2981,6 +3083,7 @@ function generateStarsHtml(rating, size) {
 }
 
 function ratingHtml(avgRating, count, size) {
+    count = safeCount(count);
     if (count === 0) return '<span class="rating-text">No ratings yet</span>';
     return generateStarsHtml(avgRating, size) +
         '<span class="rating-text">' + parseFloat(avgRating).toFixed(1) + ' (' + count + ')</span>';
@@ -3256,6 +3359,7 @@ function attachPubscoreClick(el) {
 
 // Only reset pool on page load
 window.addEventListener('load', async function() {
+    if (window.top !== window.self) return;
     if (typeof NostrTools === 'undefined') {
         alert('Failed to load Nostr tools');
         return;
@@ -3544,7 +3648,12 @@ document.querySelectorAll('.mode-card').forEach(card => {
         selectedHashtags.forEach(tag => {
             const tagEl = document.createElement('div');
             tagEl.className = 'selected-tag';
-            tagEl.innerHTML = `#${tag}<span class="tag-remove" onclick="removeHashtag('${tag}')">×</span>`;
+            tagEl.appendChild(document.createTextNode('#' + tag));
+            const remove = document.createElement('span');
+            remove.className = 'tag-remove';
+            remove.textContent = '×';
+            remove.addEventListener('click', () => removeHashtag(tag));
+            tagEl.appendChild(remove);
             container.appendChild(tagEl);
         });
     }
@@ -3663,23 +3772,34 @@ document.querySelectorAll('.mode-card').forEach(card => {
             dd.classList.add('open');
             return;
         }
-        dd.innerHTML = profiles.map(p => {
-            const img = p.picture ? `<img src="${p.picture}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23888%22 width=%2240%22 height=%2240%22/></svg>'" alt="">` : `<img src="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%23888%22 width=%2240%22 height=%2240%22/></svg>" alt="">`;
-            const displayName = p.name || p.npub.slice(0, 16) + '…';
-            const sub = p.nip05 || p.npub.slice(0, 24) + '…';
-            // Check cache first for instant display
+        dd.replaceChildren();
+        profiles = profiles.filter(p => validPubkey(p.pubkey));
+        profiles.forEach(p => {
+            const npub = nip19.npubEncode(p.pubkey);
+            const item = document.createElement('div');
+            item.className = 'cross-ref-dropdown-item';
+            Object.assign(item.dataset, {pubkey: p.pubkey, name: safeText(p.name), picture: safeImageUrl(p.picture), npub});
+            const img = document.createElement('img');
+            img.alt = '';
+            setProfileImage(img, p.picture, p.pubkey);
+            const info = document.createElement('div');
+            info.className = 'cross-ref-dropdown-info';
+            const name = document.createElement('div');
+            name.className = 'cross-ref-dropdown-name';
+            name.textContent = safeText(p.name) || npub.slice(0, 16) + '…';
+            const score = document.createElement('span');
+            score.className = 'cross-ref-dropdown-score';
+            score.dataset.scorePubkey = p.pubkey;
             const cached = reviewCache.get(p.pubkey);
-            const scoreHtml = cached && cached.count > 0
-                ? `<span class="cross-ref-dropdown-score">${generateStarsHtml(cached.avgRating, '0.7rem')}<span class="rating-text">${parseFloat(cached.avgRating).toFixed(1)}</span></span>`
-                : `<span class="cross-ref-dropdown-score" data-score-pubkey="${p.pubkey}"></span>`;
-            return `<div class="cross-ref-dropdown-item" data-pubkey="${p.pubkey}" data-name="${(p.name || '').replace(/"/g, '&quot;')}" data-picture="${(p.picture || '').replace(/"/g, '&quot;')}" data-npub="${p.npub}">
-                ${img}
-                <div class="cross-ref-dropdown-info">
-                    <div class="cross-ref-dropdown-name">${displayName} ${scoreHtml}</div>
-                    <div class="cross-ref-dropdown-nip05">${sub}</div>
-                </div>
-            </div>`;
-        }).join('');
+            if (cached && cached.count > 0) score.innerHTML = ratingHtml(cached.avgRating, cached.count, '0.7rem');
+            name.appendChild(score);
+            const sub = document.createElement('div');
+            sub.className = 'cross-ref-dropdown-nip05';
+            sub.textContent = safeText(p.nip05) || npub.slice(0, 24) + '…';
+            info.append(name, sub);
+            item.append(img, info);
+            dd.appendChild(item);
+        });
         dd.classList.add('open');
 
         // Fetch scores for profiles not already cached
@@ -4038,6 +4158,43 @@ document.querySelectorAll('.mode-card').forEach(card => {
         }
     }
 
+    // Shared post-login path: takes a 32-byte secret key (Uint8Array) and
+    // brings the app to a logged-in nsec session. Reused by nsec paste login
+    // and by Google/Drive key recovery (NIP-XX encrypted key backup).
+    function finishNsecLogin(secretKey) {
+        const pubkey = NostrTools.getPublicKey(secretKey);
+        const npub = nip19.npubEncode(pubkey);
+
+        // Store in secure key store (in-memory only)
+        SecureKeyStore.set(secretKey);
+
+        // Set user IMMEDIATELY so UI updates instantly
+        currentUser = { pubkey, npub, profile: {}, loginMethod: 'nsec' };
+        updateUserUI();
+        document.getElementById('npub-input').value = npub;
+        document.getElementById('nsec-warning-banner').classList.add('visible');
+        resetInactivityTimer();
+
+        // Fetch profile + follows in background (non-blocking)
+        profileCache.delete(pubkey);
+        fetchProfile(pubkey).then(profile => {
+            if (currentUser && currentUser.pubkey === pubkey) {
+                currentUser.profile = profile;
+                updateUserUI();
+            }
+        }).catch(err => console.warn('Background profile fetch:', err));
+
+        fetchFollows(pubkey).then(follows => {
+            if (currentUser && currentUser.pubkey === pubkey) {
+                userFollowing = new Set(follows);
+                console.log('Follows loaded in background:', follows.length);
+            }
+        }).catch(err => console.warn('Background follows fetch:', err));
+
+        console.log('Nsec login successful - key stored in memory only');
+        return npub;
+    }
+
     async function loginWithNsec() {
         const input = document.getElementById('nsec-input-field');
         const nsecString = input.value.trim();
@@ -4055,51 +4212,632 @@ document.querySelectorAll('.mode-card').forEach(card => {
 
         try {
             const { data: secretKey } = nip19.decode(nsecString);
-            
+
             if (secretKey.length !== 32) {
                 throw new Error('Invalid secret key length');
             }
-            
+
             input.value = '';
-            
-            const pubkey = NostrTools.getPublicKey(secretKey);
-            const npub = nip19.npubEncode(pubkey);
-            
-            // Store in secure key store
-            SecureKeyStore.set(secretKey);
-            
-            // Set user IMMEDIATELY so UI updates instantly
-            currentUser = { pubkey, npub, profile: {}, loginMethod: 'nsec' };
-            updateUserUI();
-            document.getElementById('npub-input').value = npub;
-            document.getElementById('nsec-warning-banner').classList.add('visible');
             hideNsecModal();
-            resetInactivityTimer();
-
-            // Fetch profile + follows in background (non-blocking)
-            profileCache.delete(pubkey);
-            fetchProfile(pubkey).then(profile => {
-                if (currentUser && currentUser.pubkey === pubkey) {
-                    currentUser.profile = profile;
-                    updateUserUI();
-                }
-            }).catch(err => console.warn('Background profile fetch:', err));
-
-            fetchFollows(pubkey).then(follows => {
-                if (currentUser && currentUser.pubkey === pubkey) {
-                    userFollowing = new Set(follows);
-                    console.log('Follows loaded in background:', follows.length);
-                }
-            }).catch(err => console.warn('Background follows fetch:', err));
-            
-            console.log('Nsec login successful - key stored in memory only');
-            return npub;
+            return finishNsecLogin(secretKey);
         } catch (err) {
             console.error('Nsec login error:', err);
             input.value = '';
             alert('Failed to login with nsec: ' + err.message);
             return null;
         }
+    }
+
+    // =====================================================================
+    // NIP-XX  ENCRYPTED KEY BACKUP — unified "Continue with Google"
+    // ---------------------------------------------------------------------
+    // One button, one Google Cloud project (Fren Finder's own). On sign-in we
+    // check Fren Finder's app-data folder for its backup:
+    //   - found     → native recovery (prompt PIN → decrypt → log in)
+    //   - not found → offer: import another app's backup via the Picker, or
+    //                 create a new account (generate key → encrypt → write to
+    //                 app-data → log in), with an optional portable export.
+    // Decrypt + encrypt are built from the draft NIP's §2 and validated offline
+    // against its test vector and an encrypt→decrypt round-trip.
+    //
+    // Scopes are requested incrementally to keep the default consent minimal:
+    //   drive.appdata at login (own backup read/write); drive.file only when
+    //   importing via the Picker or writing a portable copy to My Drive.
+    // =====================================================================
+
+    const GOOGLE_OAUTH_CLIENT_ID = '780098010079-f2m12mur4108igipfgae059l0ao3j873.apps.googleusercontent.com';
+    const DRIVE_APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+    const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    const PICKER_API_KEY = 'AIzaSyCqNsebpwUJrVJjMUpxhnmcZXitgA8lp10';
+    const PICKER_APP_ID = '780098010079'; // project number — lets drive.file grant the picked file
+
+    const BACKUP_KIND = 'nostr-key-backup';
+
+    // ---- crypto: spec decrypt chain (offline; no network) ----------------
+
+    // NIP-44 v2 decrypt using a RAW 32-byte symmetric key as the
+    // "conversation key" (not an ECDH output), as the spec requires.
+    async function _nip44DecryptRaw(payloadB64, rawKey32) {
+        const mod = await _loadNip44();
+        // nostr-tools exposes decrypt(payload, conversationKey); the
+        // conversationKey slot accepts any 32-byte key.
+        if (mod.decrypt) return mod.decrypt(payloadB64, rawKey32);
+        return mod.v2.decrypt(payloadB64, rawKey32);
+    }
+
+    function _utf8(s) { return new TextEncoder().encode(s); }
+
+    function _hexToBytes(h) {
+        if (typeof h !== 'string' || h.length % 2) throw new Error('bad hex');
+        const out = new Uint8Array(h.length / 2);
+        for (let i = 0; i < out.length; i++) {
+            const b = parseInt(h.substr(i * 2, 2), 16);
+            if (Number.isNaN(b)) throw new Error('bad hex');
+            out[i] = b;
+        }
+        return out;
+    }
+
+    function _b64urlToBytes(s) {
+        let b = String(s).replace(/-/g, '+').replace(/_/g, '/');
+        while (b.length % 4) b += '=';
+        const bin = atob(b);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+
+    // KEK = PBKDF2-HMAC-SHA256(utf8(pin), salt, iter, 32) via WebCrypto.
+    async function _deriveKekPbkdf2(pin, saltBytes, iter) {
+        const baseKey = await crypto.subtle.importKey(
+            'raw', _utf8(pin), 'PBKDF2', false, ['deriveBits']);
+        const bits = await crypto.subtle.deriveBits(
+            { name: 'PBKDF2', salt: saltBytes, iterations: iter, hash: 'SHA-256' },
+            baseKey, 256);
+        return new Uint8Array(bits);
+    }
+
+    // Decrypt a parsed backup blob with the user's PIN -> 32-byte secret key.
+    // Throws on a malformed blob, unsupported wrap, or wrong PIN (the NIP-44
+    // MAC failure is the wrong-PIN signal — no separate check needed).
+    async function recoverKeyFromBackup(blob, pin) {
+        if (!blob || blob.kind !== BACKUP_KIND) throw new Error('Not a Nostr key backup');
+        if (blob.v !== 1) throw new Error('Unsupported backup version: ' + blob.v);
+        if (!blob.key || !blob.key.ct) throw new Error('Backup missing key ciphertext');
+        if (!Array.isArray(blob.wraps) || !blob.wraps.length || blob.wraps.length > 8) throw new Error('Backup has no wraps');
+
+        // Try each supported PIN wrap; fall through unknown kdf/type.
+        const pinWraps = blob.wraps.filter(
+            w => w && w.type === 'pin' && w.kdf === 'pbkdf2-sha256' && w.salt && w.ct);
+        if (!pinWraps.length) throw new Error('No supported PIN wrap in backup');
+
+        let lastErr = null;
+        for (const wrap of pinWraps) {
+            try {
+                const iter = wrap.iter ?? 600000;
+                if (!Number.isInteger(iter) || iter < 1 || iter > 2000000) throw new Error('Invalid backup iteration count');
+                if (typeof wrap.salt !== 'string' || wrap.salt.length > 128 || typeof wrap.ct !== 'string' || wrap.ct.length > 4096 || typeof blob.key.ct !== 'string' || blob.key.ct.length > 4096) throw new Error('Invalid backup size');
+                const salt = _b64urlToBytes(wrap.salt);
+                const kek = await _deriveKekPbkdf2(pin, salt, iter);
+                const dekHex = await _nip44DecryptRaw(wrap.ct, kek);   // hex(DEK)
+                const dek = _hexToBytes(dekHex);
+                const privHex = await _nip44DecryptRaw(blob.key.ct, dek); // hex(privkey)
+                const priv = _hexToBytes(privHex);
+                if (priv.length !== 32) throw new Error('Recovered key is not 32 bytes');
+                // Wipe intermediates we no longer need.
+                kek.fill(0); dek.fill(0);
+                return priv;
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        // Every wrap failed the MAC -> almost certainly the wrong PIN.
+        throw new Error('Wrong PIN, or backup is corrupt');
+    }
+
+    // ---- writer half of the spec (§2): build a backup blob ---------------
+
+    function _bytesToHex(b) {
+        let s = '';
+        for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, '0');
+        return s;
+    }
+
+    function _bytesToB64url(bytes) {
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function _randomBytes(n) {
+        const a = new Uint8Array(n);
+        crypto.getRandomValues(a);
+        return a;
+    }
+
+    // NIP-44 v2 encrypt using a RAW 32-byte symmetric conversation key.
+    async function _nip44EncryptRaw(plaintext, rawKey32) {
+        const mod = await _loadNip44();
+        if (mod.encrypt) return mod.encrypt(plaintext, rawKey32);
+        return mod.v2.encrypt(plaintext, rawKey32);
+    }
+
+    // Build a nostr-key-backup blob (kind/key/wraps[]) for a 32-byte secret key
+    // wrapped by a single PIN/passphrase factor. Mirrors recoverKeyFromBackup:
+    // random DEK encrypts the key once; a PBKDF2 KEK wraps the DEK.
+    function validateBackupPassphrase(secret) {
+        if (typeof secret !== 'string' || secret.trim().length < 16 || /^\d+$/.test(secret.trim()) || new Set(secret).size < 6) {
+            throw new Error('Use a unique passphrase of at least 16 characters, such as several random words; avoid numbers alone or repeated characters.');
+        }
+    }
+
+    async function createBackupBlob(secretKey, secret, iter = 600000) {
+        validateBackupPassphrase(secret);
+        const privHex = _bytesToHex(secretKey);
+        const dek = _randomBytes(32);
+        const keyCt = await _nip44EncryptRaw(privHex, dek);
+
+        const salt = _randomBytes(16);
+        const kek = await _deriveKekPbkdf2(secret, salt, iter);
+        const wrapCt = await _nip44EncryptRaw(_bytesToHex(dek), kek);
+
+        // Wipe key material we no longer need.
+        dek.fill(0); kek.fill(0);
+
+        return {
+            kind: BACKUP_KIND,
+            v: 1,
+            key: { alg: 'nip44-v2', ct: keyCt },
+            wraps: [{
+                type: 'pin',
+                kdf: 'pbkdf2-sha256',
+                iter,
+                salt: _bytesToB64url(salt),
+                ct: wrapCt,
+            }],
+        };
+    }
+
+    // ---- Google Identity Services + Drive appDataFolder read -------------
+
+    let _gisLoaded = null;
+    function _loadGis() {
+        if (_gisLoaded) return _gisLoaded;
+        _gisLoaded = new Promise((resolve, reject) => {
+            if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+                return resolve();
+            }
+            const s = document.createElement('script');
+            s.src = 'https://accounts.google.com/gsi/client';
+            s.async = true; s.defer = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Failed to load Google sign-in'));
+            document.head.appendChild(s);
+        });
+        return _gisLoaded;
+    }
+
+    // Pop the Google consent/login and resolve with an access token for the
+    // given client + scope. The token lives only in this closure; never stored.
+    async function _requestGoogleToken(clientId, scope) {
+        if (!clientId) throw new Error('Google client ID not configured');
+        await _loadGis();
+        return new Promise((resolve, reject) => {
+            const client = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: scope,
+                callback: (resp) => {
+                    if (resp && resp.access_token) resolve(resp.access_token);
+                    else reject(new Error(resp && resp.error ? resp.error : 'No access token'));
+                },
+                error_callback: (err) => {
+                    reject(new Error(err && err.type ? 'Google sign-in: ' + err.type : 'Google sign-in cancelled'));
+                },
+            });
+            client.requestAccessToken({ prompt: '' });
+        });
+    }
+
+    async function _driveListAppData(token) {
+        const url = 'https://www.googleapis.com/drive/v3/files'
+            + '?spaces=appDataFolder'
+            + '&fields=' + encodeURIComponent('files(id,name,modifiedTime,size)')
+            + '&orderBy=modifiedTime%20desc'
+            + '&pageSize=100';
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) throw new Error('Drive list failed: ' + r.status);
+        const j = await r.json();
+        return j.files || [];
+    }
+
+    async function _driveDownload(token, fileId) {
+        const url = 'https://www.googleapis.com/drive/v3/files/'
+            + encodeURIComponent(fileId) + '?alt=media';
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) throw new Error('Drive download failed: ' + r.status);
+        return r.text();
+    }
+
+    // Fren Finder's OWN backup lives under an internal filename in its app-data
+    // folder. Returns { id, blob } for the most recent valid one, or null.
+    const FF_APPDATA_FILE = 'fren-finder-account.json';
+    async function _findOwnBackup(token) {
+        const files = await _driveListAppData(token);
+        const own = files.filter(f => f.name === FF_APPDATA_FILE);
+        for (const f of own) {
+            try {
+                const blob = JSON.parse(await _driveDownload(token, f.id));
+                if (blob && blob.kind === BACKUP_KIND && blob.v === 1) return { id: f.id, blob };
+            } catch { /* skip */ }
+        }
+        return null;
+    }
+
+    // ---- Drive writes (multipart create / media update) ------------------
+
+    async function _driveCreateFile(token, metadata, content) {
+        const boundary = 'ff-' + randomHex(8);
+        const body =
+            '--' + boundary + '\r\n' +
+            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+            JSON.stringify(metadata) + '\r\n' +
+            '--' + boundary + '\r\n' +
+            'Content-Type: application/json\r\n\r\n' +
+            content + '\r\n' +
+            '--' + boundary + '--';
+        const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary },
+            body,
+        });
+        if (!r.ok) throw new Error('Drive upload failed: ' + r.status);
+        return (await r.json()).id;
+    }
+
+    async function _driveUpdateContent(token, fileId, content) {
+        const r = await fetch('https://www.googleapis.com/upload/drive/v3/files/'
+            + encodeURIComponent(fileId) + '?uploadType=media', {
+            method: 'PATCH',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: content,
+        });
+        if (!r.ok) throw new Error('Drive update failed: ' + r.status);
+        return fileId;
+    }
+
+    // Write Fren Finder's own backup into its app-data folder (create or update).
+    async function _writeOwnBackup(token, blob, existingId) {
+        const content = JSON.stringify(blob);
+        if (existingId) return _driveUpdateContent(token, existingId, content);
+        return _driveCreateFile(token, { name: FF_APPDATA_FILE, parents: ['appDataFolder'] }, content);
+    }
+
+    // Write the portable, cross-app blob to My Drive root under the well-known
+    // name. drive.file lets us create files in the user's Drive that we own.
+    async function _writePortableBackup(token, blob) {
+        const content = JSON.stringify(blob);
+        return _driveCreateFile(token, { name: 'nostr-key-backup.json' }, content);
+    }
+
+    // ---- Stage 2: cross-app discovery via Google Picker (drive.file) -----
+    // Separate project, no shared sandbox: the user picks the backup file from
+    // their normal Drive. drive.file then grants this app access to just that
+    // file, which we download and feed to the same decrypt path as Stage 1.
+
+    let _gapiPickerLoaded = null;
+    function _loadPicker() {
+        if (_gapiPickerLoaded) return _gapiPickerLoaded;
+        _gapiPickerLoaded = new Promise((resolve, reject) => {
+            const ready = () => gapi.load('picker', { callback: resolve, onerror: () => reject(new Error('Failed to load Google Picker')) });
+            if (window.gapi && window.gapi.load) return ready();
+            const s = document.createElement('script');
+            s.src = 'https://apis.google.com/js/api.js';
+            s.async = true; s.defer = true;
+            s.onload = ready;
+            s.onerror = () => reject(new Error('Failed to load Google API'));
+            document.head.appendChild(s);
+        });
+        return _gapiPickerLoaded;
+    }
+
+    // Open the Picker over the user's Drive (JSON files) and resolve with the
+    // selected file's id, or null if the user cancels.
+    async function _pickBackupFile(token) {
+        await _loadPicker();
+        return new Promise((resolve, reject) => {
+            try {
+                const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                    .setMimeTypes('application/json')
+                    .setSelectFolderEnabled(false)
+                    .setMode(google.picker.DocsViewMode.LIST);
+                const picker = new google.picker.PickerBuilder()
+                    .setOAuthToken(token)
+                    .setDeveloperKey(PICKER_API_KEY)
+                    .setAppId(PICKER_APP_ID)
+                    .addView(view)
+                    .setTitle('Select your Nostr key backup (nostr-key-backup.json)')
+                    .setCallback((data) => {
+                        const action = data[google.picker.Response.ACTION];
+                        if (action === google.picker.Action.PICKED) {
+                            const doc = data[google.picker.Response.DOCUMENTS][0];
+                            resolve(doc[google.picker.Document.ID]);
+                        } else if (action === google.picker.Action.CANCEL) {
+                            resolve(null);
+                        }
+                    })
+                    .build();
+                picker.setVisible(true);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    // ---- UI flow: single unified "Continue with Google" ------------------
+    // States: checking → (recover | import | create) → [portable]. The same
+    // modal hosts every step; only one section is visible at a time.
+
+    let _googleAppDataToken = null; // drive.appdata token for the modal session
+    let _pendingBackupBlob = null;  // blob awaiting a PIN/passphrase (recover/import/swap)
+    let _pendingPortableKey = null; // live session key, for an optional portable export
+    let _googleMode = null;         // 'recover' | 'import' | 'swap'
+    let _ownBackupId = null;        // Drive file id of the cached app-data backup
+    let _pinFailCount = 0;          // wrong-PIN attempts on the cached account
+
+    function _setGoogleStatus(msg, isError) {
+        const el = document.getElementById('google-recovery-status');
+        if (!el) return;
+        el.textContent = msg || '';
+        el.style.color = isError ? 'var(--accent-danger, #e5484d)' : 'var(--text-secondary, #888)';
+    }
+
+    // Show exactly one step section ('choice' | 'unlock' | 'create' | 'portable'),
+    // or none (null) while a network step is in flight.
+    function _showGoogleStep(step) {
+        ['choice', 'unlock', 'create', 'portable'].forEach(s => {
+            const el = document.getElementById('google-' + s);
+            if (el) el.style.display = (s === step) ? (s === 'choice' ? 'flex' : 'block') : 'none';
+        });
+    }
+
+    async function startGoogleLogin() {
+        _resetGoogleState();
+        showGoogleModal();
+        _setGoogleStatus('Opening Google sign-in…', false);
+        try {
+            const token = await _requestGoogleToken(GOOGLE_OAUTH_CLIENT_ID, DRIVE_APPDATA_SCOPE);
+            _googleAppDataToken = token;
+            _setGoogleStatus('Checking your account…', false);
+            const own = await _findOwnBackup(token);
+            if (own) {
+                // Returning user → native recovery.
+                _pendingBackupBlob = own.blob;
+                _ownBackupId = own.id;   // remember it so "recover different" can overwrite it
+                _googleMode = 'recover';
+                _pinFailCount = 0;
+                document.getElementById('google-unlock-label').textContent = 'Backup PIN';
+                document.getElementById('google-recovery-pin').placeholder = 'Enter your PIN';
+                _showGoogleStep('unlock');
+                _showRecoverDifferentLink(true); // escape hatch for a different account
+                _setGoogleStatus('Welcome back. Enter your PIN to unlock.', false);
+                document.getElementById('google-recovery-pin').focus();
+            } else {
+                // New to Fren Finder → offer import or create.
+                _showGoogleStep('choice');
+                _setGoogleStatus('No Fren Finder account here yet.', false);
+            }
+        } catch (err) {
+            console.error('Google login error:', err.message);
+            _setGoogleStatus(err.message || 'Google sign-in failed', true);
+        }
+    }
+
+    // Whether the Picker import path is available in this build.
+    function _pickerAvailable() { return !!PICKER_API_KEY; }
+
+    function _showRecoverDifferentLink(show) {
+        const el = document.getElementById('google-recover-different-wrap');
+        if (el) el.style.display = (show && _pickerAvailable()) ? 'block' : 'none';
+    }
+
+    // Open the Picker (drive.file) and return a validated v1 backup blob, or
+    // null if the user cancels. Throws on a bad/foreign file.
+    async function _pickAndLoadBlob() {
+        const token = await _requestGoogleToken(GOOGLE_OAUTH_CLIENT_ID, DRIVE_FILE_SCOPE);
+        _setGoogleStatus('Choose your backup file…', false);
+        const fileId = await _pickBackupFile(token);
+        if (!fileId) return null;
+        _setGoogleStatus('Reading backup…', false);
+        let blob;
+        try { blob = JSON.parse(await _driveDownload(token, fileId)); }
+        catch { throw new Error('That file is not valid JSON.'); }
+        if (!blob || blob.kind !== BACKUP_KIND || blob.v !== 1) {
+            throw new Error('That file is not a Nostr key backup (v1).');
+        }
+        return blob;
+    }
+
+    // Show the unlock step for a freshly Picker-selected blob (import or swap).
+    function _enterPickedUnlock(blob, mode) {
+        _pendingBackupBlob = blob;
+        _googleMode = mode;
+        _pinFailCount = 0;
+        document.getElementById('google-unlock-label').textContent = 'Backup PIN / passphrase';
+        const pin = document.getElementById('google-recovery-pin');
+        pin.value = '';   // don't carry a stale PIN onto the new file's screen
+        pin.placeholder = 'Enter the backup PIN/passphrase';
+        _showRecoverDifferentLink(false); // it's a chosen file, not the cached one
+        _showGoogleStep('unlock');
+        _setGoogleStatus('Backup found. Enter its PIN/passphrase to unlock.', false);
+        document.getElementById('google-recovery-pin').focus();
+    }
+
+    // Choice A: import a backup another app wrote, via the Picker (drive.file).
+    async function startGoogleImport() {
+        _showGoogleStep(null);
+        _setGoogleStatus('Opening Google Drive…', false);
+        try {
+            const blob = await _pickAndLoadBlob();
+            if (!blob) { _showGoogleStep('choice'); _setGoogleStatus('No file selected.', true); return; }
+            _enterPickedUnlock(blob, 'import');
+        } catch (err) {
+            console.error('Google import error:', err.message);
+            _showGoogleStep('choice');
+            _setGoogleStatus(err.message || 'Import failed', true);
+        }
+    }
+
+    // Escape hatch from the cached-account PIN screen: pick a DIFFERENT account's
+    // backup from Drive. On unlock it overwrites the cached app-data blob (swap).
+    async function recoverDifferentAccount() {
+        _showGoogleStep(null);
+        _setGoogleStatus('Opening Google Drive…', false);
+        try {
+            const blob = await _pickAndLoadBlob();
+            if (!blob) {
+                // Return to the cached-account PIN screen unchanged.
+                _showGoogleStep('unlock');
+                _showRecoverDifferentLink(true);
+                _setGoogleStatus('No file selected.', true);
+                return;
+            }
+            _enterPickedUnlock(blob, 'swap');
+        } catch (err) {
+            console.error('Recover-different error:', err.message);
+            _showGoogleStep('unlock');
+            _showRecoverDifferentLink(true);
+            _setGoogleStatus(err.message || 'Could not open Drive', true);
+        }
+    }
+
+    // Unlock step: decrypt the pending blob (recover or import) and log in.
+    // On import, copy the blob into Fren Finder's app-data so next time is native.
+    async function unlockGoogleBackup() {
+        const input = document.getElementById('google-recovery-pin');
+        const secret = input ? input.value : '';
+        if (!secret) { _setGoogleStatus('Enter your PIN/passphrase.', true); return; }
+        if (!_pendingBackupBlob) { _setGoogleStatus('No backup loaded.', true); return; }
+        _setGoogleStatus('Unlocking…', false);
+        let secretKey = null;
+        try {
+            secretKey = await recoverKeyFromBackup(_pendingBackupBlob, secret);
+            const npub = nip19.npubEncode(NostrTools.getPublicKey(secretKey));
+
+            // 'import' adopts a new blob (create); 'swap' overwrites the cached
+            // one (update _ownBackupId) so the new account becomes native.
+            if ((_googleMode === 'import' || _googleMode === 'swap') && _googleAppDataToken) {
+                try { await _writeOwnBackup(_googleAppDataToken, _pendingBackupBlob, _ownBackupId); }
+                catch (e) { console.warn('Could not save backup into app-data:', e.message); }
+            }
+
+            _setGoogleStatus('Recovered ' + npub.slice(0, 20) + '… — logging in', false);
+            finishNsecLogin(secretKey); // hands the key to the existing nsec session
+            secretKey = null;           // ownership moved into SecureKeyStore
+            hideGoogleModal();
+        } catch (err) {
+            console.error('Unlock failed:', err.message);
+            // After a couple of wrong PINs on the cached account, nudge toward
+            // recovering a different account instead of just repeating the error.
+            if (_googleMode === 'recover') {
+                _pinFailCount++;
+                _showRecoverDifferentLink(true);
+                if (_pinFailCount >= 2 && _pickerAvailable()) {
+                    _setGoogleStatus('Wrong PIN. Trying a different account? Use the link below.', true);
+                } else {
+                    _setGoogleStatus(err.message || 'Unlock failed', true);
+                }
+            } else {
+                _setGoogleStatus(err.message || 'Unlock failed', true);
+            }
+        } finally {
+            if (input) input.value = '';           // never retain the secret
+            if (secretKey) secretKey.fill(0);      // wipe on failure
+        }
+    }
+
+    // Choice B: create a brand-new account, back it up to app-data, log in.
+    async function createGoogleAccount() {
+        const pin = (document.getElementById('google-create-pin') || {}).value || '';
+        const pin2 = (document.getElementById('google-create-pin2') || {}).value || '';
+        try { validateBackupPassphrase(pin); } catch (e) { _setGoogleStatus(e.message, true); return; }
+        if (pin !== pin2) { _setGoogleStatus('Passphrases do not match.', true); return; }
+        if (!_googleAppDataToken) { _setGoogleStatus('Not signed in to Google.', true); return; }
+
+        _setGoogleStatus('Creating your account…', false);
+        let secretKey = null;
+        try {
+            secretKey = NostrTools.generateSecretKey();
+            const blob = await createBackupBlob(secretKey, pin);
+            // Back up FIRST — an account with no backup is not what we promised.
+            await _writeOwnBackup(_googleAppDataToken, blob, null);
+
+            finishNsecLogin(secretKey);   // SecureKeyStore now owns this reference
+            _pendingPortableKey = secretKey; // same live key, for optional export
+            secretKey = null;                // don't wipe — it's the session key now
+
+            // Clear the PIN inputs immediately.
+            ['google-create-pin', 'google-create-pin2'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+
+            const npub = nip19.npubEncode(NostrTools.getPublicKey(_pendingPortableKey));
+            _setGoogleStatus('Account created: ' + npub.slice(0, 20) + '…', false);
+            _showGoogleStep('portable');
+        } catch (err) {
+            console.error('Account creation failed:', err.message);
+            if (secretKey) secretKey.fill(0); // creation aborted — wipe the key
+            _setGoogleStatus(err.message || 'Could not create account', true);
+        }
+    }
+
+    // Optional portable export: an independent strong-passphrase blob written to
+    // My Drive under the well-known filename, recoverable by any compatible app.
+    async function makePortableBackup() {
+        const input = document.getElementById('google-portable-pass');
+        const pass = input ? input.value : '';
+        try { validateBackupPassphrase(pass); } catch (e) { _setGoogleStatus(e.message, true); return; }
+        if (!_pendingPortableKey) { _setGoogleStatus('No account to export.', true); return; }
+
+        _setGoogleStatus('Writing portable backup…', false);
+        try {
+            const token = await _requestGoogleToken(GOOGLE_OAUTH_CLIENT_ID, DRIVE_FILE_SCOPE);
+            const blob = await createBackupBlob(_pendingPortableKey, pass); // independent DEK + salt
+            await _writePortableBackup(token, blob);
+            if (input) input.value = '';
+            _setGoogleStatus('Portable backup saved to your Drive.', false);
+            setTimeout(hideGoogleModal, 1200);
+        } catch (err) {
+            console.error('Portable export failed:', err.message);
+            _setGoogleStatus(err.message || 'Could not write portable backup', true);
+        }
+    }
+
+    function showGoogleModal() {
+        const modal = document.getElementById('google-recovery-modal');
+        if (!modal) return;
+        _showGoogleStep(null);
+        _showRecoverDifferentLink(false);
+        ['google-recovery-pin', 'google-create-pin', 'google-create-pin2', 'google-portable-pass']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        _setGoogleStatus('', false);
+        modal.classList.add('visible');
+    }
+
+    function _resetGoogleState() {
+        _googleAppDataToken = null;
+        _pendingBackupBlob = null;
+        _pendingPortableKey = null; // drop ref only; SecureKeyStore owns the live key
+        _googleMode = null;
+        _ownBackupId = null;
+        _pinFailCount = 0;
+    }
+
+    function hideGoogleModal() {
+        const modal = document.getElementById('google-recovery-modal');
+        if (modal) modal.classList.remove('visible');
+        ['google-recovery-pin', 'google-create-pin', 'google-create-pin2', 'google-portable-pass']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        _resetGoogleState();
     }
 
     // =====================================================================
@@ -4146,6 +4884,28 @@ document.querySelectorAll('.mode-card').forEach(card => {
         return mod.v2.decrypt(ciphertext, ck);
     }
 
+    function validBunkerEvent(ev, clientPk, signerPk = null) {
+        try {
+            return !!(ev && ev.kind === 24133 && validPubkey(ev.pubkey) && (!signerPk || ev.pubkey === signerPk) &&
+                Array.isArray(ev.tags) && ev.tags.some(t => Array.isArray(t) && t[0] === 'p' && t[1] === clientPk) &&
+                NostrTools.verifyEvent(ev));
+        } catch { return false; }
+    }
+
+    function openBunkerAuthUrl(value) {
+        const url = new URL(value);
+        if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Unsafe signer authorization URL');
+        window.open(url.href, '_blank', 'noopener,noreferrer,width=600,height=700');
+    }
+
+    function failBunkerLogin(error) {
+        _bunkerSession?.clientSk?.fill(0);
+        _bunkerSession = null;
+        _bunkerConnecting = false;
+        _clearBunkerSession();
+        updateBunkerUI('error', error.message || 'Unable to verify signer identity');
+    }
+
     async function bunkerRequest(method, params = []) {
         if (!_bunkerSession) throw new Error('No bunker session');
         const { clientSk, clientPk, signerPk, relays } = _bunkerSession;
@@ -4170,11 +4930,12 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const sub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
                 async onevent(ev) {
                     try {
+                        if (settled || !validBunkerEvent(ev, clientPk, signerPk)) return;
                         const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
                         const resp = JSON.parse(decrypted);
-                        if (resp.id !== reqId) return;
+                        if (_bunkerSession?.clientSk !== clientSk || !resp || resp.id !== reqId) return;
                         if (resp.result === 'auth_url' && resp.error) {
-                            window.open(resp.error, '_blank', 'width=600,height=700');
+                            openBunkerAuthUrl(resp.error);
                             return;
                         }
                         if (settled) return;
@@ -4199,7 +4960,12 @@ document.querySelectorAll('.mode-card').forEach(card => {
             created_at: eventTemplate.created_at || Math.floor(Date.now() / 1000),
         };
         const resultStr = await bunkerRequest('sign_event', [JSON.stringify(unsigned)]);
-        return JSON.parse(resultStr);
+        const signed = JSON.parse(resultStr);
+        if (!signed || signed.pubkey !== _bunkerSession?.userPk ||
+            signed.kind !== unsigned.kind || signed.content !== unsigned.content ||
+            signed.created_at !== unsigned.created_at || JSON.stringify(signed.tags) !== JSON.stringify(unsigned.tags) ||
+            !NostrTools.verifyEvent(signed)) throw new Error('Signer returned an invalid or altered event');
+        return signed;
     }
 
     async function startBunkerClientFlow() {
@@ -4214,28 +4980,21 @@ document.querySelectorAll('.mode-card').forEach(card => {
         const relayParams = relays.map(r => `relay=${encodeURIComponent(r)}`).join('&');
         const connectUri = `nostrconnect://${clientPk}?${relayParams}&secret=${secret}&name=${encodeURIComponent('Fren Finder')}&perms=${encodeURIComponent('sign_event:3')}`;
 
+        _bunkerSession = { clientSk, clientPk, signerPk: null, userPk: null, relays, sub: null };
         await Promise.allSettled(relays.map(url => pool.ensureRelay(url)));
+        if (!_bunkerConnecting || _bunkerSession?.clientSk !== clientSk) { clientSk.fill(0); return; }
         const sinceTs = Math.floor(Date.now() / 1000) - 60;
 
         let settled = false;
 
         const sub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
             async onevent(ev) {
-                if (settled) return;
+                if (settled || !_bunkerConnecting || _bunkerSession?.clientSk !== clientSk || !validBunkerEvent(ev, clientPk)) return;
                 try {
                     const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
                     const resp = JSON.parse(decrypted);
 
-                    if (resp.error && resp.result !== 'auth_url') {
-                        updateBunkerUI('error', 'Connection rejected: ' + resp.error);
-                        _bunkerConnecting = false; settled = true; sub.close();
-                        return;
-                    }
-                    if (resp.result === 'auth_url' && resp.error) {
-                        window.open(resp.error, '_blank', 'width=600,height=700');
-                        return;
-                    }
-                    if (resp.result !== secret && resp.result !== 'ack') return;
+                    if (_bunkerSession?.clientSk !== clientSk || !resp || resp.error || resp.result !== secret) return;
 
                     settled = true;
                     const signerPk = ev.pubkey;
@@ -4246,11 +5005,11 @@ document.querySelectorAll('.mode-card').forEach(card => {
 
                     try {
                         const userPk = await bunkerRequest('get_public_key');
+                        if (_bunkerSession?.clientSk !== clientSk) return;
                         _bunkerSession.userPk = userPk;
                         await completeBunkerLogin(userPk);
                     } catch (e) {
-                        _bunkerSession.userPk = signerPk;
-                        await completeBunkerLogin(signerPk);
+                        if (_bunkerSession?.clientSk === clientSk) failBunkerLogin(e);
                     }
                 } catch (e) { /* not for us */ }
             },
@@ -4280,29 +5039,22 @@ document.querySelectorAll('.mode-card').forEach(card => {
                     const freshSince = Math.floor(Date.now() / 1000) - 180;
                     const newSub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: freshSince }], {
                         async onevent(ev) {
-                            if (settled) return;
+                            if (settled || !_bunkerConnecting || _bunkerSession?.clientSk !== clientSk || !validBunkerEvent(ev, clientPk)) return;
                             try {
                                 const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
                                 const resp = JSON.parse(decrypted);
-                                if (resp.error && resp.result !== 'auth_url') {
-                                    updateBunkerUI('error', resp.error);
-                                    _bunkerConnecting = false; settled = true; return;
-                                }
-                                if (resp.result === 'auth_url' && resp.error) {
-                                    window.open(resp.error, '_blank', 'width=600,height=700'); return;
-                                }
-                                if (resp.result !== secret && resp.result !== 'ack') return;
+                                if (_bunkerSession?.clientSk !== clientSk || !resp || resp.error || resp.result !== secret) return;
                                 settled = true; newSub.close();
                                 const signerPk = ev.pubkey;
                                 _bunkerSession = { clientSk, clientPk, signerPk, userPk: null, relays, sub: null };
                                 updateBunkerUI('waiting', 'Connected! Fetching identity…');
                                 try {
                                     const userPk = await bunkerRequest('get_public_key');
+                                    if (_bunkerSession?.clientSk !== clientSk) return;
                                     _bunkerSession.userPk = userPk;
                                     await completeBunkerLogin(userPk);
                                 } catch (e2) {
-                                    _bunkerSession.userPk = signerPk;
-                                    await completeBunkerLogin(signerPk);
+                                    if (_bunkerSession?.clientSk === clientSk) failBunkerLogin(e2);
                                 }
                             } catch (e) {}
                         },
@@ -4334,8 +5086,9 @@ document.querySelectorAll('.mode-card').forEach(card => {
             const url = new URL(bunkerUrl);
             if (url.protocol !== 'bunker:') throw new Error('Invalid bunker URL');
             const signerPk = url.hostname || url.pathname.replace(/^\/\//, '');
-            if (!signerPk || signerPk.length !== 64) throw new Error('Invalid signer pubkey');
+            if (!validPubkey(signerPk)) throw new Error('Invalid signer pubkey');
             const relays = url.searchParams.getAll('relay');
+            if (relays.length > 8 || relays.some(r => { try { const u = new URL(r); return u.protocol !== 'wss:' || !!u.username || !!u.password; } catch { return true; } })) throw new Error('Invalid signer relays');
             if (!relays.length) throw new Error('No relays in bunker URL');
             const secret = url.searchParams.get('secret') || '';
 
@@ -4345,32 +5098,36 @@ document.querySelectorAll('.mode-card').forEach(card => {
             updateBunkerUI('waiting', 'Connecting to remote signer…');
 
             await Promise.allSettled(relays.map(u => pool.ensureRelay(u)));
+            if (!_bunkerConnecting || _bunkerSession?.clientSk !== clientSk) { clientSk.fill(0); return; }
             const sinceTs = Math.floor(Date.now() / 1000) - 60;
             let settled = false;
 
+            const reqId = randomHex(16);
             const responseSub = pool.subscribeMany(relays, [{ kinds: [24133], '#p': [clientPk], since: sinceTs }], {
                 async onevent(ev) {
-                    if (settled) return;
+                    if (settled || !_bunkerConnecting || _bunkerSession?.clientSk !== clientSk || !validBunkerEvent(ev, clientPk, signerPk)) return;
                     try {
                         const decrypted = await nip44Decrypt(clientSk, ev.pubkey, ev.content);
                         const resp = JSON.parse(decrypted);
+                        if (_bunkerSession?.clientSk !== clientSk || !resp || resp.id !== reqId) return;
                         if (resp.result === 'auth_url' && resp.error) {
-                            window.open(resp.error, '_blank', 'width=600,height=700'); return;
+                            openBunkerAuthUrl(resp.error); return;
                         }
                         if (resp.error && resp.result !== 'auth_url') {
                             updateBunkerUI('error', resp.error);
                             _bunkerConnecting = false; settled = true; responseSub.close(); return;
                         }
+                        if (resp.result !== 'ack' && (!secret || resp.result !== secret)) return;
                         settled = true; responseSub.close();
                         _bunkerSession.sub = null;
                         updateBunkerUI('waiting', 'Connected! Fetching identity…');
                         try {
                             const userPk = await bunkerRequest('get_public_key');
+                            if (_bunkerSession?.clientSk !== clientSk) return;
                             _bunkerSession.userPk = userPk;
                             await completeBunkerLogin(userPk);
                         } catch (e) {
-                            _bunkerSession.userPk = signerPk;
-                            await completeBunkerLogin(signerPk);
+                            if (_bunkerSession?.clientSk === clientSk) failBunkerLogin(e);
                         }
                     } catch (e) {}
                 },
@@ -4379,7 +5136,6 @@ document.querySelectorAll('.mode-card').forEach(card => {
             _bunkerSession.sub = responseSub;
 
             // Send connect request
-            const reqId = randomHex(8);
             const connectPayload = JSON.stringify({ id: reqId, method: 'connect', params: [signerPk, secret, 'sign_event:3'] });
             const encrypted = await nip44Encrypt(clientSk, signerPk, connectPayload);
             const signedEv = NostrTools.finalizeEvent({
@@ -4396,6 +5152,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
     }
 
     async function completeBunkerLogin(userPk) {
+        if (!validPubkey(userPk)) throw new Error('Invalid signer user public key');
         clearTimeout(_bunkerRefreshTimer);
         const npub = nip19.npubEncode(userPk);
         currentUser = { pubkey: userPk, npub, profile: {}, loginMethod: 'bunker' };
@@ -4604,13 +5361,15 @@ document.querySelectorAll('.mode-card').forEach(card => {
             nsecInactivityTimer = null;
         }
         
-        // Clear the secure key store
+        // Clear the secure key store and pending backup credentials.
         SecureKeyStore.clear();
+        hideGoogleModal();
 
         // Clean up bunker session
         stopBunkerHeartbeat();
         if (_bunkerSession) {
             try { _bunkerSession.sub?.close(); } catch (e) {}
+            _bunkerSession.clientSk?.fill(0);
             _bunkerSession = null;
         }
         _bunkerConnecting = false;
@@ -4693,13 +5452,18 @@ document.querySelectorAll('.mode-card').forEach(card => {
             
             userSection.innerHTML = `
                 <div class="user-info-combined" id="user-info-logout">
-                    <img src="${picture}" class="user-avatar" onerror="this.src='https://robohash.org/${currentUser.pubkey}?set=set5'">
+                    <img class="user-avatar" alt="">
                     <div class="user-details">
-                        <span class="user-name">${name}${viewBadge}</span>
+                        <span class="user-name"></span>
                         <span class="user-action">Logout</span>
                     </div>
                 </div>
             `;
+            const nameNode = userSection.querySelector('.user-name');
+            nameNode.textContent = safeText(name) || 'Anon';
+            // viewBadge contains only application-owned constant markup.
+            nameNode.insertAdjacentHTML('beforeend', viewBadge);
+            setProfileImage(userSection.querySelector('.user-avatar'), picture, currentUser.pubkey);
             document.getElementById('user-info-logout').addEventListener('click', logout);
         } else {
             npubInput.value = '';
@@ -4709,6 +5473,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
                 <div class="login-dropdown">
                     <button class="btn btn-login" id="login-btn">Login</button>
                     <div class="login-menu" id="login-menu">
+                        <div class="login-option" id="google-login-option">Continue with Google</div>
                         <div class="login-option" id="extension-login">Extension Login</div>
                         <div class="login-option" id="bunker-login-option">Remote Signer (NIP-46)</div>
                         <div class="login-option" id="nsec-login-option">Private Key (nsec)</div>
@@ -4725,6 +5490,11 @@ document.querySelectorAll('.mode-card').forEach(card => {
                 loginMenu.classList.toggle('visible');
             });
             
+            document.getElementById('google-login-option').addEventListener('click', function() {
+                loginMenu.classList.remove('visible');
+                startGoogleLogin();
+            });
+
             document.getElementById('extension-login').addEventListener('click', function() {
                 loginMenu.classList.remove('visible');
                 loginWithExtension();
@@ -6153,13 +6923,13 @@ console.log('User follows (locked snapshot):', userFollows.length);
         const caption = modal.querySelector('.image-modal-caption');
         const bioDiv = modal.querySelector('.image-modal-bio');
         
-        img.src = imageUrl;
+        img.src = safeImageUrl(imageUrl);
         caption.textContent = name;
         
         // HTML escape function for bio
         const escapeHtml = (unsafe) => {
             if (!unsafe) return '';
-            return unsafe
+            return safeText(unsafe)
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -6183,8 +6953,6 @@ console.log('User follows (locked snapshot):', userFollows.length);
                         ratingDiv.innerHTML = `<a href="${psUrl}" target="_blank" rel="noopener noreferrer"
                             style="display:inline-flex;align-items:center;gap:0.5rem;text-decoration:none;color:inherit;
                             padding:0.4rem 0.8rem;border-radius:0.5rem;transition:background 0.15s;"
-                            onmouseover="this.style.background='rgba(232,196,108,0.12)'"
-                            onmouseout="this.style.background='transparent'"
                             title="View on PubScore">
                             ${ratingContent}
                             <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-left:0.3rem;">
@@ -6202,13 +6970,15 @@ console.log('User follows (locked snapshot):', userFollows.length);
     }
 
     function createProfileCard(fren) {
+        if (!validPubkey(fren.pubkey)) throw new Error('Invalid profile public key');
+        const npub = nip19.npubEncode(fren.pubkey);
         const card = document.createElement('div');
         card.className = 'fren-card';
         
         // HTML escape function to prevent XSS
         const escapeHtml = (unsafe) => {
             if (!unsafe) return '';
-            return unsafe
+            return safeText(unsafe)
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -6216,25 +6986,11 @@ console.log('User follows (locked snapshot):', userFollows.length);
                 .replace(/'/g, "&#039;");
         };
         
-        // URL sanitization to prevent javascript: and data: URLs
-        const sanitizeUrl = (url) => {
-            if (!url || typeof url !== 'string') return '';
-            const trimmed = url.trim().toLowerCase();
-            // Block dangerous protocols
-            if (trimmed.startsWith('javascript:') || 
-                trimmed.startsWith('data:') || 
-                trimmed.startsWith('vbscript:') ||
-                trimmed.startsWith('file:')) {
-                return ''; // Return empty string for dangerous URLs
-            }
-            return url.trim(); // Return original (non-lowercased) URL
-        };
-        
         if (fren.isFollowing) {
             card.classList.add('already-following');
         }
         
-        const about = fren.about || '';
+        const about = safeText(fren.about);
         const hashtags = (about.match(/#\w+/g) || []).slice(0, 3).map(t => t.substring(1));
         
         let metricsHTML = '<div class="metrics-container">';
@@ -6250,7 +7006,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
         }
         
         if (fren.scores.breakdown.social > 40) {
-            metricsHTML += `<span class="metric-badge high">${fren.mutual || 0} Mutual</span>`;
+            metricsHTML += `<span class="metric-badge high">${safeCount(fren.mutual)} Mutual</span>`;
         }
         if (fren.scores.breakdown.interests > 40) {
             metricsHTML += `<span class="metric-badge medium">${hashtags.length} Tags</span>`;
@@ -6267,7 +7023,7 @@ console.log('User follows (locked snapshot):', userFollows.length);
         let displayName;
 
 if (fren.hasMetadata && fren.name) {
-  displayName = fren.name;
+  displayName = safeText(fren.name);
 } else if (fren.status === 'missing') {
   displayName = 'Anonymous';
 } else if (fren.status === 'parse_error') {
@@ -6284,7 +7040,7 @@ if (!displayName) {
 }
 
 const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
-        const rawPicture = sanitizeUrl(fren.picture);
+        const rawPicture = safeImageUrl(fren.picture);
         const picture = rawPicture || `https://robohash.org/${fren.pubkey}?set=set5`;
         const aboutSafe = (about || '').substring(0, 500); // Max 500 chars for bio
         const bioText = escapeHtml(aboutSafe.substring(0, 150)) + (aboutSafe.length > 150 ? '...' : '');
@@ -6311,16 +7067,14 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
         
         card.innerHTML = `
             <div class="fren-header">
-                <img src="${picture}" 
-                     class="fren-avatar" 
-                     onerror="this.src='https://robohash.org/${fren.pubkey}?set=set5'">
+                <img class="fren-avatar" alt="">
                 <div class="fren-info">
                     <div class="fren-name">${name}</div>
-                    <div class="fren-npub" onclick="copyNpub('${fren.npub}')">${fren.npub.substring(0,12)}...${fren.npub.substring(fren.npub.length - 6)}</div>
+                    <div class="fren-npub">${npub.substring(0,12)}...${npub.slice(-6)}</div>
                     ${nip05Display}
-                    <div class="star-rating loading" data-rating-pubkey="${fren.pubkey}" data-rating-npub="${fren.npub}">${generateStarsHtml(0)}<span class="rating-text">...</span></div>
+                    <div class="star-rating loading" data-rating-pubkey="${fren.pubkey}" data-rating-npub="${npub}">${generateStarsHtml(0)}<span class="rating-text">...</span></div>
                 </div>
-                <div class="match-score">${fren.scores.total}%</div>
+                <div class="match-score">${Math.min(100, safeCount(fren.scores.total))}%</div>
             </div>
             <p class="fren-bio">${bioText}</p>
             ${metricsHTML}
@@ -6335,10 +7089,16 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
                         ${!currentUser || currentUser.loginMethod === 'viewonly' ? 'disabled' : ''}>
                     ${fren.isFollowing ? 'Following' : 'Follow'}
                 </button>
-                <a href="#" onclick="event.preventDefault();window.open(getNostrProfileUrl('${fren.npub}'),'_blank','noopener,noreferrer')" class="btn-view-profile">View</a>
+                <a href="#" class="btn-view-profile">View</a>
             </div>
         `;
 
+        card.querySelector('.fren-npub').addEventListener('click', () => copyNpub(npub));
+        card.querySelector('.btn-view-profile').addEventListener('click', event => {
+            event.preventDefault();
+            window.open(getNostrProfileUrl(npub), '_blank', 'noopener,noreferrer');
+        });
+        setProfileImage(card.querySelector('.fren-avatar'), picture, fren.pubkey);
         const followBtn = card.querySelector('.btn-follow');
         followBtn.addEventListener('click', async () => {
             if (fren.isFollowing) return;
@@ -6360,7 +7120,7 @@ const name = escapeHtml(displayName.substring(0, 100)); // Max 100 chars
         avatar.style.cursor = 'pointer';
         avatar.addEventListener('click', (e) => {
             e.stopPropagation();
-            showImageModal(picture, name, fren.about || '', fren.pubkey, fren.npub);
+            showImageModal(picture, displayName, safeText(fren.about), fren.pubkey, npub);
         });
 
         return card;
@@ -6912,7 +7672,7 @@ if (recentActivityOnly) {
             }
         } catch (err) {
             console.error('Error:', err);
-            resultsGrid.innerHTML = `<p style="text-align:center;padding:2rem;color:var(--accent-primary)">Error: ${err.message}</p>`;
+            resultsGrid.textContent = 'Error: ' + err.message;
         } finally {
             findBtn.disabled = false;
             findBtn.textContent = 'Discover Frens';
@@ -7007,6 +7767,37 @@ if (recentActivityOnly) {
     document.getElementById('nsec-modal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideNsecModal();
+        }
+    });
+
+    // Continue-with-Google modal event listeners (unified create/recover)
+    document.getElementById('google-recovery-close').addEventListener('click', hideGoogleModal);
+    document.getElementById('google-recovery-cancel').addEventListener('click', hideGoogleModal);
+    document.getElementById('google-recovery-unlock').addEventListener('click', unlockGoogleBackup);
+    document.getElementById('google-choice-import').addEventListener('click', startGoogleImport);
+    document.getElementById('google-choice-create').addEventListener('click', () => _showGoogleStep('create'));
+    document.getElementById('google-create-cancel').addEventListener('click', () => _showGoogleStep('choice'));
+    document.getElementById('google-create-btn').addEventListener('click', createGoogleAccount);
+    document.getElementById('google-portable-skip').addEventListener('click', hideGoogleModal);
+    document.getElementById('google-portable-btn').addEventListener('click', makePortableBackup);
+    document.getElementById('google-recover-different').addEventListener('click', (e) => {
+        e.preventDefault();
+        recoverDifferentAccount();
+    });
+
+    document.getElementById('google-recovery-pin').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') unlockGoogleBackup();
+    });
+    document.getElementById('google-create-pin2').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') createGoogleAccount();
+    });
+    document.getElementById('google-portable-pass').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') makePortableBackup();
+    });
+
+    document.getElementById('google-recovery-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideGoogleModal();
         }
     });
 
